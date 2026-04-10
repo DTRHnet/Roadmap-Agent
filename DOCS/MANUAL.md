@@ -568,5 +568,7 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 | [README.md](../README.md) | Overview, env table, deployment |
 | [CHANGELOG.md](../CHANGELOG.md) | Release notes |
 | [examples/MOCK-WORKFLOW-SESSION.md](examples/MOCK-WORKFLOW-SESSION.md) | Illustrative mock logs (install → init → hub → roadmap) |
+| [examples/rma-context-samples/README.md](examples/rma-context-samples/README.md) | Sample `.rma` context files by project type; MCP (Model Context Protocol) notes |
+| [examples/END-TO-END-LIST-SHARING-APP.md](examples/END-TO-END-LIST-SHARING-APP.md) | End-to-end workflow example with mock transcripts |
 
 Unix manpage source: `DOCS/man/roadmap-agent.1`.

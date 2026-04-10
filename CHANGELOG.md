@@ -10,6 +10,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 - README section **MemPalace mining and the roadmap loop** (what mining is, directory / `--limit` / `--dry-run`, how it relates to `plan` → `execute-one` → `analyze`) and diagram [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg).
 - [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md) — walkthrough from importing ROADMAP-AGENT into a product repo through setup, `init`, context files, `doctor`, `plan`, mining, `execute-one` / `analyze`, with mock transcripts (example product: list-sharing with public lists, categories, permissions).
+- [`DOCS/examples/rma-context-samples/`](DOCS/examples/rma-context-samples/) — three example projects (**`weather-app`**, **`list-sharing`**, **`devtools-cli`**) each with `description.md`, `ui.md`, `stack.md`, `other.md`; index README documents **MCP** (Model Context Protocol) integration alongside `.rma/` files and contrasts with MemPalace.
 
 ### Fixed
 

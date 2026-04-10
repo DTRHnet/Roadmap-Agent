@@ -102,7 +102,7 @@ If prompted to overwrite, confirm only if you intend to reset templates.
 
 ## 5 — Fill context so the roadmap matches “ListHub”
 
-Edit the Markdown by hand (this is the **source of truth** for the tool’s view of your product).
+Edit the Markdown by hand (this is the **source of truth** for the tool’s view of your product). For **ready-made structure** you can adapt, see the sample bundles under **[`rma-context-samples/`](rma-context-samples/)** (for example **`list-sharing/`** aligns with this doc).
 
 **`.rma/description.md` (excerpt):**
 
