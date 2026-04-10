@@ -6,6 +6,10 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Changed
+
+- `DOCS/GETTING-STARTED.md`: links to `QUICKSTART.md` / `MANUAL.md`; Windows persistence notes updated for `setup-rma.ps1` user vs machine scope and PATH refresh.
+
 ## [0.2.0] - 2026-04-10
 
 ### Added

@@ -2,6 +2,8 @@
 
 This guide helps you get ROADMAP-AGENT running quickly and correctly.
 
+**Prefer OS-specific steps?** Use **[QUICKSTART.md](QUICKSTART.md)** (Windows, Linux, macOS, Docker). For full command and `.rma` authoring detail, see **[MANUAL.md](MANUAL.md)**.
+
 ## 1) Prerequisites
 
 - `git` (recommended for version/release metadata and project awareness)
@@ -78,7 +80,7 @@ Inside container, entrypoint routes into the same menu flow.
 
 If you want global command access:
 
-- Linux/macOS: `roadmap-agent persistence`
-- Windows (Admin PowerShell): `roadmap-agent persistence`
+- **Linux/macOS:** `roadmap-agent persistence` or `roadmap-agent persistence-check` (follow prompts; may use `sudo`).
+- **Windows:** from the cloned repo run `.\setup-rma.ps1 -Scope User` (no Administrator) or `-Scope Machine` from an elevated shell. See **QUICKSTART.md** for PATH refresh (`refresh-rma-path.ps1`) if `rma` is not found in the current window.
 
-This installs global wrappers and updates PATH without duplicate entries.
+Installers mirror the full app tree and deduplicate PATH entries where applicable.
