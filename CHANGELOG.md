@@ -6,6 +6,10 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Added
+
+- README section **MemPalace mining and the roadmap loop** (what mining is, directory / `--limit` / `--dry-run`, how it relates to `plan` → `execute-one` → `analyze`) and diagram [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg).
+
 ### Fixed
 
 - AI submenu **II / III** (`mempalace mine`): pass required **project directory** (`mempalace mine <dir>`) and use upstream **`--dry-run`** instead of invalid `--safe`. Optional **`RMA_MEMPALACE_MINE_DIR`** selects the mined tree (default: project root).

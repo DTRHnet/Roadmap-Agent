@@ -24,6 +24,7 @@
 | **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** | **Fast lane by OS** — clone, optional Python/MemPalace setup, `.env`, `init`, `doctor`, and global `rma` on Windows (`setup-rma.ps1`, PATH refresh). |
 | **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** | **Operator manual** — every command, interactive hub, writing `.rma` Markdown (`description`, `ui`, `stack`, `other`), `analyze` / `analyze-init`, LLM providers, persistence, safety. |
 | **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** | **Process guide** — plan → review → `execute-one` loop, keeping context fresh, low-risk habits. |
+| **[`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg)** | **Visual** — MemPalace mining (directory, limit, dry-run) vs roadmap loop; same concepts as the section below. |
 | **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
 | **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.3.0`, …). |
 
@@ -39,6 +40,43 @@
 - **Repo-aware analysis** — `analyze` keeps `tasks.md` / `run.md` honest; `analyze-init` drafts context files with preview (and LLM help when configured).
 - **MemPalace-backed workflows** — `plan` and safe **mine** use the real **mempalace** CLI (after `setup-local-models-mempalace`); no simulated mining or silent plan fallback unless you set **`RMA_ALLOW_PLAN_FALLBACK=1`** (dev-only).
 - **Run from anywhere (if you want)** — persistence installers for Windows, Linux, and macOS so `rma` can live on your PATH.
+
+---
+
+## MemPalace mining and the roadmap loop
+
+### What “mining” is
+
+**Mining** (in MemPalace) means **ingesting files from a directory on disk**—source, docs, notes—**into your local “palace”**: text is split into chunks, embedded, and stored (typically via **ChromaDB**) so the tool can **search**, **retrieve context**, and support downstream AI workflows. It is **not** crypto mining; it is **indexing your repo (or a subtree) into structured memory** you control offline.
+
+In ROADMAP-AGENT, the AI submenu runs the real upstream CLI in **safe (dry-run) mode** so you can preview work without committing ingest until you are ready to run MemPalace directly for a full ingest.
+
+### Arguments you pass (and what they mean)
+
+| Piece | Role |
+|--------|------|
+| **Directory** (`mempalace mine <dir>`) | **Required.** The tree MemPalace scans. In ROADMAP-AGENT this defaults to your **project root** (`ROOT_DIR`). Override with **`RMA_MEMPALACE_MINE_DIR`** (relative paths are resolved under the project root). |
+| **`--limit N`** | **Cap on how many files** are processed in this run (e.g. **200** on menu **II**, or **300 / 800 / 1500** on menu **III**). Smaller limits are faster and narrower; larger limits cover more of the tree in one go. **`0`** in MemPalace usually means “no cap” (upstream default); the menu always passes a positive number. |
+| **`--dry-run`** | **Preview only**—shows what **would** be filed into the palace **without** writing stored vectors for that run. The interactive menu uses dry-run so “safe mine” stays non-destructive; run **`mempalace mine …`** yourself without `--dry-run` when you want a full ingest. |
+
+Under the hood the shell invokes something equivalent to:
+
+```bash
+mempalace mine "<resolved_directory>" --limit <N> --dry-run
+```
+
+(Exact flags follow the installed **`mempalace`** package; see `mempalace mine --help`.)
+
+### How the two tracks fit together
+
+1. **Mining track (A)** — Refreshes **what the palace knows** about your files (preview via dry-run from the menu).
+2. **Roadmap track (B)** — **`init` → context in `.rma/` → `plan` → `execute-one` → `analyze`** to keep **`plan.md` / `tasks.md` / `run.md`** aligned with reality. You repeat (B) as the project moves; you run (A) when you want embeddings and search to reflect the latest tree.
+
+The palace and the roadmap files are complementary: the roadmap is **human-readable planning state** under `.rma/roadmaps/`; the palace is **retrieval-oriented memory** for tools that support MemPalace.
+
+### Visual overview
+
+![MemPalace mining and roadmap loop](DOCS/roadmap-mining-and-loop.svg)
 
 ---
 
@@ -85,6 +123,7 @@ RoadmapAgent/
       roadmap-agent.1
     examples/
       MOCK-WORKFLOW-SESSION.md   # Illustrative install → init → doctor → hub → roadmap logs
+    roadmap-mining-and-loop.svg  # Diagram: mining vs roadmap loop
 
   CHANGELOG.md
 ```
@@ -169,7 +208,7 @@ Windows PowerShell:
 .\rma.ps1
 ```
 
-**More detail:** **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** (by OS), **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** (full reference), **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
+**More detail:** **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** (by OS), **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** (full reference), **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg)** (mining vs roadmap diagram), **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
 
 ---
 
@@ -470,6 +509,7 @@ The runtime works without custom environment variables, but supports useful over
 - [`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md) — fastest path by OS (Windows, Linux, macOS, Docker)
 - [`DOCS/GETTING-STARTED.md`](DOCS/GETTING-STARTED.md) — short first-run checklist
 - [`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md) — effective plan → execute-one operating model
+- [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg) — diagram: MemPalace mining (directory, limit, dry-run) vs roadmap loop
 - [`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md) — fictional terminal log from install through hub, roadmap commands, and mock `.rma/logs` lines
 
 **Reference**
