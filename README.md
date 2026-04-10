@@ -20,7 +20,7 @@ Cross-platform, script-first Local AI Memory Palace CLI with a built-in Roadmap 
 
 > Replace the image below with your real terminal/menu screenshot when available.
 
-![ROADMAP-AGENT UI placeholder](roadmap-agent-ui-placeholder.svg)
+![ROADMAP-AGENT UI](main.svg)
 
 ---
 
