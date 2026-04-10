@@ -2,19 +2,17 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $rootDir = Split-Path -Parent (Split-Path -Parent $scriptDir)
 $cmd = if ($args.Count -gt 0) { $args[0].ToLowerInvariant() } else { "menu" }
 
-function Convert-ToBashPath([string]$PathValue) {
-    $p = $PathValue.Replace('\', '/')
-    if ($p -match '^([A-Za-z]):/(.*)$') {
-        return "/mnt/$($matches[1].ToLower())/$($matches[2])"
+if ($cmd -eq "persistence-check") {
+    $installer = Join-Path $scriptDir "install-persistence.ps1"
+    if (Test-Path $installer) {
+        & $installer -CheckOnly
+        exit $LASTEXITCODE
     }
-    return $p
+    Write-Host "Installer not found: $installer" -ForegroundColor Red
+    exit 1
 }
 
-function ConvertTo-BashArg([string]$v) {
-    return '"' + ($v -replace '"', '\"') + '"'
-}
-
-if ($cmd -eq "persistence" -or $cmd -eq "persistance" -or $cmd -eq "persistence-check") {
+if ($cmd -eq "persistence" -or $cmd -eq "persistance") {
     $installer = Join-Path $scriptDir "install-persistence.ps1"
     if (Test-Path $installer) {
         & $installer
@@ -27,13 +25,14 @@ if ($cmd -eq "persistence" -or $cmd -eq "persistance" -or $cmd -eq "persistence-
 $unixRuntime = Join-Path $rootDir "scripts/unix/roadmap-agent.sh"
 $bashCmd = Get-Command bash -ErrorAction SilentlyContinue
 if ($bashCmd -and (Test-Path $unixRuntime)) {
-    $runtimeBash = Convert-ToBashPath $unixRuntime
-    $cwdBash = Convert-ToBashPath ((Get-Location).Path)
+    $runtimeBash = "/mnt/" + $unixRuntime.Substring(0,1).ToLower() + "/" + $unixRuntime.Substring(3).Replace('\','/')
+    $cwd = (Get-Location).Path
+    $cwdBash = "/mnt/" + $cwd.Substring(0,1).ToLower() + "/" + $cwd.Substring(3).Replace('\','/')
     $argText = ""
     if ($args.Count -gt 0) {
-        $argText = ($args | ForEach-Object { ConvertTo-BashArg $_ }) -join " "
+        $argText = ($args | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join " "
     }
-    $scriptBlock = "export ROADMAP_AGENT_PROJECT_ROOT=$(ConvertTo-BashArg $cwdBash); bash $(ConvertTo-BashArg $runtimeBash) $argText"
+    $scriptBlock = "export ROADMAP_AGENT_PROJECT_ROOT=""$cwdBash""; bash ""$runtimeBash"" $argText"
     & $bashCmd.Source -lc $scriptBlock
     exit $LASTEXITCODE
 }

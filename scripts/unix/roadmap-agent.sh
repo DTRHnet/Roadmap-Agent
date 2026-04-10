@@ -16,10 +16,16 @@
 
 set -u
 
+SCRIPT_APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 if [[ -n "${ROADMAP_AGENT_PROJECT_ROOT:-}" ]] && [[ -d "${ROADMAP_AGENT_PROJECT_ROOT}" ]]; then
   ROOT_DIR="$(cd "${ROADMAP_AGENT_PROJECT_ROOT}" && pwd)"
 else
-  ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+  ROOT_DIR="$SCRIPT_APP_DIR"
+fi
+if [[ -n "${ROADMAP_AGENT_APP_ROOT:-}" ]] && [[ -d "${ROADMAP_AGENT_APP_ROOT}" ]]; then
+  APP_DIR="$(cd "${ROADMAP_AGENT_APP_ROOT}" && pwd)"
+else
+  APP_DIR="$SCRIPT_APP_DIR"
 fi
 RMA_DIR="$ROOT_DIR/.rma"
 ROADMAP_DIR="$RMA_DIR/roadmaps"
@@ -29,15 +35,30 @@ MEMPALACE_DIR="$RMA_DIR/mempalace"
 LOCK_FILE="$STATE_DIR/locked"
 PLAN_FILE="$ROADMAP_DIR/plan.md"
 TASKS_FILE="$ROADMAP_DIR/tasks.md"
+RUN_FILE="$ROADMAP_DIR/run.md"
 EXEC_LOG="$LOG_DIR/roadmap-agent-execution.log"
+HAVE_FZF=0
 
-BLUE="\033[38;5;33m"
-PURPLE="\033[38;5;135m"
-CYAN="\033[38;5;45m"
-GRAY="\033[38;5;245m"
-RESET="\033[0m"
-BOLD="\033[1m"
-UNDERLINE="\033[4m"
+# Use real escape bytes so routed shells (e.g. PowerShell -> bash)
+# do not render literal "\033[...m" sequences.
+ESC=$'\033'
+if [[ -t 1 ]] && [[ "${NO_COLOR:-}" != "1" ]] && [[ "${TERM:-}" != "dumb" ]]; then
+  BLUE="${ESC}[38;5;33m"
+  PURPLE="${ESC}[38;5;135m"
+  CYAN="${ESC}[38;5;45m"
+  GRAY="${ESC}[38;5;245m"
+  RESET="${ESC}[0m"
+  BOLD="${ESC}[1m"
+  UNDERLINE="${ESC}[4m"
+else
+  BLUE=""
+  PURPLE=""
+  CYAN=""
+  GRAY=""
+  RESET=""
+  BOLD=""
+  UNDERLINE=""
+fi
 
 warn() { printf "${PURPLE}WARN${RESET}: %s\n" "$1"; }
 info() { printf "${CYAN}%s${RESET}\n" "$1"; }
@@ -162,6 +183,8 @@ COMMANDS
   init             Initialize .rma metadata and templates
   status           Show roadmap/project status summary
   plan             Generate roadmap dry-run plan
+  analyze          Analyze codebase/docs and sync tasks + run files
+  analyze-init     Analyze repo and propose .rma/*.md generation
   execute-one      Execute exactly one selected planned task
   unlock           Clear roadmap lock state
   persistence      Install global launcher/manpages (admin/root)
@@ -170,6 +193,10 @@ COMMANDS
   man              Show built-in manual/manpage text
   help, --help,-h  Show this detailed help
   menu             Open interactive hub and AI submenu (default)
+
+ANALYZE-INIT OPTIONS
+  --yes, -y        Non-interactive: accept and write all proposed .rma files
+  --dry-run        Generate proposals only; do not write .rma files
 
 PERSISTENCE MODE
   Linux/macOS:
@@ -194,8 +221,351 @@ MORE DOCS
 EOF
 }
 
+analyze_workspace_snapshot() {
+  ensure_core_dirs
+  local md_count code_count doc_preview
+  ANALYZE_FRAMEWORK="$(detect_framework)"
+  ANALYZE_VERSION="$(detect_project_version_from_docs)"
+  [[ -z "${ANALYZE_VERSION:-}" ]] && ANALYZE_VERSION="$(app_version)"
+  ANALYZE_GOAL="$(analyze_project_goal)"
+  md_count="$(find "$ROOT_DIR" -type f -name "*.md" ! -path "$RMA_DIR/*" 2>/dev/null | wc -l | tr -d ' ')"
+  code_count="$(find "$ROOT_DIR" -type f \( -name "*.sh" -o -name "*.ps1" -o -name "*.py" -o -name "*.js" -o -name "*.ts" \) ! -path "$RMA_DIR/*" 2>/dev/null | wc -l | tr -d ' ')"
+  doc_preview="$(find "$ROOT_DIR" -type f -name "*.md" ! -path "$RMA_DIR/*" 2>/dev/null | sed "s#^$ROOT_DIR/##" | head -n 8)"
+  ANALYZE_MD_COUNT="${md_count:-0}"
+  ANALYZE_CODE_COUNT="${code_count:-0}"
+  ANALYZE_DOC_PREVIEW="${doc_preview:-none}"
+}
+
+generate_proposed_rma_files() {
+  analyze_workspace_snapshot
+  local proposal_dir="$STATE_DIR/proposed-rma"
+  mkdir -p "$proposal_dir"
+
+  cat > "$proposal_dir/description.md" <<EOF
+# Description
+
+Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+Project: $(project_name)
+Goal signal: $ANALYZE_GOAL
+
+## Product Intent
+- Describe the core user problem this repository solves.
+- Define what "done" means for the current milestone.
+
+## Detected Repository Signals
+- Framework: $ANALYZE_FRAMEWORK
+- Version signal: $ANALYZE_VERSION
+- Markdown files scanned: $ANALYZE_MD_COUNT
+- Code files scanned: $ANALYZE_CODE_COUNT
+
+## Immediate Scope
+- Keep ROADMAP-AGENT menu workflows aligned with docs and implementation.
+- Keep task/run artifacts canonical under .rma/roadmaps/.
+EOF
+
+  cat > "$proposal_dir/ui.md" <<EOF
+# UI
+
+Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+## CLI UX Baseline
+- Keep fzf-driven interactive choices for selection flows.
+- Keep Roman numeral menu options for readability.
+- Keep roadmap and persistence actions visible in hub/AI menu.
+
+## Visual Notes
+- Preserve dark theme assumptions and clear header hierarchy.
+- Keep preview-first flow when generating/editing .rma docs.
+
+## Next UI Decisions
+- Define strict color/spacing rules for cross-platform parity.
+- Confirm menu labels and wording for new analyzer/scaffold actions.
+EOF
+
+  cat > "$proposal_dir/stack.md" <<EOF
+# Stack
+
+Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+## Detected
+- Framework: $ANALYZE_FRAMEWORK
+- Version signal: $ANALYZE_VERSION
+- Branch: $(project_branch)
+- Remote: $(project_remote)
+
+## Runtime Tooling
+- Bash runtime: scripts/unix/roadmap-agent.sh
+- PowerShell bridge: scripts/windows/roadmap-agent.ps1
+- fzf: interactive selection engine
+- git: branch/version/release metadata source
+
+## Operational Requirements
+- Maintain one canonical tasks file: .rma/roadmaps/tasks.md
+- Maintain one canonical run file: .rma/roadmaps/run.md
+EOF
+
+  cat > "$proposal_dir/other.md" <<EOF
+# Other
+
+Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+## Repository Scan Summary
+- Markdown files found: $ANALYZE_MD_COUNT
+- Code files found: $ANALYZE_CODE_COUNT
+
+## Key Documents (sample)
+$ANALYZE_DOC_PREVIEW
+
+## Constraints and Notes
+- Do not roll tasks/run files with timestamps or variant names.
+- Keep analyzer output deterministic and reviewable.
+- Require explicit accept/deny before writing generated .rma files.
+EOF
+
+  printf "%s" "$proposal_dir"
+}
+
+preview_and_apply_rma_proposals() {
+  local mode="${1:-interactive}"
+  ensure_core_dirs
+  local proposal_dir base tmp_file target preview_file action accepted skipped
+  proposal_dir="$(generate_proposed_rma_files)"
+  accepted=0
+  skipped=0
+
+  if [[ "$mode" == "dry-run" ]]; then
+    info "Dry run mode: proposals generated, no files written."
+    printf "Proposal directory: %s\n" "$proposal_dir"
+    for base in description ui stack other; do
+      printf "\n--- Proposed .rma/%s.md ---\n" "$base"
+      cat "$proposal_dir/$base.md"
+    done
+    return 0
+  fi
+
+  if [[ "$mode" == "yes" ]]; then
+    for base in description ui stack other; do
+      cp "$proposal_dir/$base.md" "$RMA_DIR/$base.md"
+      accepted=$((accepted+1))
+    done
+    info "Auto-accepted all proposed files. Written: $accepted"
+    return 0
+  fi
+
+  ensure_fzf || true
+
+  for base in description ui stack other; do
+    tmp_file="$proposal_dir/$base.md"
+    target="$RMA_DIR/$base.md"
+    preview_file="$proposal_dir/$base.preview.md"
+
+    {
+      echo "# Proposed: .rma/$base.md"
+      echo
+      cat "$tmp_file"
+      echo
+      echo "----------------------------------------"
+      echo "# Existing: .rma/$base.md"
+      echo
+      if [[ -f "$target" ]]; then
+        cat "$target"
+      else
+        echo "(file does not exist yet)"
+      fi
+    } > "$preview_file"
+
+    if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
+      action="$(printf "%s\n" \
+        "Accept (write .rma/$base.md)" \
+        "Deny (skip .rma/$base.md)" | fzf \
+          --ansi \
+          --layout=reverse \
+          --border=rounded \
+          --height=60% \
+          --prompt="Proposed $base.md > " \
+          --header="Preview generated file, then accept or deny." \
+          --preview "cat \"$preview_file\"" \
+          --preview-window=right:65% \
+          --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
+    else
+      printf "\n===== Preview: .rma/%s.md =====\n" "$base"
+      sed -n '1,220p' "$preview_file"
+      printf "\nAccept generated .rma/%s.md? (y/N): " "$base"
+      local yn="n"
+      read -r yn
+      if [[ "$yn" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        action="Accept (write .rma/$base.md)"
+      else
+        action="Deny (skip .rma/$base.md)"
+      fi
+    fi
+
+    if [[ "$action" == "Accept (write .rma/$base.md)" ]]; then
+      cp "$tmp_file" "$target"
+      accepted=$((accepted+1))
+    else
+      skipped=$((skipped+1))
+    fi
+  done
+
+  info "Generation review complete. Accepted: $accepted | Denied: $skipped"
+}
+
+cmd_analyze_init() {
+  local mode="interactive"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --yes|-y)
+        mode="yes"
+        ;;
+      --dry-run)
+        mode="dry-run"
+        ;;
+      *)
+        warn "Unknown analyze-init option: $1"
+        warn "Supported: --yes, -y, --dry-run"
+        return 1
+        ;;
+    esac
+    shift
+  done
+  preview_and_apply_rma_proposals "$mode"
+}
+
+canonicalize_roadmap_files() {
+  mkdir -p "$ROADMAP_DIR"
+  local f
+  shopt -s nullglob
+  for f in "$ROADMAP_DIR"/tasks*.md; do
+    [[ "$f" == "$TASKS_FILE" ]] && continue
+    rm -f "$f"
+  done
+  for f in "$ROADMAP_DIR"/run*.md; do
+    [[ "$f" == "$RUN_FILE" ]] && continue
+    rm -f "$f"
+  done
+  shopt -u nullglob
+}
+
+detect_framework() {
+  if [[ -f "$ROOT_DIR/package.json" ]]; then
+    if command -v rg >/dev/null 2>&1 && rg -q '"next"\s*:' "$ROOT_DIR/package.json"; then
+      printf "Next.js (Node.js)"
+      return
+    fi
+    if command -v rg >/dev/null 2>&1 && rg -q '"react"\s*:' "$ROOT_DIR/package.json"; then
+      printf "React (Node.js)"
+      return
+    fi
+    if command -v rg >/dev/null 2>&1 && rg -q '"vue"\s*:' "$ROOT_DIR/package.json"; then
+      printf "Vue (Node.js)"
+      return
+    fi
+    printf "Node.js"
+    return
+  fi
+  if [[ -f "$ROOT_DIR/pyproject.toml" ]] || [[ -f "$ROOT_DIR/requirements.txt" ]]; then
+    printf "Python"
+    return
+  fi
+  if [[ -f "$ROOT_DIR/go.mod" ]]; then
+    printf "Go"
+    return
+  fi
+  if [[ -f "$ROOT_DIR/Cargo.toml" ]]; then
+    printf "Rust"
+    return
+  fi
+  printf "unknown"
+}
+
+detect_project_version_from_docs() {
+  local c="$ROOT_DIR/CHANGELOG.md"
+  if [[ -f "$c" ]]; then
+    awk 'match($0,/^## \[([^\]]+)\]/,m){ if (m[1] != "Unreleased") { print m[1]; exit } }' "$c"
+  fi
+}
+
+extract_tasks_from_markdown() {
+  local md
+  while IFS= read -r md; do
+    [[ "$md" == "$RMA_DIR/roadmaps/"* ]] && continue
+    awk '
+      /^- \[ \] / { print substr($0,7); next }
+      /^#+[[:space:]]*(TODO|Todo|todo|Next|NEXT|Action|Actions|Roadmap|ROADMAP)/ {
+        t=$0
+        sub(/^#+[[:space:]]*/, "", t)
+        print "Review section: " t
+      }
+    ' "$md"
+  done < <(find "$ROOT_DIR" -type f -name "*.md" 2>/dev/null)
+}
+
+sync_tasks_and_run_files() {
+  ensure_core_dirs
+  canonicalize_roadmap_files
+  local framework detected_ver v rel_date rel_ver ts
+  framework="$(detect_framework)"
+  detected_ver="$(detect_project_version_from_docs)"
+  v="$(app_version)"
+  rel_ver="$(last_release_version)"
+  rel_date="$(last_release_date)"
+  ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  [[ -z "${detected_ver:-}" ]] && detected_ver="$v"
+
+  {
+    echo "# Task Ledger"
+    echo
+    echo "Generated: $ts"
+    echo "Framework: $framework"
+    echo "Detected Version: $detected_ver"
+    echo
+    echo "## Extrapolated Tasks From Markdown"
+    echo
+    extract_tasks_from_markdown | awk 'NF' | awk '!seen[$0]++' | awk '{print "- [ ] " $0}'
+  } > "$TASKS_FILE.tmp"
+  local has_tasks="no"
+  if command -v rg >/dev/null 2>&1; then
+    rg -q "^- \[ \] " "$TASKS_FILE.tmp" && has_tasks="yes"
+  else
+    grep -q "^- \[ \] " "$TASKS_FILE.tmp" && has_tasks="yes"
+  fi
+  if [[ "$has_tasks" != "yes" ]]; then
+    cat >> "$TASKS_FILE.tmp" <<'EOF'
+- [ ] Review README.md and reconcile current scope.
+- [ ] Update CHANGELOG.md for latest implementation delta.
+- [ ] Verify .rma context files match repository state.
+EOF
+  fi
+  mv "$TASKS_FILE.tmp" "$TASKS_FILE"
+
+  cat > "$RUN_FILE" <<EOF
+# Run State
+
+Generated: $ts
+Project: $(project_name)
+Branch: $(project_branch)
+Remote: $(project_remote)
+Framework: $framework
+Detected Version: $detected_ver
+App Version: $v
+Last Release Version: $rel_ver
+Last Release Date: $rel_date
+
+## Canonical Files
+- Tasks file: $TASKS_FILE
+- Run file: $RUN_FILE
+
+## Notes
+- This file is updated in place.
+- ROADMAP-AGENT keeps only one tasks file and one run file.
+EOF
+  info "Synced canonical files:"
+  printf " - %s\n - %s\n" "$TASKS_FILE" "$RUN_FILE"
+}
+
 show_manpage() {
-  local manfile="$ROOT_DIR/DOCS/man/roadmap-agent.1"
+  local manfile="$APP_DIR/DOCS/man/roadmap-agent.1"
   local fallback="/usr/local/share/man/man1/roadmap-agent.1"
   if [[ -f "$manfile" ]]; then
     sed 's/^\.\\".*$//g' "$manfile"
@@ -238,10 +608,9 @@ cmd_persistence_unix() {
   local install_root="/usr/local/lib/roadmap-agent"
   local bin_dir="/usr/local/bin"
   local man_dir="/usr/local/share/man/man1"
-  local this_sh="$ROOT_DIR/scripts/unix/roadmap-agent.sh"
-  local this_ps1="$ROOT_DIR/scripts/windows/roadmap-agent.ps1"
-  local src_setup="$ROOT_DIR/scripts/unix/setup-local-models-mempalace.sh"
-  local man_src="$ROOT_DIR/DOCS/man/roadmap-agent.1"
+  local source_app_dir="$APP_DIR"
+  local this_sh="$source_app_dir/scripts/unix/roadmap-agent.sh"
+  local man_src="$source_app_dir/DOCS/man/roadmap-agent.1"
 
   shell_name="$(basename "${SHELL:-unknown}")"
   rc_file="$(detect_shell_rc_file)"
@@ -274,10 +643,18 @@ cmd_persistence_unix() {
     return 0
   fi
 
-  $sudo_cmd mkdir -p "$install_root" "$install_root/scripts" "$bin_dir" "$man_dir" || return 1
-  $sudo_cmd cp "$this_sh" "$install_root/roadmap-agent.sh" || return 1
-  [[ -f "$this_ps1" ]] && $sudo_cmd cp "$this_ps1" "$install_root/roadmap-agent.ps1" || true
-  [[ -f "$src_setup" ]] && $sudo_cmd cp "$src_setup" "$install_root/scripts/setup-local-models-mempalace.sh" || true
+  $sudo_cmd mkdir -p "$install_root" "$bin_dir" "$man_dir" || return 1
+  if command -v rsync >/dev/null 2>&1; then
+    $sudo_cmd rsync -a --delete \
+      --exclude '.git' \
+      --exclude '.rma' \
+      --exclude '.cursor' \
+      "$source_app_dir"/ "$install_root"/ || return 1
+  else
+    $sudo_cmd rm -rf "$install_root" || true
+    $sudo_cmd mkdir -p "$install_root" || return 1
+    (cd "$source_app_dir" && tar --exclude='.git' --exclude='.rma' --exclude='.cursor' -cf - .) | $sudo_cmd tar -xf - -C "$install_root" || return 1
+  fi
   if [[ -f "$man_src" ]]; then
     $sudo_cmd cp "$man_src" "$man_dir/roadmap-agent.1" || true
   fi
@@ -285,11 +662,14 @@ cmd_persistence_unix() {
   cat <<'EOF' | $sudo_cmd tee "$bin_dir/roadmap-agent" >/dev/null
 #!/usr/bin/env bash
 set -u
-if [[ -f "$PWD/roadmap-agent.sh" ]]; then
-  exec bash "$PWD/roadmap-agent.sh" "$@"
+if [[ -f "$PWD/scripts/unix/roadmap-agent.sh" ]]; then
+  export ROADMAP_AGENT_APP_ROOT="$PWD"
+  export ROADMAP_AGENT_PROJECT_ROOT="$PWD"
+  exec bash "$PWD/scripts/unix/roadmap-agent.sh" "$@"
 fi
 export ROADMAP_AGENT_PROJECT_ROOT="$PWD"
-exec bash "/usr/local/lib/roadmap-agent/roadmap-agent.sh" "$@"
+export ROADMAP_AGENT_APP_ROOT="/usr/local/lib/roadmap-agent"
+exec bash "/usr/local/lib/roadmap-agent/scripts/unix/roadmap-agent.sh" "$@"
 EOF
 
   cat <<'EOF' | $sudo_cmd tee "$bin_dir/rma" >/dev/null
@@ -298,7 +678,7 @@ set -u
 exec /usr/local/bin/roadmap-agent "$@"
 EOF
 
-  $sudo_cmd chmod +x "$bin_dir/roadmap-agent" "$bin_dir/rma" "$install_root/roadmap-agent.sh" || true
+  $sudo_cmd chmod +x "$bin_dir/roadmap-agent" "$bin_dir/rma" "$install_root/scripts/unix/roadmap-agent.sh" || true
   if command -v mandb >/dev/null 2>&1; then
     $sudo_cmd mandb >/dev/null 2>&1 || true
   fi
@@ -322,14 +702,50 @@ cmd_persistence() {
   esac
 }
 
+extract_release_version_from_changelog() {
+  local changelog="$1"
+  [[ -f "$changelog" ]] || return 1
+  awk 'match($0,/^## \[([^\]]+)\]/,m){ if (m[1] != "Unreleased") { print m[1]; exit } }' "$changelog"
+}
+
+normalize_version_token() {
+  local v="$1"
+  v="${v#v}"
+  printf "%s" "$v"
+}
+
+version_is_older() {
+  local installed current a b
+  installed="$(normalize_version_token "$1")"
+  current="$(normalize_version_token "$2")"
+  [[ -z "$installed" || -z "$current" ]] && return 1
+  [[ "$installed" == "$current" ]] && return 1
+  if command -v sort >/dev/null 2>&1; then
+    a="$(printf "%s\n%s\n" "$installed" "$current" | sort -V | head -n1)"
+    [[ "$a" == "$installed" ]]
+  else
+    [[ "$installed" < "$current" ]]
+  fi
+}
+
 cmd_persistence_check() {
   local os shell_name rc_file cmd_path has_cmd has_rc_block
+  local install_root current_ver installed_ver stale
   os="$(uname -s)"
   shell_name="$(basename "${SHELL:-unknown}")"
   rc_file="$(detect_shell_rc_file)"
   cmd_path="$(command -v roadmap-agent 2>/dev/null || true)"
+  install_root="/usr/local/lib/roadmap-agent"
   has_cmd="no"
   has_rc_block="no"
+  stale="no"
+
+  current_ver="$(detect_project_version_from_docs)"
+  [[ -z "${current_ver:-}" ]] && current_ver="$(app_version)"
+  installed_ver="$(extract_release_version_from_changelog "$install_root/CHANGELOG.md" || true)"
+  if [[ -n "${installed_ver:-}" ]] && version_is_older "$installed_ver" "$current_ver"; then
+    stale="yes"
+  fi
 
   [[ -n "${cmd_path:-}" ]] && has_cmd="yes"
   if [[ -f "$rc_file" ]] && grep -Fq "# >>> ROADMAP-AGENT PATH >>>" "$rc_file"; then
@@ -341,18 +757,25 @@ cmd_persistence_check() {
   printf "Shell: %s\n" "$shell_name"
   printf "Suggested rc: %s\n" "$rc_file"
   printf "Global command available: %s\n" "$has_cmd"
+  printf "Current repo version: %s\n" "${current_ver:-unknown}"
+  printf "Installed app version: %s\n" "${installed_ver:-unknown}"
+  printf "Installed older than current: %s\n" "$stale"
   if [[ "$has_cmd" == "yes" ]]; then
     printf "Resolved command path: %s\n" "$cmd_path"
   fi
   printf "Managed rc PATH block present: %s\n" "$has_rc_block"
 
-  if [[ "$has_cmd" == "yes" ]]; then
+  if [[ "$has_cmd" == "yes" && "$stale" != "yes" ]]; then
     info "Persistence already present."
     return 0
   fi
 
   local ans="n"
-  printf "Persistence appears missing. Install now? (y/N): "
+  if [[ "$stale" == "yes" ]]; then
+    printf "Persistence install is older than current version. Upgrade now? (y/N): "
+  else
+    printf "Persistence appears missing. Install now? (y/N): "
+  fi
   read -r ans
   if [[ "$ans" =~ ^[Yy]$ ]]; then
     cmd_persistence
@@ -362,15 +785,28 @@ cmd_persistence_check() {
 }
 
 ensure_fzf() {
+  if [[ "${RMA_DISABLE_FZF:-0}" == "1" ]]; then
+    HAVE_FZF=0
+    warn "RMA_DISABLE_FZF=1 set. Using fallback text menus."
+    return 0
+  fi
   if command -v fzf >/dev/null 2>&1; then
+    HAVE_FZF=1
     return 0
   fi
 
   warn "fzf not found. Installing local binary..."
   install_fzf || {
-    warn "Failed to auto-install fzf. Install manually and rerun."
-    return 1
+    warn "Failed to auto-install fzf. Using fallback text menus."
+    HAVE_FZF=0
+    return 0
   }
+  if command -v fzf >/dev/null 2>&1; then
+    HAVE_FZF=1
+  else
+    HAVE_FZF=0
+  fi
+  return 0
 }
 
 install_fzf() {
@@ -421,14 +857,34 @@ install_fzf() {
 fzf_choose_one() {
   local prompt="$1"
   shift
-  printf "%s\n" "$@" | fzf \
-    --ansi \
-    --layout=reverse \
-    --border=rounded \
-    --height=80% \
-    --prompt="$prompt " \
-    --header="Press Enter to continue:" \
-    --color=border:blue,pointer:magenta,marker:magenta,header:cyan
+  if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
+    printf "%s\n" "$@" | fzf \
+      --ansi \
+      --layout=reverse \
+      --border=rounded \
+      --height=80% \
+      --prompt="$prompt " \
+      --header="Press Enter to continue:" \
+      --color=border:blue,pointer:magenta,marker:magenta,header:cyan
+    return
+  fi
+
+  local options=("$@")
+  local i clean ans idx
+  printf "%s\n" "$prompt"
+  for i in "${!options[@]}"; do
+    clean="$(printf "%b" "${options[$i]}" | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')"
+    printf "  %d) %s\n" "$((i+1))" "$clean"
+  done
+  printf "Select number (blank cancels): "
+  read -r ans
+  [[ -z "${ans:-}" ]] && return 0
+  if [[ "$ans" =~ ^[0-9]+$ ]]; then
+    idx=$((ans-1))
+    if (( idx >= 0 && idx < ${#options[@]} )); then
+      printf "%b" "${options[$idx]}" | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g'
+    fi
+  fi
 }
 
 pause_prompt() {
@@ -527,11 +983,22 @@ EOF
 
 mempalace_setup_local_models() {
   ensure_core_dirs
-  local script="$ROOT_DIR/scripts/unix/setup-local-models-mempalace.sh"
-  if [[ -f "$script" ]]; then
+  local script=""
+  local candidate
+  for candidate in \
+    "$APP_DIR/scripts/unix/setup-local-models-mempalace.sh" \
+    "$ROOT_DIR/scripts/unix/setup-local-models-mempalace.sh" \
+    "/usr/local/lib/roadmap-agent/scripts/unix/setup-local-models-mempalace.sh"; do
+    if [[ -f "$candidate" ]]; then
+      script="$candidate"
+      break
+    fi
+  done
+
+  if [[ -n "$script" ]]; then
     bash "$script" || warn "setup-local-models script returned an error."
   else
-    warn "Missing scripts/unix/setup-local-models-mempalace.sh. Creating placeholder log entry."
+    warn "Missing setup-local-models-mempalace.sh in app/project install paths. Creating placeholder log entry."
     printf "%s setup-local-models placeholder invoked\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
   fi
 }
@@ -646,6 +1113,7 @@ build_context_bundle() {
 
 roadmap_plan_dry_run() {
   ensure_core_dirs
+  sync_tasks_and_run_files
   local ctx
   ctx="$(build_context_bundle)"
   mkdir -p "$ROADMAP_DIR"
@@ -684,7 +1152,7 @@ roadmap_execute_one_task() {
     return 1
   fi
 
-  ensure_fzf || return 1
+  ensure_fzf || true
   local choices selected confirm
   choices="$(awk '/^- \[ \]/{print substr($0,7)}' "$PLAN_FILE")"
   if [[ -z "${choices:-}" ]]; then
@@ -692,7 +1160,12 @@ roadmap_execute_one_task() {
     return 0
   fi
 
-  selected="$(printf "%s\n" "$choices" | fzf --layout=reverse --border=rounded --prompt="Select one task to execute > " --header="Press Enter to continue:" --color=border:blue,pointer:magenta,header:cyan)"
+  if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
+    selected="$(printf "%s\n" "$choices" | fzf --layout=reverse --border=rounded --prompt="Select one task to execute > " --header="Press Enter to continue:" --color=border:blue,pointer:magenta,header:cyan)"
+  else
+    mapfile -t choice_arr < <(printf "%s\n" "$choices")
+    selected="$(fzf_choose_one "Select one task to execute" "${choice_arr[@]}")"
+  fi
   [[ -z "${selected:-}" ]] && return 0
 
   confirm="$(fzf_choose_one "Execute exactly one task?" "No" "Yes")"
@@ -748,18 +1221,26 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
     "${PURPLE}IX   Roadmap agent execute one task${RESET}"
     "${PURPLE}X    Roadmap agent unlock${RESET}"
     "XI   Check/add persistence if missing"
+    "XII  Analyze codebase and sync tasks/run"
+    "XIII Analyze folder and propose .rma files"
     "0    Back to hub"
   )
 
-  selected="$(printf "%b\n" "${options[@]}" | fzf \
-    --ansi \
-    --layout=reverse \
-    --height=90% \
-    --border=rounded \
-    --prompt="Select > " \
-    --header="$header"$'\n'"Press Enter to continue:" \
-    --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
+  if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
+    selected="$(printf "%b\n" "${options[@]}" | fzf \
+      --ansi \
+      --layout=reverse \
+      --height=90% \
+      --border=rounded \
+      --prompt="Select > " \
+      --header="$header"$'\n'"Press Enter to continue:" \
+      --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
+  else
+    printf "%b\n" "$header"
+    selected="$(fzf_choose_one "Select menu option" "${options[@]}")"
+  fi
 
+  selected="$(printf "%b" "$selected" | sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g')"
   case "$selected" in
     I\ \ \ *)
       mempalace_setup_local_models
@@ -795,6 +1276,12 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
     XI\ \ *)
       cmd_persistence_check
       ;;
+    XII\ *)
+      sync_tasks_and_run_files
+      ;;
+    XIII\ *)
+      preview_and_apply_rma_proposals
+      ;;
     0\ \ \ *)
       return 1
       ;;
@@ -805,18 +1292,28 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
 
 render_hub_menu() {
   local selected
-  selected="$(printf "%b\n" \
-    "I   Open AI submenu" \
-    "II  Roadmap status (quick view)" \
-    "III Check/add persistence if missing" \
-    "0   Exit roadmap-agent" | fzf \
-      --ansi \
-      --layout=reverse \
-      --height=65% \
-      --border=rounded \
-      --prompt="Hub > " \
-      --header="${BOLD}${UNDERLINE}ROADMAP-AGENT HUB${RESET}"$'\n'"App Version: $(app_version)"$'\n'"Last Release: $(last_release_version)"$'\n'"Release Date: $(last_release_date)"$'\n'"Press Enter to continue:" \
-      --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
+  local hub_options=(
+    "I   Open AI submenu"
+    "II  Roadmap status (quick view)"
+    "III Check/add persistence if missing"
+    "0   Exit roadmap-agent"
+  )
+  if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
+    selected="$(printf "%b\n" "${hub_options[@]}" | fzf \
+        --ansi \
+        --layout=reverse \
+        --height=65% \
+        --border=rounded \
+        --prompt="Hub > " \
+        --header="${BOLD}${UNDERLINE}ROADMAP-AGENT HUB${RESET}"$'\n'"App Version: $(app_version)"$'\n'"Last Release: $(last_release_version)"$'\n'"Release Date: $(last_release_date)"$'\n'"Press Enter to continue:" \
+        --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
+  else
+    printf "%b\n" "${BOLD}${UNDERLINE}ROADMAP-AGENT HUB${RESET}"
+    printf "App Version: %s\n" "$(app_version)"
+    printf "Last Release: %s\n" "$(last_release_version)"
+    printf "Release Date: %s\n" "$(last_release_date)"
+    selected="$(fzf_choose_one "Hub" "${hub_options[@]}")"
+  fi
 
   case "$selected" in
     I\ \ \ *)
@@ -836,6 +1333,9 @@ render_hub_menu() {
 
 main() {
   local cmd="${1:-menu}"
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
 
   case "$cmd" in
     -h|--help|help)
@@ -856,6 +1356,14 @@ main() {
       ensure_rma_required_files
       roadmap_plan_dry_run
       ;;
+    analyze)
+      ensure_core_dirs
+      ensure_rma_required_files
+      sync_tasks_and_run_files
+      ;;
+    analyze-init)
+      cmd_analyze_init "$@"
+      ;;
     execute-one)
       ensure_core_dirs
       ensure_rma_required_files
@@ -871,7 +1379,7 @@ main() {
       cmd_persistence_check
       ;;
     menu|*)
-      ensure_fzf || exit 1
+      ensure_fzf || true
       ensure_rma_required_files
       show_initial_banner
       while true; do

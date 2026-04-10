@@ -1,4 +1,16 @@
-# ROADMAP-AGENT
+<h1 align="center">🚀 ROADMAP-AGENT</h1>
+
+<p align="center">
+  <b>Cross-platform Local AI Memory Palace CLI</b><br/>
+  Script-first • Zero fluff • Built for real workflows
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue">
+  <img src="https://img.shields.io/badge/runtime-bash%20%2B%20powershell-green">
+  <img src="https://img.shields.io/badge/interface-fzf-orange">
+  <img src="https://img.shields.io/badge/status-active-success">
+</p>
 
 Cross-platform, script-first Local AI Memory Palace CLI with a built-in Roadmap Agent workflow.
 
@@ -17,6 +29,8 @@ Cross-platform, script-first Local AI Memory Palace CLI with a built-in Roadmap 
 - Provides an interactive CLI menu powered by `fzf`.
 - Maintains project memory/context in `.rma/`.
 - Supports roadmap lifecycle commands (`init`, `status`, `plan`, `execute-one`, `unlock`).
+- Supports analyzer sync command (`analyze`) to keep roadmap artifacts current.
+- Supports interactive scaffold command (`analyze-init`) to generate `.rma/*.md` with preview + accept/deny.
 - Integrates MemPalace-oriented flows (setup/safe-mine/health/logs/reset).
 - Supports persistence/global command installation checks across platforms.
 
@@ -88,6 +102,7 @@ Generated files/directories include:
 - `.rma/*.example.md`
 - `.rma/roadmaps/plan.md`
 - `.rma/roadmaps/tasks.md`
+- `.rma/roadmaps/run.md`
 - `.rma/state/`
 - `.rma/logs/`
 - `.rma/mempalace/`
@@ -145,12 +160,49 @@ Windows PowerShell:
 - `init` - bootstrap `.rma/` and template files.
 - `status` - show project/branch and task execution summary.
 - `plan` - generate a dry-run roadmap plan file.
+- `analyze` - analyze codebase + markdown docs and sync canonical task/run files.
+- `analyze-init` - analyze current folder/subfolders and propose generated `.rma` markdown files with preview + accept/deny for each file.
+  - `analyze-init --dry-run` generates proposals only (no writes).
+  - `analyze-init --yes` auto-accepts and writes all proposed `.rma/*.md` files.
 - `execute-one` - execute one selected pending task.
 - `unlock` - remove locked state.
 - `persistence` / `persistance` - check/install persistence mode.
 - `persistence-check` - check if persistence/global command wiring exists.
 - `help`, `-h`, `--help` - command help.
 - default (no command): open interactive menu.
+
+These options are accessible from all main launchers (`roadmap-agent`, `rma`, `rma.sh`, `rma.ps1`, `roadmap-agent.cmd`, `rma.cmd`) and pass through with the same flags.
+
+### Command-Line Argument Notes
+
+- General form: `roadmap-agent <command> [options]`
+- Optional env override: `RMA_DISABLE_FZF=1` forces fallback text menus/selectors.
+- Analyzer scaffolding:
+  - `roadmap-agent analyze-init` -> interactive per-file preview + accept/deny
+  - `roadmap-agent analyze-init --dry-run` -> generate/preview proposals only
+  - `roadmap-agent analyze-init --yes` -> auto-accept all generated `.rma/*.md`
+- Windows wrappers pass arguments through unchanged:
+  - `.\rma.ps1 analyze-init --dry-run`
+  - `rma.cmd analyze-init --yes`
+
+### FZF Fallback Behavior
+
+- ROADMAP-AGENT first tries to use `fzf` for menus and interactive choices.
+- If `fzf` is missing, it attempts auto-install.
+- If auto-install fails, ROADMAP-AGENT now falls back to a built-in text menu/selector system.
+- You can force-test this path with `RMA_DISABLE_FZF=1`.
+- In fallback mode:
+  - menu navigation still works from terminal prompts
+  - `analyze-init` still previews each generated `.md` file before accept/deny
+
+### Global Install Dependency Safety
+
+- Persistence installers now sync the **full app repository tree** into the install location (not partial script copies).
+- Unix global launcher runs installed app code from `/usr/local/lib/roadmap-agent/scripts/unix/roadmap-agent.sh`.
+- Windows global launcher runs installed app code from `%ProgramFiles%\Roadmap-Agent\scripts\windows\roadmap-agent.ps1`.
+- This prevents broken dependencies when global commands or symlink-like wrappers are used.
+- If you installed persistence before this change, run persistence install again to refresh wrappers and synced app files.
+- `persistence-check` now reports installed vs current version and prompts upgrade when installed persistence is older.
 
 ---
 
@@ -250,6 +302,7 @@ The runtime works without custom environment variables, but supports useful over
 - Track stack/runtime versions in `.rma/stack.md`.
 - Record operational constraints, limits, and team conventions in `.rma/other.md`.
 - Re-run `plan` after major scope changes so next tasks match current context.
+- Use `analyze-init` when onboarding or after major refactors to regenerate `.rma` context files with explicit review gates.
 
 ---
 
@@ -370,6 +423,10 @@ RoadmapAgent/
 - `roadmap-agent init`
 - `roadmap-agent status`
 - `roadmap-agent plan`
+- `roadmap-agent analyze`
+- `roadmap-agent analyze-init`
+- `roadmap-agent analyze-init --dry-run`
+- `roadmap-agent analyze-init --yes`
 - `roadmap-agent execute-one`
 - `roadmap-agent unlock`
 - `roadmap-agent persistence` / `roadmap-agent persistance`
@@ -394,6 +451,7 @@ Generated state:
 - `.rma/*.example.md`
 - `.rma/roadmaps/plan.md`
 - `.rma/roadmaps/tasks.md`
+- `.rma/roadmaps/run.md`
 - `.rma/state/*`
 - `.rma/logs/*`
 

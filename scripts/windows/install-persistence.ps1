@@ -4,12 +4,16 @@
 # Last updated: 2026-04-10 | Version: v0.1.0
 # -------------------------------------------------------------------------------------------
 
+param(
+    [switch]$CheckOnly
+)
+
 $ErrorActionPreference = "Continue"
 
 function Test-IsAdmin {
     try {
         $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
         return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     } catch {
         return $false
@@ -28,9 +32,75 @@ function Add-PathEntryIfMissing([string]$Scope, [string]$Entry) {
     return $true
 }
 
+function Get-VersionFromChangelog([string]$PathValue) {
+    if (-not (Test-Path $PathValue)) { return "" }
+    $lines = Get-Content $PathValue -ErrorAction SilentlyContinue
+    foreach ($line in $lines) {
+        if ($line -match '^## \[([^\]]+)\]') {
+            $v = $Matches[1]
+            if ($v -ne "Unreleased") { return $v }
+        }
+    }
+    return ""
+}
+
+function Normalize-Version([string]$v) {
+    if (-not $v) { return "" }
+    if ($v.StartsWith("v")) { return $v.Substring(1) }
+    return $v
+}
+
+function Test-VersionOlder([string]$Installed, [string]$Current) {
+    $a = Normalize-Version $Installed
+    $b = Normalize-Version $Current
+    if (-not $a -or -not $b) { return $false }
+    if ($a -eq $b) { return $false }
+    try {
+        return ([version]$a -lt [version]$b)
+    } catch {
+        return ($a -lt $b)
+    }
+}
+
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $installRoot = Join-Path ${env:ProgramFiles} "Roadmap-Agent"
 $binDir = Join-Path $installRoot "bin"
+$machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+$hasBinPath = $false
+if ($machinePath) {
+    foreach ($part in ($machinePath -split ";")) {
+        if ($part.TrimEnd('\') -ieq $binDir.TrimEnd('\')) { $hasBinPath = $true; break }
+    }
+}
+$hasCmd = [bool](Get-Command roadmap-agent.cmd -ErrorAction SilentlyContinue)
+$hasAlias = [bool](Get-Command rma.cmd -ErrorAction SilentlyContinue)
+$repoVer = Get-VersionFromChangelog (Join-Path $root "CHANGELOG.md")
+if (-not $repoVer) { $repoVer = "unknown" }
+$installedVer = Get-VersionFromChangelog (Join-Path $installRoot "CHANGELOG.md")
+if (-not $installedVer) { $installedVer = "unknown" }
+$isOlder = if ($installedVer -ne "unknown" -and $repoVer -ne "unknown") { Test-VersionOlder $installedVer $repoVer } else { $false }
+
+if ($CheckOnly) {
+    Write-Host "Persistence status"
+    Write-Host "Expected bin path: $binDir"
+    Write-Host "Machine PATH has bin: $hasBinPath"
+    Write-Host "roadmap-agent.cmd found: $hasCmd"
+    Write-Host "rma.cmd found: $hasAlias"
+    Write-Host "Current repo version: $repoVer"
+    Write-Host "Installed app version: $installedVer"
+    Write-Host "Installed older than current: $isOlder"
+
+    if ($hasBinPath -and $hasCmd -and $hasAlias -and -not $isOlder) {
+        Write-Host "Persistence already present and current." -ForegroundColor Green
+        exit 0
+    }
+    $prompt = if ($isOlder) { "Installed persistence is older than current version. Upgrade now? (y/N)" } else { "Persistence appears missing. Install now? (y/N)" }
+    $ans = (Read-Host $prompt).Trim().ToLower()
+    if ($ans -notmatch "^(y|yes)$") {
+        Write-Host "Skipped persistence install."
+        exit 0
+    }
+}
 
 if (-not (Test-IsAdmin)) {
     Write-Host "ERROR: Administrator privileges are required." -ForegroundColor Red
@@ -41,14 +111,31 @@ if (-not (Test-IsAdmin)) {
 
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+# Sync full app tree so global launchers never miss dependencies.
+# /MIR keeps install current; excludes runtime workspace/state folders.
+$null = robocopy $root $installRoot /MIR /R:1 /W:1 /XD ".git" ".rma" ".cursor" /NFL /NDL /NJH /NJS /NC /NS
+if ($LASTEXITCODE -ge 8) {
+    Write-Host "ERROR: Failed to mirror repository into $installRoot (robocopy exit code $LASTEXITCODE)." -ForegroundColor Red
+    exit 1
+}
 
-Copy-Item (Join-Path $root "scripts/windows/roadmap-agent.ps1") -Destination (Join-Path $installRoot "roadmap-agent.ps1") -Force
-if (Test-Path (Join-Path $root "roadmap-agent.cmd")) {
-    Copy-Item (Join-Path $root "roadmap-agent.cmd") -Destination (Join-Path $binDir "roadmap-agent.cmd") -Force
-}
-if (Test-Path (Join-Path $root "rma.cmd")) {
-    Copy-Item (Join-Path $root "rma.cmd") -Destination (Join-Path $binDir "rma.cmd") -Force
-}
+# Write deterministic launchers that always point to installed app.
+@"
+@echo off
+setlocal
+where pwsh >nul 2>nul
+if %errorlevel%==0 (
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "$installRoot\scripts\windows\roadmap-agent.ps1" %*
+) else (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "$installRoot\scripts\windows\roadmap-agent.ps1" %*
+)
+"@ | Set-Content (Join-Path $binDir "roadmap-agent.cmd")
+
+@"
+@echo off
+setlocal
+call "$binDir\roadmap-agent.cmd" %*
+"@ | Set-Content (Join-Path $binDir "rma.cmd")
 
 $added = Add-PathEntryIfMissing -Scope "Machine" -Entry $binDir
 if ($added) {
