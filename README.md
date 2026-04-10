@@ -276,7 +276,7 @@ These options are accessible from all main launchers (`roadmap-agent`, `rma`, `r
   - `RMA_OPENAI_MODEL=openllama`
   - `RMA_OPENAI_API_KEY=local-no-key`
   - `RMA_CLAUDE_MODEL=claude-3-5-sonnet-latest`
-  - `ANTHROPIC_API_KEY=<your_key>`
+  - `ANTHROPIC_API_KEY=...` (real value only in `.env`, never committed)
   - `RMA_REQUIRE_OLLAMA=1`
   - `RMA_DISABLE_FZF=0`
 
