@@ -550,5 +550,6 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures |
 | [README.md](../README.md) | Overview, env table, deployment |
 | [CHANGELOG.md](../CHANGELOG.md) | Release notes |
+| [examples/MOCK-WORKFLOW-SESSION.md](examples/MOCK-WORKFLOW-SESSION.md) | Illustrative mock logs (install → init → hub → roadmap) |
 
 Unix manpage source: `DOCS/man/roadmap-agent.1`.

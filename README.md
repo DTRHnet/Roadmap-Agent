@@ -80,6 +80,8 @@ RoadmapAgent/
     MANUAL.md                # Detailed operator manual (usage, .rma editing, commands)
     man/
       roadmap-agent.1
+    examples/
+      MOCK-WORKFLOW-SESSION.md   # Illustrative install → init → doctor → hub → roadmap logs
 
   CHANGELOG.md
 ```
@@ -463,5 +465,6 @@ The runtime works without custom environment variables, but supports useful over
 - `DOCS/ROADMAP-WORKFLOW.md`
 - `DOCS/ARCHITECTURE.md`
 - `DOCS/TROUBLESHOOTING.md`
+- `DOCS/examples/MOCK-WORKFLOW-SESSION.md` — fictional terminal transcripts (install → init → doctor → menus → roadmap → mock log lines)
 - `DOCS/man/roadmap-agent.1`
 - `CHANGELOG.md`

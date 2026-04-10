@@ -6,6 +6,10 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Added
+
+- `DOCS/examples/MOCK-WORKFLOW-SESSION.md` — illustrative mock transcripts from persistence install through `init`, `doctor`, interactive hub, `plan` / `analyze` / `execute-one`, and sample `.rma/logs` lines.
+
 ### Changed
 
 - `DOCS/GETTING-STARTED.md`: links to `QUICKSTART.md` / `MANUAL.md`; Windows persistence notes updated for `setup-rma.ps1` user vs machine scope and PATH refresh.
