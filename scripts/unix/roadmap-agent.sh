@@ -11,7 +11,7 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Unix core ROADMAP-AGENT runtime (menu, roadmap, persistence, help).
-# Last updated: 2026-04-10 | Version: v0.1.0
+# Last updated: 2026-04-10 | Version: v0.2.0
 
 
 set -u
@@ -175,8 +175,24 @@ latest_release_tag() {
   fi
 }
 
+read_version_file() {
+  local vf="$APP_DIR/VERSION"
+  [[ -f "$vf" ]] || return 1
+  local raw
+  raw="$(tr -d '\r' < "$vf" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | head -n 1)"
+  [[ -n "${raw:-}" ]] || return 1
+  case "$raw" in
+    v*) printf "%s" "$raw" ;;
+    *) printf "v%s" "$raw" ;;
+  esac
+}
+
 app_version() {
-  local tag hash
+  local tag hash ver
+  if ver="$(read_version_file 2>/dev/null)"; then
+    printf "%s" "$ver"
+    return
+  fi
   tag="$(latest_release_tag)"
   if [[ -n "${tag:-}" ]]; then
     printf "%s" "$tag"

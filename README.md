@@ -1,36 +1,41 @@
-<h1 align="center">🚀 ROADMAP-AGENT</h1>
+<p align="center">
+  <img src="roadmap-agent-github-banner.png" alt="ROADMAP-AGENT — Local AI Memory Palace CLI" width="100%" />
+</p>
+
+<h1 align="center">ROADMAP-AGENT</h1>
 
 <p align="center">
   <b>Cross-platform Local AI Memory Palace CLI</b><br/>
-  Script-first • Zero fluff • Built for real workflows
+  Script-first • fzf when you want it • a real roadmap in <code>.rma/</code>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue">
-  <img src="https://img.shields.io/badge/runtime-bash%20%2B%20powershell-green">
-  <img src="https://img.shields.io/badge/interface-fzf-orange">
-  <img src="https://img.shields.io/badge/status-active-success">
+  <img src="https://img.shields.io/badge/version-v0.2.0-8b5cf6" alt="version">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="platform">
+  <img src="https://img.shields.io/badge/runtime-bash%20%2B%20powershell-green" alt="runtime">
+  <img src="https://img.shields.io/badge/interface-fzf-orange" alt="interface">
+  <img src="https://img.shields.io/badge/status-active-success" alt="status">
 </p>
 
-Cross-platform, script-first Local AI Memory Palace CLI with a built-in Roadmap Agent workflow.
+### Documentation at a glance
 
-`ROADMAP-AGENT` is designed to run directly from scripts (`.ps1` and `.sh`) with minimal assumptions, while keeping roadmap context in a project-local `.rma/` memory folder.
+| Doc | What you get |
+|-----|----------------|
+| **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** | **Fast lane by OS** — clone, optional Python/MemPalace setup, `.env`, `init`, `doctor`, and global `rma` on Windows (including `setup-rma.ps1` and PATH refresh). |
+| **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** | **The deep cut** — every command, interactive hub behavior, how to write and evolve `.rma` Markdown (`description`, `ui`, `stack`, `other`), `analyze` / `analyze-init`, LLM providers, persistence, and safe operations. |
 
-## UI Placeholder
-
-![ROADMAP-AGENT UI](main.svg)
+**ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
 
 ---
 
 ## What It Does
 
-- Provides an interactive CLI menu powered by `fzf`.
-- Maintains project memory/context in `.rma/`.
-- Supports roadmap lifecycle commands (`init`, `status`, `plan`, `execute-one`, `unlock`).
-- Supports analyzer sync command (`analyze`) to keep roadmap artifacts current.
-- Supports interactive scaffold command (`analyze-init`) to generate `.rma/*.md` with preview + accept/deny.
-- Integrates MemPalace-oriented flows (setup/safe-mine/health/logs/reset).
-- Supports persistence/global command installation checks across platforms.
+- **Menus that do not get in the way** — `fzf` when it is there; honest text prompts when it is not.
+- **Project memory that stays in the repo** — Markdown under `.rma/`, not a black-box database.
+- **Roadmap lifecycle** — `init`, `status`, `plan`, `execute-one`, `unlock` for small, reviewable steps.
+- **Repo-aware analysis** — `analyze` keeps `tasks.md` / `run.md` honest; `analyze-init` drafts context files with preview (and LLM help when configured).
+- **MemPalace-flavored workflows** — setup, health, logs, and related helpers when Python tooling is available.
+- **Run from anywhere (if you want)** — persistence installers for Windows, Linux, and macOS so `rma` can live on your PATH.
 
 ---
 
@@ -38,6 +43,8 @@ Cross-platform, script-first Local AI Memory Palace CLI with a built-in Roadmap 
 
 ```text
 RoadmapAgent/
+  VERSION                     # Semver release (read by CLI banner; keep in sync with CHANGELOG / git tags)
+  roadmap-agent-github-banner.png
   roadmap-agent                 # Universal launcher (Linux/macOS + Git Bash style usage)
   roadmap-agent.cmd             # CMD launcher -> PowerShell runtime
   rma                           # Alias launcher
@@ -295,7 +302,7 @@ Use repository scripts directly, keeping everything scoped to the current projec
 ### Windows
 
 ```powershell
-git clone <repo-url>
+git clone https://github.com/DTRHnet/Roadmap-Agent.git
 cd RoadmapAgent
 .\rma.ps1 init
 .\rma.ps1
@@ -306,7 +313,7 @@ If `bash` is unavailable, install WSL or Git Bash to enable the full menu workfl
 ### Linux/macOS
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/DTRHnet/Roadmap-Agent.git
 cd RoadmapAgent
 chmod +x roadmap-agent rma scripts/unix/roadmap-agent.sh
 ./roadmap-agent init
@@ -439,6 +446,14 @@ The runtime works without custom environment variables, but supports useful over
 
 ---
 
+## Versioning
+
+- **Canonical release number** lives in the root **`VERSION`** file (for example `0.2.0`). The Unix runtime prints it in the banner as `v0.2.0` when present.
+- **`CHANGELOG.md`** follows [Keep a Changelog](https://keepachangelog.com/) with dated sections per release.
+- **Git tags** use the `v` prefix (for example `v0.2.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v0.2.0` checks out that tag.
+
+---
+
 ## Documentation Index
 
 - `DOCS/QUICKSTART.md` — fastest path by OS (Windows, Linux, macOS, Docker)
@@ -448,6 +463,5 @@ The runtime works without custom environment variables, but supports useful over
 - `DOCS/ROADMAP-WORKFLOW.md`
 - `DOCS/ARCHITECTURE.md`
 - `DOCS/TROUBLESHOOTING.md`
-- `DOCS/MANUAL.md`
 - `DOCS/man/roadmap-agent.1`
 - `CHANGELOG.md`

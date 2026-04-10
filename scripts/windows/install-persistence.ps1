@@ -1,7 +1,7 @@
 # -------------------------------------------------------------------------------------------
 # ROADMAP-AGENT | A DTRHnet Project (2026 <admin[at]dtrh[dot]net>)
 # Summary: Windows persistence installer for global ROADMAP-AGENT access.
-# Last updated: 2026-04-10 | Version: v0.1.0
+# Last updated: 2026-04-10 | Version: v0.2.0
 # -------------------------------------------------------------------------------------------
 
 param(
@@ -84,7 +84,8 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
         "rma",
         "rma.cmd",
         "rma.ps1",
-        "rma.sh"
+        "rma.sh",
+        "VERSION"
     )
     foreach ($rel in $files) {
         $src = Join-Path $SourceRoot $rel
