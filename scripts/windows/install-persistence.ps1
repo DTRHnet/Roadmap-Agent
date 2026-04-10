@@ -77,6 +77,7 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
         "scripts\\unix\\setup-local-models-mempalace.sh",
         "scripts\\windows\\roadmap-agent.ps1",
         "scripts\\windows\\install-persistence.ps1",
+        "scripts\\windows\\refresh-rma-path.ps1",
         "scripts\\windows\\setup-local-models-mempalace.ps1",
         "roadmap-agent",
         "roadmap-agent.cmd",
@@ -208,5 +209,11 @@ if ($added) {
 }
 
 Write-Host "Persistence install complete." -ForegroundColor Green
-Write-Host "Open a new terminal and run: roadmap-agent --help" -ForegroundColor Green
+$refresh = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "refresh-rma-path.ps1"
+if (Test-Path $refresh) {
+    & $refresh -Quiet
+    Write-Host "Current session PATH updated — try: rma --help" -ForegroundColor Cyan
+} else {
+    Write-Host "Open a new terminal and run: roadmap-agent --help" -ForegroundColor Green
+}
 $global:LASTEXITCODE = 0

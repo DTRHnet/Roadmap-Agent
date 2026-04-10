@@ -8,24 +8,27 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ### Added
 
+- `scripts/windows/refresh-rma-path.ps1` and repo-root `refresh-rma-path.ps1` to rebuild `PATH` in the current PowerShell session from Machine + User registry values (so `rma` works in the same window after persistence install).
+- Windows `install-persistence.ps1` and `setup-rma.ps1` call the PATH refresh helper after a successful install.
 - Expanded documentation set with practical usage guides in `DOCS/`.
+- `DOCS/QUICKSTART.md` — per-OS quick start (Windows, Linux, macOS, Docker).
+- Rewrote `DOCS/MANUAL.md` as a detailed operator manual (table of contents, commands, interactive mode, `.rma` authoring, LLM/env/persistence, security).
 - Manual command support via `roadmap-agent man`.
 - Unix manpage source at `DOCS/man/roadmap-agent.1`.
 - Windows persistence installer script at `scripts/windows/install-persistence.ps1`.
 
 ### Changed
 
+- `README.md`: removed duplicate trailing block; added **Full setup workflow**, clearer env var guidance (`.env`, shell, Windows), persistence/PATH instructions, and troubleshooting; documented `refresh-rma-path.ps1` and `setup-rma.ps1` scopes; linked `DOCS/QUICKSTART.md` and `DOCS/MANUAL.md` from Quick Start and the documentation index.
 - Reorganized repository by operating system:
   - Windows runtime/scripts in `scripts/windows/`
   - Linux/macOS runtime/scripts in `scripts/unix/`
   - Docker entrypoint moved to `docker/entrypoint.sh`
 - Updated root launchers to route into new OS-specific runtime locations.
 - Updated Dockerfile paths and executable targets to match new layout.
-- Rewrote `README.md` with detailed script-by-script behavior and new structure map.
 - Updated menu display labels from `SUB::...` format to Roman numerals for cleaner UX.
 - Added persistence health-check option (`persistence-check`) and menu entry to detect and optionally remediate missing global persistence.
 - Implemented a Defender-safe Windows bridge runtime in `scripts/windows/roadmap-agent.ps1` that delegates full CLI execution to `scripts/unix/roadmap-agent.sh` through `bash` while keeping Windows persistence installation local.
-- Rewrote `README.md` into an operator-focused guide with deployment modes, environment variable reference, troubleshooting, and an image placeholder asset.
 
 ## [0.1.0] - 2026-04-10
 

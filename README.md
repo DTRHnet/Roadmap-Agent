@@ -45,6 +45,10 @@ RoadmapAgent/
   rma.ps1                       # Alias PowerShell launcher
   rma.sh                        # Alias shell launcher
 
+  setup-rma.ps1                 # Windows: install/check global persistence (wraps installer)
+  setup-rma.cmd
+  refresh-rma-path.ps1          # Windows: reload PATH in current PowerShell session
+
   scripts/
     unix/
       roadmap-agent.sh          # Unix runtime
@@ -53,18 +57,20 @@ RoadmapAgent/
       roadmap-agent.ps1         # Windows runtime
       setup-local-models-mempalace.ps1
       install-persistence.ps1   # Windows persistence installer
+      refresh-rma-path.ps1      # Windows: PATH refresh helper (used by installer/setup)
 
   docker/
     entrypoint.sh               # Docker runtime entrypoint
   Dockerfile
 
   DOCS/
+    QUICKSTART.md            # Per-OS quick start (Windows, Linux, macOS, Docker)
     GETTING-STARTED.md
     MENU-REFERENCE.md
     ROADMAP-WORKFLOW.md
     ARCHITECTURE.md
     TROUBLESHOOTING.md
-    MANUAL.md
+    MANUAL.md                # Detailed operator manual (usage, .rma editing, commands)
     man/
       roadmap-agent.1
 
@@ -150,6 +156,39 @@ Windows PowerShell:
 .\rma.ps1 init
 .\rma.ps1
 ```
+
+**More detail**: step-by-step instructions for each OS (including persistence and PATH) are in **`DOCS/QUICKSTART.md`**. For command reference, interactive mode, and how to write `.rma` Markdown (`description.md`, `ui.md`, etc.), see **`DOCS/MANUAL.md`**.
+
+---
+
+## Full setup workflow
+
+1. **Clone** this repository and open a terminal at the repo root (or use your project’s root when using ROADMAP-AGENT against another codebase).
+2. **Python + MemPalace (recommended)** — creates `.rma/venv` (or `RMA_PYTHON_VENV_DIR`) and installs Python dependencies used by health checks and local tooling:
+   - Windows: `.\scripts\windows\setup-local-models-mempalace.ps1`
+   - Linux/macOS: `./scripts/unix/setup-local-models-mempalace.sh`
+3. **Environment variables** — copy `.env.example` to `.env` at the **project root** you work in (the app or repo under analysis). Edit `RMA_*` values and any API keys. The runtime reads `.env` from the detected project root when present.
+4. **Diagnostics** — `.\rma.ps1 doctor` (Windows) or `./roadmap-agent doctor` (Unix) to verify `git`, `bash`, Python venv, LLM providers, and persistence sync.
+5. **Roadmap memory** — `init` once, then use the interactive menu or individual commands as needed.
+
+### Global `rma` / `roadmap-agent` on PATH (Windows persistence)
+
+- From the cloned **Roadmap-Agent** repo, run **`.\setup-rma.ps1`** (optional: `-Scope User` for per-user install without elevation, or `-Scope Machine` as Administrator for all users).
+- Under the hood this mirrors the full app tree into `%LOCALAPPDATA%\Roadmap-Agent` (user scope) or `%ProgramFiles%\Roadmap-Agent` (machine scope), adds `...\Roadmap-Agent\bin` to PATH, and writes `roadmap-agent.cmd` / `rma.cmd` launchers.
+- **Same PowerShell window after install**: `setup-rma.ps1` and `install-persistence.ps1` run `scripts/windows/refresh-rma-path.ps1` so the **current session** picks up the updated PATH. You can run `rma --help` immediately without opening a new terminal.
+- If PATH still looks stale (e.g. you changed PATH elsewhere), run from the repo:
+
+```powershell
+.\refresh-rma-path.ps1
+```
+
+That script rebuilds `$env:Path` from the Machine + User registry values (the same merge a new process would get).
+
+- **Check only / upgrade prompt**: `.\setup-rma.ps1 -CheckOnly -Scope Auto` (compares version, sync, and PATH; can prompt to reinstall).
+
+### Global install (Linux / macOS)
+
+- Use `roadmap-agent persistence` or `roadmap-agent persistence-check` and follow prompts. Open a **new** shell after RC changes, or `source` your profile if you prefer not to restart the terminal.
 
 ---
 
@@ -278,24 +317,21 @@ Best when you want isolated behavior per repository.
 
 ## B) Global/persistence deployment
 
-Global mode is intended to make `roadmap-agent` available from anywhere.
+Global mode is intended to make `roadmap-agent` / `rma` available from any directory.
 
 ### Windows
 
-- Run terminal as Administrator.
-- Use `.\rma.ps1 persistence-check`.
-- If missing, accept installer prompt to run `scripts/windows/install-persistence.ps1`.
-- Installer targets Program Files and machine PATH.
-- For a dedicated setup/check flow, use:
-  - `.\setup-rma.ps1 -CheckOnly -Scope Auto`
-  - `.\setup-rma.ps1 -Scope User` (no admin)
-  - `.\setup-rma.ps1 -Scope Machine` (admin)
+- **Recommended entrypoint**: `.\setup-rma.ps1` from the cloned repo (see [Full setup workflow](#full-setup-workflow)).
+- **Scopes**: `-Scope User` installs under `%LOCALAPPDATA%\Roadmap-Agent` and updates **User** PATH (no Administrator). `-Scope Machine` requires Administrator and installs under `%ProgramFiles%\Roadmap-Agent` and **Machine** PATH.
+- **Menu / CLI**: `.\rma.ps1 persistence-check` may prompt to run the installer; you can also invoke `.\scripts\windows\install-persistence.ps1` directly with `-Scope` and `-CheckOnly` as needed.
+- **PATH in the current session**: After a successful install, the installer refreshes PATH via `scripts/windows/refresh-rma-path.ps1`. Run `.\refresh-rma-path.ps1` manually if `rma` is still not resolved.
+- **Check / upgrade**: `.\setup-rma.ps1 -CheckOnly -Scope Auto` reports version, whether installed files match the repo, and whether an upgrade is advisable.
 
 ### Linux/macOS
 
 - Use `roadmap-agent persistence` (or `persistence-check` and accept install).
 - Runtime installs command wrappers under `/usr/local/bin`.
-- Runtime can update detected shell RC file with deduplicated managed PATH block.
+- Runtime can update the detected shell RC file with a deduplicated managed PATH block. Open a **new** terminal after install so PATH and profile changes apply.
 
 ## C) Container deployment (Docker)
 
@@ -343,11 +379,14 @@ The runtime works without custom environment variables, but supports useful over
 
 ### ENV Guidance
 
-- `ROADMAP_AGENT_PROJECT_ROOT` is the main project override variable and is useful in custom wrappers.
-- Avoid overriding `PATH` in a way that hides system binaries (`git`, `python`, `pwsh`).
-- If you customize `FZF_DEFAULT_OPTS`, keep compatible options with the runtime’s own fzf flags.
-- Setup scripts create and use a project virtual environment (default `.rma/venv`) before package installation.
-- ROADMAP-AGENT runtime commands prefer the configured project venv interpreter when present (`RMA_PYTHON_VENV_DIR`), so Python-backed operations run in that environment.
+- **Project `.env`**: Copy `.env.example` to `.env` at the **project root** (the repository you are working in). Variables are read by the bash runtime when `.env` exists; use Unix-style `KEY=value` lines. Do not commit `.env` (it is gitignored).
+- **Shell exports (Unix)**: For a one-off session, `export RMA_OLLAMA_MODEL=llama3.1:latest` in `bash`/`zsh`. For persistence across logins, add the same to `~/.profile` or your shell RC file, or keep using `.env` per project.
+- **Windows**: You can set user-wide variables via **System Properties → Environment Variables**, or `setx RMA_OLLAMA_MODEL "llama3.1:latest"` in `cmd` (requires new console). Prefer a project-local `.env` so settings travel with the repo and stay out of global policy.
+- **Secrets**: Put API keys in `.env` or your OS secret store; never commit real keys. `ANTHROPIC_API_KEY`, `RMA_OPENAI_API_KEY`, and `OPENAI_API_KEY` follow the same rule.
+- `ROADMAP_AGENT_PROJECT_ROOT` forces project root detection instead of deriving from the script location (useful in CI or wrappers).
+- Avoid narrowing `PATH` so much that `git`, `python`, `bash`, or `pwsh` disappear from view.
+- If you customize `FZF_DEFAULT_OPTS`, keep options compatible with the runtime’s own `fzf` flags.
+- Setup scripts create and activate a project virtual environment (default `.rma/venv`) for installs; runtime commands prefer that venv when `RMA_PYTHON_VENV_DIR` points to an existing env.
 
 ---
 
@@ -384,12 +423,10 @@ The runtime works without custom environment variables, but supports useful over
 
 ## Persistence not detected
 
-- Run `persistence-check`.
-- Verify launcher directories are present in machine/user PATH.
-- Open a new terminal after installer modifies PATH.
-- On Windows, if `rma` is not recognized:
-  - run `.\setup-rma.ps1 -Scope User`
-  - close/reopen terminal, then test `rma --help`
+- Run `persistence-check` (or `.\setup-rma.ps1 -CheckOnly -Scope Auto` on Windows).
+- Verify the install `bin` directory is on User or Machine PATH (`%LOCALAPPDATA%\Roadmap-Agent\bin` for typical user installs).
+- On Windows, run `.\refresh-rma-path.ps1` in the current PowerShell session, or open a **new** terminal after install.
+- If `rma` still fails, reinstall from the repo with `.\setup-rma.ps1 -Scope User` and confirm `Test-Path "$env:LOCALAPPDATA\Roadmap-Agent\scripts\windows\roadmap-agent.ps1"` is true.
 
 ---
 
@@ -404,124 +441,8 @@ The runtime works without custom environment variables, but supports useful over
 
 ## Documentation Index
 
-- `DOCS/GETTING-STARTED.md`
-- `DOCS/MENU-REFERENCE.md`
-- `DOCS/ROADMAP-WORKFLOW.md`
-- `DOCS/ARCHITECTURE.md`
-- `DOCS/TROUBLESHOOTING.md`
-- `DOCS/MANUAL.md`
-- `DOCS/man/roadmap-agent.1`
-- `CHANGELOG.md`
-# ROADMAP-AGENT
-
-Cross-platform, script-first Local AI Memory Palace CLI with an integrated Roadmap Agent.
-
-## Directory Layout (OS Organized)
-
-```text
-RoadmapAgent/
-  roadmap-agent
-  roadmap-agent.cmd
-  rma
-  rma.cmd
-  rma.ps1
-  rma.sh
-  Dockerfile
-  CHANGELOG.md
-  DOCS/
-    GETTING-STARTED.md
-    MENU-REFERENCE.md
-    ROADMAP-WORKFLOW.md
-    ARCHITECTURE.md
-    TROUBLESHOOTING.md
-    MANUAL.md
-    man/
-      roadmap-agent.1
-  docker/
-    entrypoint.sh
-  scripts/
-    windows/
-      roadmap-agent.ps1
-      setup-local-models-mempalace.ps1
-      install-persistence.ps1
-    unix/
-      roadmap-agent.sh
-      setup-local-models-mempalace.sh
-```
-
-## Entry Points
-
-- `roadmap-agent` - universal launcher that routes to OS-specific runtime.
-- `roadmap-agent.cmd` - Windows CMD launcher for PowerShell runtime.
-- `rma`, `rma.cmd`, `rma.ps1`, `rma.sh` - alias launchers.
-
-## Runtime Scripts (How They Work)
-
-- `scripts/windows/roadmap-agent.ps1`
-  - Main Windows runtime.
-  - Handles interactive hub + AI submenu, `.rma` validation, roadmap plan/status/execute/unlock, and MemPalace actions.
-  - Performs local `fzf` auto-install when missing.
-- `scripts/unix/roadmap-agent.sh`
-  - Main Linux/macOS runtime.
-  - Mirrors Windows behavior for menu flow, roadmap actions, and MemPalace actions.
-  - Contains Unix persistence flow for global install and shell rc dedupe.
-
-## Support Scripts
-
-- `scripts/windows/setup-local-models-mempalace.ps1`
-  - Dependency-aware local model setup on Windows with structured logs and verification.
-- `scripts/unix/setup-local-models-mempalace.sh`
-  - Dependency-aware local model setup on Linux/macOS with structured logs and verification.
-- `scripts/windows/install-persistence.ps1`
-  - Admin installer for Windows global command access and machine PATH update.
-- `docker/entrypoint.sh`
-  - Starts Unix runtime inside container from `/workspace`.
-
-## Commands
-
-- `roadmap-agent init`
-- `roadmap-agent status`
-- `roadmap-agent doctor`
-- `roadmap-agent plan`
-- `roadmap-agent analyze`
-- `roadmap-agent analyze-init`
-- `roadmap-agent analyze-init --dry-run`
-- `roadmap-agent analyze-init --yes`
-- `roadmap-agent execute-one`
-- `roadmap-agent unlock`
-- `roadmap-agent persistence` / `roadmap-agent persistance`
-- `roadmap-agent persistence-check`
-- `roadmap-agent --help` / `roadmap-agent help`
-- `roadmap-agent man`
-- `roadmap-agent` (interactive mode)
-
-Interactive options are shown as Roman numerals (`I`, `II`, `III`, ...) for cleaner menu display.
-
-## `.rma/` Folder
-
-Required context:
-
-- `.rma/description.md`
-- `.rma/ui.md`
-- `.rma/stack.md`
-- `.rma/other.md`
-
-Generated state:
-
-- `.rma/*.example.md`
-- `.rma/roadmaps/plan.md`
-- `.rma/roadmaps/tasks.md`
-- `.rma/roadmaps/run.md`
-- `.rma/state/*`
-- `.rma/logs/*`
-
-## Docker
-
-- Build: `docker build -t roadmap-agent .`
-- Run: `docker run --rm -it -v "$PWD:/workspace" roadmap-agent`
-
-## Documentation Index
-
+- `DOCS/QUICKSTART.md` — fastest path by OS (Windows, Linux, macOS, Docker)
+- `DOCS/MANUAL.md` — full operator manual (commands, `.rma` files, env, persistence)
 - `DOCS/GETTING-STARTED.md`
 - `DOCS/MENU-REFERENCE.md`
 - `DOCS/ROADMAP-WORKFLOW.md`
