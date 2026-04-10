@@ -1,6 +1,6 @@
 # Other
 
-Generated: 2026-04-10T10:56:14Z
+Generated: 2026-04-10T11:34:54Z
 
 ## Repository Scan Summary
 - Markdown files found: 8
@@ -20,3 +20,4 @@ README.md
 - Do not roll tasks/run files with timestamps or variant names.
 - Keep analyzer output deterministic and reviewable.
 - Require explicit accept/deny before writing generated .rma files.
+- Prefer evidence from the current project repository over global defaults.

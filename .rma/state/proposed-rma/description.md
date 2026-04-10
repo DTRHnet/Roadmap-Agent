@@ -1,8 +1,8 @@
 # Description
 
-Generated: 2026-04-10T10:56:14Z
+Generated: 2026-04-10T11:34:54Z
 Project: RoadmapAgent
-Goal signal: ROADMAP-AGENT | Changelog detected: CHANGELOG.md
+Goal signal: <h1 align="center">🚀 ROADMAP-AGENT</h1> | Changelog detected: CHANGELOG.md
 
 ## Product Intent
 - Describe the core user problem this repository solves.
@@ -15,5 +15,5 @@ Goal signal: ROADMAP-AGENT | Changelog detected: CHANGELOG.md
 - Code files scanned: 9
 
 ## Immediate Scope
-- Keep ROADMAP-AGENT menu workflows aligned with docs and implementation.
-- Keep task/run artifacts canonical under .rma/roadmaps/.
+- Implement project goals from repository evidence with clear acceptance criteria.
+- Keep .rma context aligned with actual code and docs.

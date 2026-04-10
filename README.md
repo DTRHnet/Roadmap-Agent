@@ -175,10 +175,13 @@ These options are accessible from all main launchers (`roadmap-agent`, `rma`, `r
 
 - General form: `roadmap-agent <command> [options]`
 - Optional env override: `RMA_DISABLE_FZF=1` forces fallback text menus/selectors.
+- Optional env override: `RMA_OLLAMA_MODEL=<model>` selects local Ollama model for project-aware `.rma` generation (default: `llama3.1:latest`).
+- Optional env override: `RMA_REQUIRE_OLLAMA=1` requires local Ollama/model availability for generation.
 - Analyzer scaffolding:
   - `roadmap-agent analyze-init` -> interactive per-file preview + accept/deny
   - `roadmap-agent analyze-init --dry-run` -> generate/preview proposals only
   - `roadmap-agent analyze-init --yes` -> auto-accept all generated `.rma/*.md`
+  - `roadmap-agent analyze-init --require-ollama` -> fail fast if Ollama/model is missing
 - Windows wrappers pass arguments through unchanged:
   - `.\rma.ps1 analyze-init --dry-run`
   - `rma.cmd analyze-init --yes`
@@ -192,6 +195,17 @@ These options are accessible from all main launchers (`roadmap-agent`, `rma`, `r
 - In fallback mode:
   - menu navigation still works from terminal prompts
   - `analyze-init` still previews each generated `.md` file before accept/deny
+
+### Local LLM Generation (Ollama)
+
+- `analyze-init` now analyzes project files in the current directory/subfolders and generates `.rma` proposals using a local LLM via Ollama.
+- The prompt context is built from repository markdown, key config files, file inventory, and extracted task cues.
+- If Ollama is unavailable, ROADMAP-AGENT falls back to heuristic generation based on repository evidence.
+- Default model is `llama3.1:latest`.
+- You can configure runtime behavior via `.env` (copy from `.env.example`):
+  - `RMA_OLLAMA_MODEL=llama3.1:latest`
+  - `RMA_REQUIRE_OLLAMA=1`
+  - `RMA_DISABLE_FZF=0`
 
 ### Global Install Dependency Safety
 

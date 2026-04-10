@@ -1,11 +1,11 @@
 # UI
 
-Generated: 2026-04-10T10:56:14Z
+Generated: 2026-04-10T11:34:54Z
 
 ## CLI UX Baseline
-- Keep fzf-driven interactive choices for selection flows.
-- Keep Roman numeral menu options for readability.
-- Keep roadmap and persistence actions visible in hub/AI menu.
+- Define expected user workflows and critical interaction paths.
+- Specify constraints for reliability, accessibility, and consistency.
+- Document user-facing behavior for key commands/screens.
 
 ## Visual Notes
 - Preserve dark theme assumptions and clear header hierarchy.

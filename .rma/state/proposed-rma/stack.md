@@ -1,6 +1,6 @@
 # Stack
 
-Generated: 2026-04-10T10:56:14Z
+Generated: 2026-04-10T11:34:54Z
 
 ## Detected
 - Framework: unknown
@@ -9,10 +9,9 @@ Generated: 2026-04-10T10:56:14Z
 - Remote: https://github.com/DTRHnet/Roadmap-Agent.git
 
 ## Runtime Tooling
-- Bash runtime: scripts/unix/roadmap-agent.sh
-- PowerShell bridge: scripts/windows/roadmap-agent.ps1
-- fzf: interactive selection engine
-- git: branch/version/release metadata source
+- Describe primary runtime/toolchain used by this project.
+- Include package/runtime/version expectations.
+- Note build, test, and deploy tooling where applicable.
 
 ## Operational Requirements
 - Maintain one canonical tasks file: .rma/roadmaps/tasks.md

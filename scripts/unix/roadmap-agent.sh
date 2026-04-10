@@ -39,6 +39,10 @@ RUN_FILE="$ROADMAP_DIR/run.md"
 EXEC_LOG="$LOG_DIR/roadmap-agent-execution.log"
 HAVE_FZF=0
 
+# Local LLM defaults (overridable via environment or .env)
+RMA_OLLAMA_MODEL="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
+
 # Use real escape bytes so routed shells (e.g. PowerShell -> bash)
 # do not render literal "\033[...m" sequences.
 ESC=$'\033'
@@ -62,6 +66,27 @@ fi
 
 warn() { printf "${PURPLE}WARN${RESET}: %s\n" "$1"; }
 info() { printf "${CYAN}%s${RESET}\n" "$1"; }
+
+load_rma_env_file() {
+  # Load only known ROADMAP-AGENT keys from project .env.
+  local env_file="$ROOT_DIR/.env"
+  [[ -f "$env_file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "${line// }" ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    if [[ "$line" =~ ^[[:space:]]*(RMA_OLLAMA_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF)[[:space:]]*=(.*)$ ]]; then
+      local key="${BASH_REMATCH[1]}"
+      local val="${BASH_REMATCH[2]}"
+      val="${val%\"}"
+      val="${val#\"}"
+      val="${val%\'}"
+      val="${val#\'}"
+      export "$key=$val"
+    fi
+  done < "$env_file"
+  RMA_OLLAMA_MODEL="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
+}
 
 ensure_core_dirs() {
   mkdir -p "$ROADMAP_DIR" "$STATE_DIR" "$LOG_DIR" "$MEMPALACE_DIR"
@@ -197,6 +222,9 @@ COMMANDS
 ANALYZE-INIT OPTIONS
   --yes, -y        Non-interactive: accept and write all proposed .rma files
   --dry-run        Generate proposals only; do not write .rma files
+  --require-ollama Fail if local Ollama/model is unavailable
+  (env) RMA_OLLAMA_MODEL=<model>  Override local Ollama model (default: llama3.1:latest)
+  (env) RMA_REQUIRE_OLLAMA=1      Require Ollama for generation (same as --require-ollama)
 
 PERSISTENCE MODE
   Linux/macOS:
@@ -236,10 +264,125 @@ analyze_workspace_snapshot() {
   ANALYZE_DOC_PREVIEW="${doc_preview:-none}"
 }
 
+collect_project_context_for_llm() {
+  ensure_core_dirs
+  local out="$STATE_DIR/project-context-for-llm.md"
+  local md
+  {
+    echo "# Project Context Bundle"
+    echo
+    echo "Project root: $ROOT_DIR"
+    echo "Project name: $(project_name)"
+    echo "Goal signal: $ANALYZE_GOAL"
+    echo "Detected framework: $ANALYZE_FRAMEWORK"
+    echo "Version signal: $ANALYZE_VERSION"
+    echo "Branch: $(project_branch)"
+    echo "Remote: $(project_remote)"
+    echo
+    echo "## Markdown files (sample)"
+    find "$ROOT_DIR" -type f -name "*.md" ! -path "$RMA_DIR/*" 2>/dev/null | sed "s#^$ROOT_DIR/##" | head -n 20
+    echo
+    echo "## Code files (sample)"
+    find "$ROOT_DIR" -type f \( -name "*.sh" -o -name "*.ps1" -o -name "*.py" -o -name "*.js" -o -name "*.ts" -o -name "*.go" -o -name "*.rs" \) ! -path "$RMA_DIR/*" 2>/dev/null | sed "s#^$ROOT_DIR/##" | head -n 40
+    echo
+    echo "## Candidate tasks extracted from markdown"
+    extract_tasks_from_markdown | awk 'NF' | awk '!seen[$0]++' | head -n 20
+    echo
+    for md in $(find "$ROOT_DIR" -type f -name "*.md" ! -path "$RMA_DIR/*" 2>/dev/null | head -n 6); do
+      echo "### FILE: ${md#$ROOT_DIR/}"
+      sed -n '1,120p' "$md"
+      echo
+    done
+    for keyfile in "$ROOT_DIR/package.json" "$ROOT_DIR/pyproject.toml" "$ROOT_DIR/requirements.txt" "$ROOT_DIR/go.mod" "$ROOT_DIR/Cargo.toml"; do
+      if [[ -f "$keyfile" ]]; then
+        echo "### FILE: ${keyfile#$ROOT_DIR/}"
+        sed -n '1,120p' "$keyfile"
+        echo
+      fi
+    done
+  } > "$out"
+  printf "%s" "$out"
+}
+
+clean_llm_output() {
+  local raw="$1"
+  # Strip common markdown fences from model output.
+  printf "%s" "$raw" | sed -E '1{/^```[a-zA-Z0-9_-]*$/d;}; ${/^```$/d;}'
+}
+
+ollama_model_available() {
+  local model="$1"
+  ollama show "$model" >/dev/null 2>&1
+}
+
+generate_rma_file_with_ollama() {
+  local section="$1"
+  local context_file="$2"
+  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  local prompt output
+  prompt="$(cat <<EOF
+You are generating one configuration markdown file for a software project.
+Target file: .rma/${section}.md
+
+Rules:
+- Use ONLY the provided project context, do not invent unrelated tool details.
+- Do NOT mention ROADMAP-AGENT internals unless they appear in context.
+- Be specific to the analyzed project goals, architecture, and tasks.
+- Return markdown only (no code fences, no preamble).
+
+Project context:
+$(cat "$context_file")
+EOF
+)"
+  output="$(ollama run "$model" "$prompt" 2>/dev/null || true)"
+  clean_llm_output "$output"
+}
+
 generate_proposed_rma_files() {
+  local require_ollama="${1:-0}"
   analyze_workspace_snapshot
   local proposal_dir="$STATE_DIR/proposed-rma"
+  local context_file llm_ok model
   mkdir -p "$proposal_dir"
+  context_file="$(collect_project_context_for_llm)"
+  llm_ok="no"
+  model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  if command -v ollama >/dev/null 2>&1; then
+    if ollama_model_available "$model"; then
+      llm_ok="yes"
+      printf "INFO: Using local LLM via Ollama model: %s\n" "$model" >&2
+    else
+      if [[ "$require_ollama" == "1" ]]; then
+        warn "Ollama model not found: $model"
+        warn "Run: ollama pull $model"
+        return 1
+      fi
+      printf "WARN: Ollama model not found (%s). Falling back to heuristic generation.\n" "$model" >&2
+    fi
+  else
+    if [[ "$require_ollama" == "1" ]]; then
+      warn "Ollama is required but not available."
+      return 1
+    fi
+    printf "WARN: Ollama not found. Falling back to heuristic project-based generation.\n" >&2
+  fi
+
+  if [[ "$llm_ok" == "yes" ]]; then
+    local desc ui stack other
+    desc="$(generate_rma_file_with_ollama "description" "$context_file")"
+    ui="$(generate_rma_file_with_ollama "ui" "$context_file")"
+    stack="$(generate_rma_file_with_ollama "stack" "$context_file")"
+    other="$(generate_rma_file_with_ollama "other" "$context_file")"
+    if [[ -n "${desc// }" ]]; then printf "%s\n" "$desc" > "$proposal_dir/description.md"; fi
+    if [[ -n "${ui// }" ]]; then printf "%s\n" "$ui" > "$proposal_dir/ui.md"; fi
+    if [[ -n "${stack// }" ]]; then printf "%s\n" "$stack" > "$proposal_dir/stack.md"; fi
+    if [[ -n "${other// }" ]]; then printf "%s\n" "$other" > "$proposal_dir/other.md"; fi
+  fi
+
+  if [[ "$llm_ok" == "yes" && -s "$proposal_dir/description.md" && -s "$proposal_dir/ui.md" && -s "$proposal_dir/stack.md" && -s "$proposal_dir/other.md" ]]; then
+    printf "%s" "$proposal_dir"
+    return 0
+  fi
 
   cat > "$proposal_dir/description.md" <<EOF
 # Description
@@ -259,8 +402,8 @@ Goal signal: $ANALYZE_GOAL
 - Code files scanned: $ANALYZE_CODE_COUNT
 
 ## Immediate Scope
-- Keep ROADMAP-AGENT menu workflows aligned with docs and implementation.
-- Keep task/run artifacts canonical under .rma/roadmaps/.
+- Implement project goals from repository evidence with clear acceptance criteria.
+- Keep .rma context aligned with actual code and docs.
 EOF
 
   cat > "$proposal_dir/ui.md" <<EOF
@@ -269,9 +412,9 @@ EOF
 Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 ## CLI UX Baseline
-- Keep fzf-driven interactive choices for selection flows.
-- Keep Roman numeral menu options for readability.
-- Keep roadmap and persistence actions visible in hub/AI menu.
+- Define expected user workflows and critical interaction paths.
+- Specify constraints for reliability, accessibility, and consistency.
+- Document user-facing behavior for key commands/screens.
 
 ## Visual Notes
 - Preserve dark theme assumptions and clear header hierarchy.
@@ -294,10 +437,9 @@ Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 - Remote: $(project_remote)
 
 ## Runtime Tooling
-- Bash runtime: scripts/unix/roadmap-agent.sh
-- PowerShell bridge: scripts/windows/roadmap-agent.ps1
-- fzf: interactive selection engine
-- git: branch/version/release metadata source
+- Describe primary runtime/toolchain used by this project.
+- Include package/runtime/version expectations.
+- Note build, test, and deploy tooling where applicable.
 
 ## Operational Requirements
 - Maintain one canonical tasks file: .rma/roadmaps/tasks.md
@@ -320,6 +462,7 @@ $ANALYZE_DOC_PREVIEW
 - Do not roll tasks/run files with timestamps or variant names.
 - Keep analyzer output deterministic and reviewable.
 - Require explicit accept/deny before writing generated .rma files.
+- Prefer evidence from the current project repository over global defaults.
 EOF
 
   printf "%s" "$proposal_dir"
@@ -327,9 +470,10 @@ EOF
 
 preview_and_apply_rma_proposals() {
   local mode="${1:-interactive}"
+  local require_ollama="${2:-0}"
   ensure_core_dirs
   local proposal_dir base tmp_file target preview_file action accepted skipped
-  proposal_dir="$(generate_proposed_rma_files)"
+  proposal_dir="$(generate_proposed_rma_files "$require_ollama")" || return 1
   accepted=0
   skipped=0
 
@@ -413,6 +557,7 @@ preview_and_apply_rma_proposals() {
 
 cmd_analyze_init() {
   local mode="interactive"
+  local require_ollama="${RMA_REQUIRE_OLLAMA:-0}"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --yes|-y)
@@ -421,15 +566,18 @@ cmd_analyze_init() {
       --dry-run)
         mode="dry-run"
         ;;
+      --require-ollama)
+        require_ollama="1"
+        ;;
       *)
         warn "Unknown analyze-init option: $1"
-        warn "Supported: --yes, -y, --dry-run"
+        warn "Supported: --yes, -y, --dry-run, --require-ollama"
         return 1
         ;;
     esac
     shift
   done
-  preview_and_apply_rma_proposals "$mode"
+  preview_and_apply_rma_proposals "$mode" "$require_ollama"
 }
 
 canonicalize_roadmap_files() {
@@ -1336,6 +1484,7 @@ main() {
   if [[ $# -gt 0 ]]; then
     shift
   fi
+  load_rma_env_file
 
   case "$cmd" in
     -h|--help|help)
