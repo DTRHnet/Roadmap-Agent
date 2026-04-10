@@ -9,9 +9,11 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ### Added
 
 - README section **MemPalace mining and the roadmap loop** (what mining is, directory / `--limit` / `--dry-run`, how it relates to `plan` → `execute-one` → `analyze`) and diagram [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg).
+- [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md) — walkthrough from importing ROADMAP-AGENT into a product repo through setup, `init`, context files, `doctor`, `plan`, mining, `execute-one` / `analyze`, with mock transcripts (example product: list-sharing with public lists, categories, permissions).
 
 ### Fixed
 
+- [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg): XML validity (removed stray control characters; safe text; no bare `&`) so the diagram loads in browsers and GitHub.
 - AI submenu **II / III** (`mempalace mine`): pass required **project directory** (`mempalace mine <dir>`) and use upstream **`--dry-run`** instead of invalid `--safe`. Optional **`RMA_MEMPALACE_MINE_DIR`** selects the mined tree (default: project root).
 
 ## [0.3.0] - 2026-04-10

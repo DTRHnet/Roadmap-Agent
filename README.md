@@ -25,6 +25,7 @@
 | **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** | **Operator manual** — every command, interactive hub, writing `.rma` Markdown (`description`, `ui`, `stack`, `other`), `analyze` / `analyze-init`, LLM providers, persistence, safety. |
 | **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** | **Process guide** — plan → review → `execute-one` loop, keeping context fresh, low-risk habits. |
 | **[`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg)** | **Visual** — MemPalace mining (directory, limit, dry-run) vs roadmap loop; same concepts as the section below. |
+| **[`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md)** | **End-to-end walkthrough** — import ROADMAP-AGENT into a product repo (list-sharing app: public lists, categories, permissions), setup, `init`, `plan` / mine / loop, mock output, expectations. |
 | **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
 | **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.3.0`, …). |
 
@@ -78,6 +79,8 @@ The palace and the roadmap files are complementary: the roadmap is **human-reada
 
 ![MemPalace mining and roadmap loop](DOCS/roadmap-mining-and-loop.svg)
 
+**Step-by-step product example:** [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md) (importing the tool into an app repo, commands, mock output).
+
 ---
 
 ## Directory Structure
@@ -122,6 +125,7 @@ RoadmapAgent/
     man/
       roadmap-agent.1
     examples/
+      END-TO-END-LIST-SHARING-APP.md  # Full walkthrough: import, setup, plan/mine loop (mock)
       MOCK-WORKFLOW-SESSION.md   # Illustrative install → init → doctor → hub → roadmap logs
     roadmap-mining-and-loop.svg  # Diagram: mining vs roadmap loop
 
@@ -208,7 +212,7 @@ Windows PowerShell:
 .\rma.ps1
 ```
 
-**More detail:** **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** (by OS), **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** (full reference), **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg)** (mining vs roadmap diagram), **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
+**More detail:** **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** (by OS), **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** (full reference), **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg)** (mining vs roadmap diagram), **[`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md)** (full product example), **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
 
 ---
 
@@ -510,6 +514,7 @@ The runtime works without custom environment variables, but supports useful over
 - [`DOCS/GETTING-STARTED.md`](DOCS/GETTING-STARTED.md) — short first-run checklist
 - [`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md) — effective plan → execute-one operating model
 - [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg) — diagram: MemPalace mining (directory, limit, dry-run) vs roadmap loop
+- [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md) — end-to-end example (list-sharing app: import tool, commands, mock output, expectations)
 - [`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md) — fictional terminal log from install through hub, roadmap commands, and mock `.rma/logs` lines
 
 **Reference**

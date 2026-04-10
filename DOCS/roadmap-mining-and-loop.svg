@@ -17,10 +17,10 @@
   </defs>
   <rect width="960" height="480" fill="url(#bg)" rx="12"/>
   <text x="480" y="38" text-anchor="middle" fill="#e2e8f0" font-family="Segoe UI, system-ui, sans-serif" font-size="20" font-weight="600">MemPalace mining + roadmap loop</text>
-  <text x="480" y="62" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI, system-ui, sans-serif" font-size="12">How mining fits ROADMAP-AGENT (read alongside README)</text>
+  <text x="480" y="62" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI, system-ui, sans-serif" font-size="12">How &quot;mining&quot; fits ROADMAP-AGENT (read alongside README)</text>
 
   <!-- Mining track -->
-  <text x="120" y="108" fill="#a855f7" font-family="Segoe UI, system-ui, sans-serif" font-size="13" font-weight="600">A) Ingest (mining)</text>
+  <text x="120" y="108" fill="#a855f7" font-family="Segoe UI, system-ui, sans-serif" font-size="13" font-weight="600">A) Ingest (mining)</text>
   <rect x="40" y="118" width="200" height="56" rx="8" fill="#1e293b" stroke="#7c3aed" stroke-width="1.5"/>
   <text x="140" y="142" text-anchor="middle" fill="#f1f5f9" font-family="Consolas, monospace" font-size="11">Project directory</text>
   <text x="140" y="160" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI, sans-serif" font-size="10">RMA_MEMPALACE_MINE_DIR</text>
@@ -32,14 +32,14 @@
   <rect x="300" y="118" width="220" height="76" rx="8" fill="#1e293b" stroke="#22d3ee" stroke-width="1.5" filter="url(#glow)"/>
   <text x="410" y="142" text-anchor="middle" fill="#f1f5f9" font-family="Consolas, monospace" font-size="10">mempalace mine &lt;dir&gt;</text>
   <text x="410" y="158" text-anchor="middle" fill="#cbd5e1" font-family="Consolas, monospace" font-size="10">--limit N  --dry-run</text>
-  <text x="410" y="178" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI, sans-serif" font-size="9">N = max files (e.g. 200, 300&)</text>
+  <text x="410" y="178" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI, sans-serif" font-size="9">N = max files (e.g. 200, 300, …)</text>
   <text x="410" y="192" text-anchor="middle" fill="#64748b" font-family="Segoe UI, sans-serif" font-size="9">dry-run = preview, no store write</text>
 
   <line x1="530" y1="156" x2="578" y2="156" stroke="url(#accent)" stroke-width="2"/>
   <polygon points="580,156 570,150 570,162" fill="#a855f7"/>
 
   <rect x="590" y="118" width="200" height="56" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="1.5"/>
-  <text x="690" y="144" text-anchor="middle" fill="#f1f5f9" font-family="Segoe UI, sans-serif" font-size="12" font-weight="600">MemPalace palace</text>
+  <text x="690" y="144" text-anchor="middle" fill="#f1f5f9" font-family="Segoe UI, sans-serif" font-size="12" font-weight="600">MemPalace palace</text>
   <text x="690" y="162" text-anchor="middle" fill="#94a3b8" font-family="Segoe UI, sans-serif" font-size="10">Chunks + embeddings (e.g. Chroma)</text>
 
   <!-- Roadmap loop -->
@@ -77,5 +77,5 @@
   <text x="720" y="228" fill="#64748b" font-family="Segoe UI, sans-serif" font-size="9">Search / wake-up</text>
   <text x="720" y="242" fill="#64748b" font-family="Segoe UI, sans-serif" font-size="9">feeds AI context</text>
 
-  <text x="480" y="448" text-anchor="middle" fill="#475569" font-family="Segoe UI, sans-serif" font-size="10">ROADMAP-AGENT  Local AI Memory Palace CLI</text>
+  <text x="480" y="448" text-anchor="middle" fill="#475569" font-family="Segoe UI, sans-serif" font-size="10">ROADMAP-AGENT — Local AI Memory Palace CLI</text>
 </svg>
