@@ -29,22 +29,56 @@ log_error() { printf "[%s] [ERROR] %s\n" "$(TS)" "$1" | tee -a "$LOG_FILE"; }
 failures=0
 warnings=0
 
+host_python_bin=""
 python_bin=""
 if command -v python >/dev/null 2>&1; then
-  python_bin="python"
+  host_python_bin="python"
 elif command -v python3 >/dev/null 2>&1; then
-  python_bin="python3"
+  host_python_bin="python3"
 fi
 
 log_info "Starting local model setup for MemPalace."
 log_info "Project root: $ROOT_DIR"
 log_info "Log file: $LOG_FILE"
 
-if [[ -z "$python_bin" ]]; then
+if [[ -z "$host_python_bin" ]]; then
   log_error "Python was not found in PATH. Skipping Python package setup."
   log_error "Install Python 3.10+ and rerun this command."
   failures=$((failures+1))
 else
+  local_venv_dir="${RMA_PYTHON_VENV_DIR:-$ROOT_DIR/.rma/venv}"
+  if [[ "$local_venv_dir" != /* ]]; then
+    local_venv_dir="$ROOT_DIR/$local_venv_dir"
+  fi
+  venv_python="$local_venv_dir/bin/python"
+  venv_activate="$local_venv_dir/bin/activate"
+
+  log_info "Host Python interpreter: $host_python_bin"
+  log_info "Virtual environment target: $local_venv_dir"
+  if [[ ! -x "$venv_python" ]]; then
+    log_info "Creating project virtual environment..."
+    if ! "$host_python_bin" -m venv "$local_venv_dir" >>"$LOG_FILE" 2>&1; then
+      log_error "Failed to create virtual environment at $local_venv_dir"
+      failures=$((failures+1))
+    fi
+  else
+    log_info "Virtual environment already exists. Reusing it."
+  fi
+
+  if [[ -f "$venv_activate" ]]; then
+    # shellcheck disable=SC1090
+    . "$venv_activate" || true
+    log_info "Activated virtual environment for this setup session."
+  fi
+
+  if [[ -x "$venv_python" ]]; then
+    python_bin="$venv_python"
+  else
+    python_bin="$host_python_bin"
+    log_warn "Virtual environment python not found; falling back to host python."
+    warnings=$((warnings+1))
+  fi
+
   log_info "Using Python interpreter: $python_bin"
   if ! "$python_bin" -m pip --version >/dev/null 2>&1; then
     log_warn "pip not available; attempting ensurepip bootstrap."
@@ -111,6 +145,10 @@ if (( failures > 0 )); then
   log_error "Setup finished with issues. Failures=$failures Warnings=$warnings"
   log_error "Review $LOG_FILE for details and remediation steps."
   exit 1
+fi
+
+if type deactivate >/dev/null 2>&1; then
+  deactivate || true
 fi
 
 log_info "Setup completed successfully. Failures=$failures Warnings=$warnings"

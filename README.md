@@ -286,6 +286,10 @@ Global mode is intended to make `roadmap-agent` available from anywhere.
 - Use `.\rma.ps1 persistence-check`.
 - If missing, accept installer prompt to run `scripts/windows/install-persistence.ps1`.
 - Installer targets Program Files and machine PATH.
+- For a dedicated setup/check flow, use:
+  - `.\setup-rma.ps1 -CheckOnly -Scope Auto`
+  - `.\setup-rma.ps1 -Scope User` (no admin)
+  - `.\setup-rma.ps1 -Scope Machine` (admin)
 
 ### Linux/macOS
 
@@ -331,6 +335,7 @@ The runtime works without custom environment variables, but supports useful over
 | `ANTHROPIC_API_KEY` | claude provider | Claude API key | `ANTHROPIC_API_KEY=...` |
 | `RMA_REQUIRE_OLLAMA` | analyze-init | Fail fast if Ollama/model unavailable | `RMA_REQUIRE_OLLAMA=1` |
 | `RMA_DISABLE_FZF` | menu system | Force fallback text menus/selectors | `RMA_DISABLE_FZF=1` |
+| `RMA_PYTHON_VENV_DIR` | setup-local-models | Virtualenv path used by local setup scripts | `RMA_PYTHON_VENV_DIR=.rma/venv` |
 | `PATH` | All runtimes | Used to find `git`, `python`, `mempalace`, `fzf`, and installed launchers | `PATH=/usr/local/bin:$PATH` |
 | `FZF_DEFAULT_OPTS` | fzf | Optional global styling/behavior overrides for fzf menus | `export FZF_DEFAULT_OPTS='--height 85%'` |
 | `ProgramFiles` | Windows runtime | Resolves persistence install path (`Roadmap-Agent\bin`) | Inherited from Windows |
@@ -341,6 +346,8 @@ The runtime works without custom environment variables, but supports useful over
 - `ROADMAP_AGENT_PROJECT_ROOT` is the main project override variable and is useful in custom wrappers.
 - Avoid overriding `PATH` in a way that hides system binaries (`git`, `python`, `pwsh`).
 - If you customize `FZF_DEFAULT_OPTS`, keep compatible options with the runtime’s own fzf flags.
+- Setup scripts create and use a project virtual environment (default `.rma/venv`) before package installation.
+- ROADMAP-AGENT runtime commands prefer the configured project venv interpreter when present (`RMA_PYTHON_VENV_DIR`), so Python-backed operations run in that environment.
 
 ---
 
@@ -380,6 +387,9 @@ The runtime works without custom environment variables, but supports useful over
 - Run `persistence-check`.
 - Verify launcher directories are present in machine/user PATH.
 - Open a new terminal after installer modifies PATH.
+- On Windows, if `rma` is not recognized:
+  - run `.\setup-rma.ps1 -Scope User`
+  - close/reopen terminal, then test `rma --help`
 
 ---
 

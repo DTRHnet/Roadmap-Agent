@@ -47,6 +47,46 @@ if (-not $pythonCmd) {
     Write-Log "ERROR" "Python was not found in PATH. Install Python 3.10+ and rerun."
     $script:Failures++
 } else {
+    $venvDir = if ($env:RMA_PYTHON_VENV_DIR) {
+        if ([System.IO.Path]::IsPathRooted($env:RMA_PYTHON_VENV_DIR)) {
+            $env:RMA_PYTHON_VENV_DIR
+        } else {
+            Join-Path $RootDir $env:RMA_PYTHON_VENV_DIR
+        }
+    } else {
+        Join-Path $RootDir ".rma\venv"
+    }
+    $venvPython = Join-Path $venvDir "Scripts\python.exe"
+    $venvActivate = Join-Path $venvDir "Scripts\Activate.ps1"
+
+    Write-Log "INFO" ("Host Python interpreter: {0}" -f $pythonCmd)
+    Write-Log "INFO" ("Virtual environment target: {0}" -f $venvDir)
+    if (-not (Test-Path $venvPython)) {
+        Write-Log "INFO" "Creating project virtual environment..."
+        try {
+            & $pythonCmd -m venv $venvDir | Out-Null
+        } catch {
+            Write-Log "ERROR" ("Failed to create virtual environment at {0}" -f $venvDir)
+            $script:Failures++
+        }
+    } else {
+        Write-Log "INFO" "Virtual environment already exists. Reusing it."
+    }
+
+    if (Test-Path $venvPython) {
+        $pythonCmd = $venvPython
+        $venvScripts = Join-Path $venvDir "Scripts"
+        $env:VIRTUAL_ENV = $venvDir
+        $env:Path = "$venvScripts;$env:Path"
+        Write-Log "INFO" "Activated virtual environment context for this setup session."
+        if (Test-Path $venvActivate) {
+            Write-Log "INFO" ("Manual activation command: & `"{0}`"" -f $venvActivate)
+        }
+    } else {
+        Write-Log "WARN" "Virtual environment python not found; falling back to host python."
+        $script:Warnings++
+    }
+
     Write-Log "INFO" ("Using Python interpreter: {0}" -f $pythonCmd)
 
     $pipOk = $true

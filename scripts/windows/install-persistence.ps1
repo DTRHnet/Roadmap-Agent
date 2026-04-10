@@ -5,7 +5,9 @@
 # -------------------------------------------------------------------------------------------
 
 param(
-    [switch]$CheckOnly
+    [switch]$CheckOnly,
+    [ValidateSet("Auto","User","Machine")]
+    [string]$Scope = "Auto"
 )
 
 $ErrorActionPreference = "Continue"
@@ -18,6 +20,13 @@ function Test-IsAdmin {
     } catch {
         return $false
     }
+}
+
+function Resolve-InstallScope([string]$RequestedScope) {
+    if ($RequestedScope -eq "User") { return "User" }
+    if ($RequestedScope -eq "Machine") { return "Machine" }
+    if (Test-IsAdmin) { return "Machine" }
+    return "User"
 }
 
 function Add-PathEntryIfMissing([string]$Scope, [string]$Entry) {
@@ -93,13 +102,15 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
     return $true
 }
 
-$root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$installRoot = Join-Path ${env:ProgramFiles} "Roadmap-Agent"
+$root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
+$effectiveScope = Resolve-InstallScope $Scope
+$installRoot = if ($effectiveScope -eq "Machine") { Join-Path ${env:ProgramFiles} "Roadmap-Agent" } else { Join-Path ${env:LOCALAPPDATA} "Roadmap-Agent" }
 $binDir = Join-Path $installRoot "bin"
-$machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+$pathScope = if ($effectiveScope -eq "Machine") { "Machine" } else { "User" }
+$scopePath = [Environment]::GetEnvironmentVariable("Path", $pathScope)
 $hasBinPath = $false
-if ($machinePath) {
-    foreach ($part in ($machinePath -split ";")) {
+if ($scopePath) {
+    foreach ($part in ($scopePath -split ";")) {
         if ($part.TrimEnd('\') -ieq $binDir.TrimEnd('\')) { $hasBinPath = $true; break }
     }
 }
@@ -114,8 +125,9 @@ $scriptsInSync = Test-FilesInSync -SourceRoot $root -InstallRoot $installRoot
 
 if ($CheckOnly) {
     Write-Host "Persistence status"
+    Write-Host "Scope: $effectiveScope"
     Write-Host "Expected bin path: $binDir"
-    Write-Host "Machine PATH has bin: $hasBinPath"
+    Write-Host "$pathScope PATH has bin: $hasBinPath"
     Write-Host "roadmap-agent.cmd found: $hasCmd"
     Write-Host "rma.cmd found: $hasAlias"
     Write-Host "Current repo version: $repoVer"
@@ -142,14 +154,15 @@ if ($CheckOnly) {
 }
 
 if (-not (Test-IsAdmin)) {
-    Write-Host "ERROR: Administrator privileges are required." -ForegroundColor Red
-    Write-Host "Open PowerShell as Administrator, then run:" -ForegroundColor Yellow
-    Write-Host "  pwsh -NoProfile -File `"$($MyInvocation.MyCommand.Path)`"" -ForegroundColor Yellow
-    exit 1
+    if ($effectiveScope -eq "Machine") {
+        Write-Host "ERROR: Administrator privileges are required for Machine scope." -ForegroundColor Red
+        Write-Host "Retry as admin, or run with user scope:" -ForegroundColor Yellow
+        Write-Host "  pwsh -NoProfile -File `"$($MyInvocation.MyCommand.Path)`" -Scope User" -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-New-Item -ItemType Directory -Path $binDir -Force | Out-Null
 # Sync full app tree so global launchers never miss dependencies.
 # /MIR keeps install current; excludes runtime workspace/state folders.
 $null = robocopy $root $installRoot /MIR /R:1 /W:1 /XD ".git" ".rma" ".cursor" /NFL /NDL /NJH /NJS /NC /NS
@@ -157,6 +170,9 @@ if ($LASTEXITCODE -ge 8) {
     Write-Host "ERROR: Failed to mirror repository into $installRoot (robocopy exit code $LASTEXITCODE)." -ForegroundColor Red
     exit 1
 }
+
+# Ensure bin dir exists after mirror (robocopy /MIR may remove it).
+New-Item -ItemType Directory -Path $binDir -Force | Out-Null
 
 # Write deterministic launchers that always point to installed app.
 @"
@@ -169,19 +185,28 @@ if %errorlevel%==0 (
   powershell -NoProfile -ExecutionPolicy Bypass -File "$installRoot\scripts\windows\roadmap-agent.ps1" %*
 )
 "@ | Set-Content (Join-Path $binDir "roadmap-agent.cmd")
+if (-not (Test-Path (Join-Path $binDir "roadmap-agent.cmd"))) {
+    Write-Host "ERROR: Failed to create launcher: $binDir\roadmap-agent.cmd" -ForegroundColor Red
+    exit 1
+}
 
 @"
 @echo off
 setlocal
 call "$binDir\roadmap-agent.cmd" %*
 "@ | Set-Content (Join-Path $binDir "rma.cmd")
+if (-not (Test-Path (Join-Path $binDir "rma.cmd"))) {
+    Write-Host "ERROR: Failed to create launcher: $binDir\rma.cmd" -ForegroundColor Red
+    exit 1
+}
 
-$added = Add-PathEntryIfMissing -Scope "Machine" -Entry $binDir
+$added = Add-PathEntryIfMissing -Scope $pathScope -Entry $binDir
 if ($added) {
-    Write-Host "Added to Machine PATH: $binDir" -ForegroundColor Green
+    Write-Host "Added to $pathScope PATH: $binDir" -ForegroundColor Green
 } else {
-    Write-Host "Machine PATH already contains: $binDir" -ForegroundColor Cyan
+    Write-Host "$pathScope PATH already contains: $binDir" -ForegroundColor Cyan
 }
 
 Write-Host "Persistence install complete." -ForegroundColor Green
 Write-Host "Open a new terminal and run: roadmap-agent --help" -ForegroundColor Green
+$global:LASTEXITCODE = 0

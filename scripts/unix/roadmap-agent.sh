@@ -48,6 +48,7 @@ RMA_OPENAI_API_KEY="${RMA_OPENAI_API_KEY:-local-no-key}"
 RMA_OPENAI_MODEL="${RMA_OPENAI_MODEL:-openllama}"
 RMA_CLAUDE_MODEL="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
 RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
+RMA_PYTHON_VENV_DIR="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
 
 # Use real escape bytes so routed shells (e.g. PowerShell -> bash)
 # do not render literal "\033[...m" sequences.
@@ -80,7 +81,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -99,6 +100,32 @@ load_rma_env_file() {
   RMA_OPENAI_MODEL="${RMA_OPENAI_MODEL:-openllama}"
   RMA_CLAUDE_MODEL="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
   RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
+  RMA_PYTHON_VENV_DIR="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
+}
+
+configure_python_runtime() {
+  local vdir="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
+  if [[ "$vdir" != /* ]]; then
+    vdir="$ROOT_DIR/$vdir"
+  fi
+  export RMA_PYTHON_VENV_DIR="$vdir"
+  export RMA_PYTHON_BIN=""
+
+  if [[ -x "$vdir/bin/python" ]]; then
+    export VIRTUAL_ENV="$vdir"
+    case ":$PATH:" in
+      *":$vdir/bin:"*) ;;
+      *) export PATH="$vdir/bin:$PATH" ;;
+    esac
+    export RMA_PYTHON_BIN="$vdir/bin/python"
+    return 0
+  fi
+
+  if command -v python >/dev/null 2>&1; then
+    export RMA_PYTHON_BIN="$(command -v python)"
+  elif command -v python3 >/dev/null 2>&1; then
+    export RMA_PYTHON_BIN="$(command -v python3)"
+  fi
 }
 
 ensure_core_dirs() {
@@ -201,12 +228,14 @@ show_initial_banner() {
   v="$(truncate_banner_value "$(app_version)")"
   rv="$(truncate_banner_value "$(last_release_version)")"
   rd="$(truncate_banner_value "$(last_release_date)")"
-  printf "%b\n" "${BLUE}+----------------------------------------+${RESET}"
-  printf "%b\n" "${BLUE}|${RESET} ${CYAN}ROADMAP-AGENT AI SUBMENU            ${RESET} ${BLUE}|${RESET}"
-  printf "| App Version : %s\n" "$v"
-  printf "| Last Release: %s\n" "$rv"
-  printf "| Release Date: %s\n" "$rd"
-  printf "%b\n" "${BLUE}+----------------------------------------+${RESET}"
+  printf "%b\n" "${BLUE}▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓${RESET}"
+  printf "%b\n" "${BLUE}▓${RESET}   ${CYAN}RMA  AGENT${RESET}      ${BLUE}▓${RESET}"
+  printf "%b\n" "${BLUE}▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓${RESET}"
+  printf "%b\n" "${CYAN}Roadmap Agent${RESET}"
+  printf "%b\n" "${CYAN}A DTRHnet Project https://dtrh.net${RESET}"
+  printf "App Version : %s\n" "$v"
+  printf "Last Release: %s\n" "$rv"
+  printf "Release Date: %s\n" "$rd"
 }
 
 show_help() {
@@ -401,6 +430,10 @@ EOF
 }
 
 resolve_python_cmd() {
+  if [[ -n "${RMA_PYTHON_BIN:-}" ]] && [[ -x "${RMA_PYTHON_BIN:-}" ]]; then
+    printf "%s" "$RMA_PYTHON_BIN"
+    return 0
+  fi
   if command -v python >/dev/null 2>&1; then
     printf "python"
     return 0
@@ -1283,6 +1316,14 @@ write_runtime_warnings_panel() {
       echo "INFO: .env not found (optional; copy from .env.example if needed)."
     fi
 
+    if [[ -x "${RMA_PYTHON_VENV_DIR:-}/bin/python" ]]; then
+      echo "Python venv: ${RMA_PYTHON_VENV_DIR} (active for rma commands)"
+    else
+      echo "WARN: Python venv missing at ${RMA_PYTHON_VENV_DIR:-$ROOT_DIR/.rma/venv}"
+      echo "      Run menu option I (Local AI setup script) to create it."
+      missing=1
+    fi
+
     echo "LLM provider: ${RMA_LLM_PROVIDER:-ollama}"
 
     if [[ -z "${GITHUB_TOKEN:-}" ]]; then
@@ -1543,8 +1584,10 @@ mempalace_safe_mine() {
 
 mempalace_health_check() {
   local memv="not-found" chromav="not-found"
-  if command -v python >/dev/null 2>&1; then
-    memv="$(python - <<'PY'
+  local py
+  py="$(resolve_python_cmd || true)"
+  if [[ -n "${py:-}" ]]; then
+    memv="$("$py" - <<'PY'
 try:
     import mempalace
     print(getattr(mempalace, "__version__", "unknown"))
@@ -1552,7 +1595,7 @@ except Exception:
     print("not-found")
 PY
 )"
-    chromav="$(python - <<'PY'
+    chromav="$("$py" - <<'PY'
 try:
     import chromadb
     print(getattr(chromadb, "__version__", "unknown"))
@@ -1880,6 +1923,7 @@ main() {
     shift
   fi
   load_rma_env_file
+  configure_python_runtime
 
   case "$cmd" in
     -h|--help|help)
