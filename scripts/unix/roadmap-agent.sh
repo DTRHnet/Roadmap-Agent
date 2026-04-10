@@ -11,7 +11,7 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Unix core ROADMAP-AGENT runtime (menu, roadmap, persistence, help).
-# Last updated: 2026-04-10 | Version: v0.3.0
+# Last updated: 2026-04-10 | Version: v0.4.0
 
 
 set -u
@@ -55,6 +55,9 @@ RMA_MEMPALACE_BIN="${RMA_MEMPALACE_BIN:-}"
 RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
 # Directory for mempalace mine <dir> (upstream requires a path; empty = project root).
 RMA_MEMPALACE_MINE_DIR="${RMA_MEMPALACE_MINE_DIR:-}"
+# Before mempalace plan: prompt for answers to open questions (TTY only; skip in CI).
+RMA_PLAN_INTERACTIVE="${RMA_PLAN_INTERACTIVE:-1}"
+RMA_PLAN_INTERACTIVE_MAX="${RMA_PLAN_INTERACTIVE_MAX:-15}"
 
 # Use real escape bytes so routed shells (e.g. PowerShell -> bash)
 # do not render literal "\033[...m" sequences.
@@ -87,7 +90,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -109,6 +112,8 @@ load_rma_env_file() {
   RMA_PYTHON_VENV_DIR="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
   RMA_REQUIRE_MEMPALACE="${RMA_REQUIRE_MEMPALACE:-1}"
   RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
+  RMA_PLAN_INTERACTIVE="${RMA_PLAN_INTERACTIVE:-1}"
+  RMA_PLAN_INTERACTIVE_MAX="${RMA_PLAN_INTERACTIVE_MAX:-15}"
 }
 
 configure_python_runtime() {
@@ -274,7 +279,7 @@ COMMANDS
   init             Initialize .rma metadata and templates
   status           Show roadmap/project status summary
   doctor           Run environment/provider/persistence diagnostics
-  plan             Generate roadmap dry-run plan
+  plan             Generate roadmap dry-run plan (optional interactive open questions)
   analyze          Analyze codebase/docs and sync tasks + run files
   analyze-init     Analyze repo and propose .rma/*.md generation
   execute-one      Execute exactly one selected planned task
@@ -319,6 +324,14 @@ MEMPALACE (Local AI Memory Palace stack)
   (env) RMA_MEMPALACE_MINE_DIR=path Directory passed to mempalace mine <dir> (default: project root)
   (env) RMA_ALLOW_PLAN_FALLBACK=1  If mempalace plan fails or is unavailable, write a markdown template
                                    to plan.md and log (dev-only; default: 0)
+  (env) RMA_PLAN_INTERACTIVE=1     Before plan, prompt on open questions (TTY only; default: 1)
+  (env) RMA_PLAN_INTERACTIVE_MAX=15 Max questions per plan run
+
+PLAN OPTIONS
+  roadmap-agent plan [--no-interactive]
+  --no-interactive   Skip open-question prompts (same as RMA_PLAN_INTERACTIVE=0)
+  Open questions: list bullets in .rma/open-questions.md and/or lines with Open: in .rma/*.md
+  Answers append to .rma/other.md under "Decisions recorded"
 
 PERSISTENCE MODE
   Linux/macOS:
@@ -1569,6 +1582,8 @@ cmd_doctor() {
   echo "[MemPalace]"
   echo "  RMA_REQUIRE_MEMPALACE=${RMA_REQUIRE_MEMPALACE:-1}"
   echo "  RMA_ALLOW_PLAN_FALLBACK=${RMA_ALLOW_PLAN_FALLBACK:-0}"
+  echo "  RMA_PLAN_INTERACTIVE=${RMA_PLAN_INTERACTIVE:-1}  (plan prompts; TTY only)"
+  echo "  RMA_PLAN_INTERACTIVE_MAX=${RMA_PLAN_INTERACTIVE_MAX:-15}"
   if [[ -n "${RMA_MEMPALACE_BIN:-}" ]]; then
     echo "  RMA_MEMPALACE_BIN=${RMA_MEMPALACE_BIN}"
   fi
@@ -1653,6 +1668,27 @@ Example:
 - Deployment targets
 - Team conventions and coding guardrails
 EOF
+
+  cat > "$RMA_DIR/open-questions.example.md" <<'EOF'
+# Open questions (optional)
+
+List unresolved decisions as Markdown bullets. During `roadmap-agent plan` on an interactive terminal, ROADMAP-AGENT prompts for each and records answers in `.rma/other.md`.
+
+# - Which OAuth providers?
+# - Postgres for production or SQLite-only MVP?
+EOF
+}
+
+write_open_questions_stub_if_missing() {
+  if [[ ! -f "$RMA_DIR/open-questions.md" ]]; then
+    cat > "$RMA_DIR/open-questions.md" <<'EOF'
+# Open questions (optional)
+
+Add one Markdown list item per decision not yet locked (`- question text`). Comment lines (`#`) are ignored.
+
+# - Example: Auth strategy (magic link vs OAuth)?
+EOF
+  fi
 }
 
 write_required_stubs_if_missing() {
@@ -1682,6 +1718,7 @@ cmd_init() {
   ensure_core_dirs
   write_examples
   write_required_stubs_if_missing
+  write_open_questions_stub_if_missing
   cat > "$TASKS_FILE" <<'EOF'
 # Task Ledger
 
@@ -1849,9 +1886,124 @@ build_context_bundle() {
   printf "%s" "$ctx"
 }
 
+# Collect product "open questions" from .rma/open-questions.md (markdown bullets) and
+# lines containing "Open:" in description|ui|stack|other (case-sensitive token for scanning).
+collect_open_questions() {
+  local qs="" f line q
+  if [[ -f "$RMA_DIR/open-questions.md" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line//$'\r'/}"
+      [[ -z "${line// }" ]] && continue
+      [[ "$line" =~ ^[[:space:]]*# ]] && continue
+      if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+(.+)$ ]]; then
+        q="${BASH_REMATCH[1]}"
+        q="${q%"${q##*[![:space:]]}"}"
+        [[ -n "${q// }" ]] && qs+="${q}"$'\n'
+      fi
+    done < "$RMA_DIR/open-questions.md"
+  fi
+  for f in description ui stack other; do
+    [[ -f "$RMA_DIR/$f.md" ]] || continue
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line//$'\r'/}"
+      if [[ "$line" =~ [Oo][Pp][Ee][Nn]:[[:space:]]*(.+) ]]; then
+        q="${BASH_REMATCH[1]}"
+        q="${q%"${q##*[![:space:]]}"}"
+        [[ -n "${q// }" ]] && qs+="${q}"$'\n'
+      fi
+    done < "$RMA_DIR/$f.md"
+  done
+  printf "%s" "$qs" | awk 'NF && !seen[$0]++' | head -n "${RMA_PLAN_INTERACTIVE_MAX:-15}"
+}
+
+plan_interactive_resolve_open_questions() {
+  [[ "${RMA_PLAN_INTERACTIVE:-1}" == "1" ]] || return 0
+  if [[ ! -t 0 ]]; then
+    info "plan: stdin is not a TTY; skipping interactive open questions (set RMA_PLAN_INTERACTIVE=0 to silence this note)."
+    return 0
+  fi
+
+  local qs qlist n i q ans stamp any
+  qs="$(collect_open_questions)"
+  mapfile -t qlist < <(printf "%s" "$qs")
+  n="${#qlist[@]}"
+  if [[ "$n" -eq 0 ]]; then
+    info "plan: no open questions found. Add list items to .rma/open-questions.md or lines with Open: in .rma/*.md."
+    return 0
+  fi
+
+  printf "\n%b\n" "${BOLD}--- Open questions before plan (${n}) ---${RESET}" >&2
+  printf "%s\n" "Answers are appended to .rma/other.md. Press Enter to skip a question." >&2
+  any=0
+  stamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  for ((i = 0; i < n; i++)); do
+    q="${qlist[$i]}"
+    [[ -z "${q// }" ]] && continue
+    printf "\n[%s/%s] %s\nYour answer: " "$((i + 1))" "$n" "$q"
+    IFS= read -r ans || true
+    ans="${ans//$'\r'/}"
+    if [[ -n "${ans// }" ]]; then
+      if [[ "$any" -eq 0 ]]; then
+        any=1
+        {
+          echo ""
+          echo "## Decisions recorded ($stamp) — interactive plan"
+          echo ""
+        } >> "$RMA_DIR/other.md"
+      fi
+      {
+        echo "- **Q:** $q"
+        echo "  **A:** $ans"
+        echo ""
+      } >> "$RMA_DIR/other.md"
+    fi
+  done
+  if [[ "$any" -eq 1 ]]; then
+    info "Recorded decision(s) in .rma/other.md (session $stamp)."
+    printf "%s plan_interactive_decisions_recorded\n" "$stamp" >> "$EXEC_LOG"
+  fi
+  printf "\n%b\n" "${BOLD}--- MemPalace plan ---${RESET}" >&2
+  return 0
+}
+
 roadmap_plan_dry_run() {
+  local no_interactive=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --no-interactive)
+        no_interactive=1
+        shift
+        ;;
+      -h|--help)
+        cat <<'EOF'
+Usage: roadmap-agent plan [--no-interactive]
+
+Before MemPalace, prompts (interactive TTY only) for open questions from:
+  - .rma/open-questions.md  (markdown list items, one question per - bullet)
+  - Lines containing Open: in .rma/description.md, ui.md, stack.md, other.md
+
+Responses append to .rma/other.md. Non-TTY / CI: prompts are skipped.
+
+  RMA_PLAN_INTERACTIVE=0       Disable prompts
+  RMA_PLAN_INTERACTIVE_MAX=15  Max questions per run
+EOF
+        return 0
+        ;;
+      *)
+        warn "plan: unknown option: $1"
+        return 1
+        ;;
+    esac
+  done
+  if [[ "$no_interactive" -eq 1 ]]; then
+    RMA_PLAN_INTERACTIVE=0
+  fi
+
   ensure_core_dirs
   sync_tasks_and_run_files
+  [[ -f "$RMA_DIR/other.md" ]] || touch "$RMA_DIR/other.md"
+  plan_interactive_resolve_open_questions
+
   local ctx mp errf
   ctx="$(build_context_bundle)"
   mkdir -p "$ROADMAP_DIR"
@@ -2309,7 +2461,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -2535,7 +2687,7 @@ main() {
     plan)
       ensure_core_dirs
       ensure_rma_required_files
-      roadmap_plan_dry_run || exit $?
+      roadmap_plan_dry_run "$@" || exit $?
       ;;
     analyze)
       ensure_core_dirs

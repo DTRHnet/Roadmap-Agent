@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.3.0-8b5cf6" alt="version">
+  <img src="https://img.shields.io/badge/version-v0.4.0-8b5cf6" alt="version">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="platform">
   <img src="https://img.shields.io/badge/runtime-bash%20%2B%20powershell-green" alt="runtime">
   <img src="https://img.shields.io/badge/interface-fzf-orange" alt="interface">
@@ -26,9 +26,9 @@
 | **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** | **Process guide** — plan → review → `execute-one` loop, keeping context fresh, low-risk habits. |
 | **[`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg)** | **Visual** — MemPalace mining (directory, limit, dry-run) vs roadmap loop; same concepts as the section below. |
 | **[`DOCS/examples/rma-context-samples/`](DOCS/examples/rma-context-samples/)** | **Sample `.rma` context** — three folders (`weather-app`, `list-sharing`, `devtools-cli`) with `description.md`, `ui.md`, `stack.md`, `other.md`; copy into `.rma/` after `init`. See README there for **MCP** integration notes. |
-| **[`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md)** | **End-to-end walkthrough** — import ROADMAP-AGENT into a product repo (list-sharing app: public lists, categories, permissions), setup, `init`, `plan` / mine / loop, mock output, expectations. |
+| **[`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md)** | **End-to-end walkthrough** — import, MemPalace + `.rma` driving **detailed** roadmaps, **agent prompts** for open decisions, **`execute-one`** loop toward a **real shipped app** (mock transcripts). |
 | **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
-| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.3.0`, …). |
+| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.4.0`, …). |
 
 **ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
 
@@ -75,6 +75,14 @@ mempalace mine "<resolved_directory>" --limit <N> --dry-run
 2. **Roadmap track (B)** — **`init` → context in `.rma/` → `plan` → `execute-one` → `analyze`** to keep **`plan.md` / `tasks.md` / `run.md`** aligned with reality. You repeat (B) as the project moves; you run (A) when you want embeddings and search to reflect the latest tree.
 
 The palace and the roadmap files are complementary: the roadmap is **human-readable planning state** under `.rma/roadmaps/`; the palace is **retrieval-oriented memory** for tools that support MemPalace.
+
+### Intended outcome: build the app, not just the docs
+
+ROADMAP-AGENT is designed for **iterated implementation**: **`.rma/*.md`** is the **product contract** MemPalace-aware **`plan`** and your **AI agent** should **read**; **mining** keeps retrieval aligned with the repo; **`execute-one`** drives **concrete work** that lands in **your codebase**. Logs and `plan.md` are for **steering and audit**.
+
+- **Detailed roadmaps:** Invest in context files and refresh **`plan`** so **`plan.md` / `tasks.md`** can be **very detailed**—phases, dependencies, risks, acceptance-style notes—not a thin outline.
+- **Interpretation + prompting:** Where **`description.md` / `ui.md` / `stack.md` / `other.md`** are silent or ambiguous, the **agent in your loop** should **ask you** (auth model, visibility rules, compliance) and you **record** answers back into `.rma/` before the next **`plan`**. The CLI can help: **`plan`** (interactive TTY) prompts for bullets in **`.rma/open-questions.md`** and for **`Open:`** lines in the four context files, then appends answers to **`other.md`** before MemPalace—use **`plan --no-interactive`** or **`RMA_PLAN_INTERACTIVE=0`** in CI.
+- **Shipping:** Each cycle should move you toward **runnable software**; see **[`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md)** for that narrative end-to-end.
 
 ### Visual overview
 
@@ -435,6 +443,8 @@ The runtime works without custom environment variables, but supports useful over
 | `RMA_MEMPALACE_BIN` | plan, mine | Optional absolute path to `mempalace` if not on `PATH` | `RMA_MEMPALACE_BIN=/path/to/mempalace` |
 | `RMA_MEMPALACE_MINE_DIR` | mine (menu II, III) | Directory passed to `mempalace mine <dir>`; relative paths resolve under project root (default: project root) | `RMA_MEMPALACE_MINE_DIR=.` |
 | `RMA_ALLOW_PLAN_FALLBACK` | plan | `1` = write a generic template to `plan.md` if `mempalace plan` fails or is unavailable (dev-only) | `RMA_ALLOW_PLAN_FALLBACK=0` |
+| `RMA_PLAN_INTERACTIVE` | plan | `1` = on an interactive TTY, prompt for open questions from `.rma/open-questions.md` and `Open:` lines before MemPalace; `0` for CI | `RMA_PLAN_INTERACTIVE=1` |
+| `RMA_PLAN_INTERACTIVE_MAX` | plan | Max questions per `plan` run | `15` |
 | `PATH` | All runtimes | Used to find `git`, `python`, `mempalace`, `fzf`, and installed launchers | `PATH=/usr/local/bin:$PATH` |
 | `FZF_DEFAULT_OPTS` | fzf | Optional global styling/behavior overrides for fzf menus | `export FZF_DEFAULT_OPTS='--height 85%'` |
 | `ProgramFiles` | Windows runtime | Resolves persistence install path (`Roadmap-Agent\bin`) | Inherited from Windows |
@@ -504,9 +514,9 @@ The runtime works without custom environment variables, but supports useful over
 
 ## Versioning
 
-- **Canonical release number** lives in the root **`VERSION`** file (for example `0.3.0`). The Unix runtime prints it in the banner as `v0.3.0` when present.
+- **Canonical release number** lives in the root **`VERSION`** file (for example `0.4.0`). The Unix runtime prints it in the banner as `v0.4.0` when present.
 - **`CHANGELOG.md`** follows [Keep a Changelog](https://keepachangelog.com/) with dated sections per release.
-- **Git tags** use the `v` prefix (for example `v0.3.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v0.3.0` checks out that tag.
+- **Git tags** use the `v` prefix (for example `v0.4.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v0.4.0` checks out that tag.
 
 ---
 

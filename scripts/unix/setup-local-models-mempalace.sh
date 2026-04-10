@@ -11,7 +11,7 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Unix helper script for local MemPalace model setup.
-# Last updated: 2026-04-10 | Version: v0.3.0
+# Last updated: 2026-04-10 | Version: v0.4.0
 
 set -u
 set -o pipefail

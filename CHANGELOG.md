@@ -6,16 +6,23 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-10
+
 ### Added
 
+- **`roadmap-agent plan`** interactive **open questions**: when `RMA_PLAN_INTERACTIVE=1` (default) and stdin is a TTY, prompts for bullets in `.rma/open-questions.md` and for lines containing `Open:` in `.rma/description|ui|stack|other.md`; answers append to `.rma/other.md` before MemPalace runs. Use **`plan --no-interactive`** or **`RMA_PLAN_INTERACTIVE=0`** for CI. Env: **`RMA_PLAN_INTERACTIVE`**, **`RMA_PLAN_INTERACTIVE_MAX`**. **`init`** creates optional `.rma/open-questions.md` stub; **`doctor`** prints these vars.
 - README section **MemPalace mining and the roadmap loop** (what mining is, directory / `--limit` / `--dry-run`, how it relates to `plan` → `execute-one` → `analyze`) and diagram [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg).
-- [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md) — walkthrough from importing ROADMAP-AGENT into a product repo through setup, `init`, context files, `doctor`, `plan`, mining, `execute-one` / `analyze`, with mock transcripts (example product: list-sharing with public lists, categories, permissions).
-- [`DOCS/examples/rma-context-samples/`](DOCS/examples/rma-context-samples/) — three example projects (**`weather-app`**, **`list-sharing`**, **`devtools-cli`**) each with `description.md`, `ui.md`, `stack.md`, `other.md`; index README documents **MCP** (Model Context Protocol) integration alongside `.rma/` files and contrasts with MemPalace.
+- [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md) — walkthrough: import tool, MemPalace, context files, **`plan`** (including interactive prompts), mining, **`execute-one`** / **`analyze`**.
+- [`DOCS/examples/rma-context-samples/`](DOCS/examples/rma-context-samples/) — three sample projects (**`weather-app`**, **`list-sharing`**, **`devtools-cli`**) with `description.md`, `ui.md`, `stack.md`, `other.md`; index covers **MCP** vs MemPalace.
+
+### Changed
+
+- README, [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md), and [`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md): clarify **iterated implementation** toward a real app—detailed MemPalace-backed roadmaps, prompting on gaps, **`execute-one`** as implementation spine. [`DOCS/MANUAL.md`](DOCS/MANUAL.md): **`plan`** section documents interactive questions; general context-file rule for driving detailed plans.
 
 ### Fixed
 
-- [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg): XML validity (removed stray control characters; safe text; no bare `&`) so the diagram loads in browsers and GitHub.
-- AI submenu **II / III** (`mempalace mine`): pass required **project directory** (`mempalace mine <dir>`) and use upstream **`--dry-run`** instead of invalid `--safe`. Optional **`RMA_MEMPALACE_MINE_DIR`** selects the mined tree (default: project root).
+- [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg): XML validity so the diagram renders in browsers and on GitHub.
+- AI submenu **II / III** (`mempalace mine`): required project directory (`mempalace mine <dir>`), upstream **`--dry-run`**. Optional **`RMA_MEMPALACE_MINE_DIR`**.
 
 ## [0.3.0] - 2026-04-10
 

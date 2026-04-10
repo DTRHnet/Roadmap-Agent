@@ -10,7 +10,7 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: PowerShell alias launcher for roadmap-agent.ps1.
-# Last updated: 2026-04-10 | Version: v0.3.0
+# Last updated: 2026-04-10 | Version: v0.4.0
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 & (Join-Path $ScriptDir "scripts/windows/roadmap-agent.ps1") @args

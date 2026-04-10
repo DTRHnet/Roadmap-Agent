@@ -1,7 +1,7 @@
 # -------------------------------------------------------------------------------------------
 # ROADMAP-AGENT | A DTRHnet Project (2026 <admin[at]dtrh[dot]net>)
 # Summary: Windows persistence installer for global ROADMAP-AGENT access.
-# Last updated: 2026-04-10 | Version: v0.3.0
+# Last updated: 2026-04-10 | Version: v0.4.0
 # -------------------------------------------------------------------------------------------
 
 param(

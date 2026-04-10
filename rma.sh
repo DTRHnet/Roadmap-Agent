@@ -11,7 +11,7 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Bash alias launcher for roadmap-agent.sh.
-# Last updated: 2026-04-10 | Version: v0.3.0
+# Last updated: 2026-04-10 | Version: v0.4.0
 
 set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

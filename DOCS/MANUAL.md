@@ -162,7 +162,22 @@ Runs diagnostics: tools on PATH, virtualenv, LLM provider readiness, persistence
 
 ### `plan`
 
-Generates or refreshes the **dry-run** roadmap plan (typically under `.rma/roadmaps/plan.md` depending on version). Use it when scope changes.
+Generates or refreshes the **dry-run** roadmap plan (typically `.rma/roadmaps/plan.md`) via the **MemPalace** CLI. Use it when scope changes.
+
+**Interactive open questions (built in):** When **`RMA_PLAN_INTERACTIVE=1`** (default) and **stdin is a TTY**, `plan` **first** prompts you for any unresolved decisions:
+
+- Bullets in **`.rma/open-questions.md`** (one question per `-` list item, skip `#` comment lines).
+- Lines containing **`Open:`** in `.rma/description.md`, `ui.md`, `stack.md`, or `other.md`.
+
+Non-empty answers are appended to **`.rma/other.md`** under `## Decisions recorded (timestamp) — interactive plan`, then the context bundle is rebuilt and **`mempalace plan`** runs—so the plan sees your decisions.
+
+| Flag / env | Meaning |
+|------------|---------|
+| `roadmap-agent plan --no-interactive` | Skip prompts (same as `RMA_PLAN_INTERACTIVE=0`) |
+| `RMA_PLAN_INTERACTIVE=0` | No prompts (CI, scripts, or agent subprocesses without a TTY) |
+| `RMA_PLAN_INTERACTIVE_MAX` | Cap questions per run (default `15`) |
+
+If no questions are found, `plan` prints a short hint and continues.
 
 ### `analyze`
 
@@ -267,6 +282,7 @@ These four files are the **primary steering input** for plans, tasks, and LLM-ba
 3. **Stay current** — When the stack changes, update `stack.md` in the same PR as `package.json` / lockfiles when possible.
 4. **Separate concerns** — Do not put stack lists in `description.md` if they belong in `stack.md`.
 5. **Keep `ui.md` about behavior** — Menu expectations, tone, “never do X in the CLI” belong here, not in `description.md`.
+6. **Drive detailed roadmaps** — The richer these files are, the more **`plan`** (and agents using MemPalace + `.rma`) can expand into **concrete** `plan.md` / `tasks.md`. Where something is still undecided, either **write** “Open: …” here or expect your **agent to prompt you**; **record** decisions in `.rma/` so the next plan does not re-litigate them.
 
 ### `description.md` — product and problem
 

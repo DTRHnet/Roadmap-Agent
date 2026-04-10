@@ -1,8 +1,10 @@
 # End-to-end example: list-sharing app with ROADMAP-AGENT
 
-This walkthrough is **illustrative**. Commands, transcripts, and file excerpts are **fictional** but aligned with how ROADMAP-AGENT is meant to be used: you bring the tool into a **new or existing repo**, initialize **`.rma/`**, run **`doctor`**, then loop **`plan` → `execute-one` → `analyze`**, optionally **mining** the tree into MemPalace for retrieval context. Adjust paths to your OS (PowerShell examples below; on Linux/macOS use `./roadmap-agent` or `rma` as installed).
+This walkthrough is **illustrative**. Commands, transcripts, and file excerpts are **fictional** but aligned with how ROADMAP-AGENT is meant to be used: you bring the tool into a **new or existing repo**, initialize **`.rma/`**, run **`doctor`**, then loop **`plan` → `execute-one` → `analyze`**, using **MemPalace** (mine → retrieve context) so plans and agents are grounded in **your actual tree**. Adjust paths to your OS (PowerShell examples below; on Linux/macOS use `./roadmap-agent` or `rma` as installed).
 
 **Product we are pretending to build:** a web app for **creating and sharing lists**, including **public lists**, **categories**, and **permissions** (owners, editors, viewers, **mutual** co-management of shared lists).
+
+**What success looks like:** you **ship a working app** by iterating—each cycle refines **Markdown context**, refreshes **palace memory**, regenerates **detailed** roadmaps, and lands **real code** with **`execute-one`**-sized steps. Structured logs and `plan.md` are **steering and audit artifacts**, not the end goal.
 
 ---
 
@@ -10,10 +12,16 @@ This walkthrough is **illustrative**. Commands, transcripts, and file excerpts a
 
 | Area | Expectation |
 |------|-------------|
-| **Roadmap state** | `.rma/roadmaps/plan.md`, `tasks.md`, and `run.md` stay aligned with real work: phases for auth, list CRUD, sharing, visibility, roles. |
-| **Context files** | `.rma/description.md`, `ui.md`, `stack.md`, `other.md` describe the product so `plan` and `analyze` are grounded. |
-| **MemPalace** | After `setup-local-models-mempalace`, **`mempalace mine`** (often **`--dry-run`** from the menu) previews ingest; a full ingest updates the palace for search-backed workflows. |
-| **Loop** | Small **`execute-one`** steps, then **`analyze`** to mark progress and surface the next honest task. |
+| **Roadmap state** | `.rma/roadmaps/plan.md`, `tasks.md`, and `run.md` stay aligned with real work: phases for auth, list CRUD, sharing, visibility, roles—**prefer depth** (dependencies, risks, acceptance hints) over one-line bullets. |
+| **Context files** | `.rma/description.md`, `ui.md`, `stack.md`, `other.md` are the **contract** the agent and MemPalace-backed **`plan`** interpret; keep them explicit so roadmaps are detailed and **questions** surface where you left gaps. |
+| **MemPalace** | After `setup-local-models-mempalace`, **`mempalace mine`** (often **`--dry-run`** from the menu) previews ingest; a **full** ingest updates the palace so **`plan`** and IDE agents retrieve **current** code and docs—not stale guesses. |
+| **Loop** | **`execute-one`** drives **implementation**; **`analyze`** reconciles repo reality with `tasks.md` / `run.md`. Use an **AI agent** (in Cursor or the terminal) to **read** `.rma/*.md`, **expand** plans, and **prompt you** on auth, visibility, or compliance when the Markdown is silent—do not let the model invent critical product law. |
+
+### How the agent should behave (intent)
+
+- **Interpret** the four context files as source of truth; **use** MemPalace search over mined files to align tasks with filenames, routes, and schema.
+- **Produce very detailed roadmaps** in `plan.md` / `tasks.md` when context is rich—break work into reviewable slices with clear ordering and risks.
+- **Ask you** when something important is underspecified (e.g. “public list” vs “unlisted link,” or OAuth vs email-only)—record answers back into `.rma/other.md` or `description.md` so the next **`plan`** is sharper.
 
 ---
 
@@ -141,7 +149,7 @@ owner, editor, and viewer; multiple users can co-manage a list (mutual editors).
 - Sharing panel: visibility (private / link / public), invite by email, role picker
 ```
 
-**Expectation:** The more concrete these files are, the better **`plan`** and **`analyze`** outputs will be. Vague one-liners produce vague tasks.
+**Expectation:** The more concrete these files are, the better **`plan`** and **`analyze`** outputs will be. Vague one-liners produce vague tasks—and weak MemPalace-backed retrieval—so **invest** in these files the same way you would a PRD for a cofounder.
 
 ---
 
@@ -195,7 +203,11 @@ Establish data model and API skeleton for lists, items, categories, and membersh
 - Public list abuse — rate limits later
 ```
 
-**Expectation:** Your real output depends on the LLM, MemPalace context, and `.rma` files. If MemPalace is unavailable and you have not set **`RMA_ALLOW_PLAN_FALLBACK=1`**, **`plan`** fails fast — that is by design in v0.3.0+.
+**Expectation:** Your real output depends on the LLM, MemPalace context, and `.rma` files. Aim for **much more detail** than the snippet when context is mature. If MemPalace is unavailable and you have not set **`RMA_ALLOW_PLAN_FALLBACK=1`**, **`plan`** fails fast — that is by design in v0.4.0+.
+
+**Refinements:** Use your **IDE agent** to expand sections or list unresolved decisions as multiple-choice; capture answers in `.rma/*.md` and re-run **`plan`**.
+
+**Built-in CLI prompts:** On an **interactive terminal**, **`rma plan`** asks you about bullets in **`.rma/open-questions.md`** and lines with **`Open:`** in the four context files; answers append to **`other.md`** before MemPalace runs. Use **`rma plan --no-interactive`** or **`RMA_PLAN_INTERACTIVE=0`** in CI.
 
 ---
 
@@ -246,7 +258,7 @@ Suggested commands (you run in your repo):
 Log written to .rma/logs/...
 ```
 
-**Expectation:** You **implement** the step in your codebase; ROADMAP-AGENT does not write your app for you. It structures **what to do next** and logs the step.
+**Expectation:** **`execute-one`** is the **execution spine**: it picks the next task, applies guardrails, and logs. **You** (or your IDE agent following `tasks.md` / `plan.md`) **write the code** that ships the feature—this is not a magic “generate full app” button. The **point** of the loop is to **build the product iteratively**: each pass should leave the repo **closer to a runnable app**, with MemPalace + `.rma` context **driving what to do next** intelligently. Use an agent to **implement** the selected task (tests, migrations, UI) while you review; merge **important product decisions** into `.rma` when the agent asks.
 
 After coding, run **`analyze`** again so **`tasks.md`** reflects reality.
 
@@ -281,28 +293,31 @@ dry-run complete — no vectors written
 
 ### Why mine for ListHub?
 
-Mining ingests **your repo text** so MemPalace-backed **`plan`** and search can use **current** file names, routes, and schema hints—not stale guesses.
+Mining ingests **your repo text** so MemPalace-backed **`plan`**, retrieval, and **agents** working beside ROADMAP-AGENT can use **current** file names, routes, and schema hints—not stale guesses. **Refresh** the palace after meaningful refactors so **detailed** roadmaps stay tied to the tree.
 
 ---
 
 ## 11 — The loop you repeat until MVP
 
 ```text
-  .rma context (edit as product evolves)
+  .rma context (edit as product evolves; agent asks when unclear)
            │
            ▼
-        plan ──► execute-one ──► (you ship code) ──► analyze
+   mine (dry-run or full) ──► plan (very detailed roadmaps)
+           │                      │
+           └──────────────────────┘
+                      │
+                      ▼
+        execute-one ──► ship code (you + agent) ──► analyze
            ▲                                        │
            └──────────── iterate ◄───────────────────┘
-
-  Occasionally: mempalace mine (dry-run or full) to refresh palace
 ```
 
 **Cadence (suggestion):**
 
-- **Daily:** `execute-one` + `analyze` after real commits.
-- **Weekly or after big refactors:** `plan` again; optional **mine** dry-run.
-- **Before a release:** `analyze`, tighten `run.md` checklist.
+- **Daily:** `execute-one` + **`analyze`** after real commits; keep **`.rma`** and **agent Q&A** in sync when decisions land.
+- **Weekly or after big refactors:** **`plan`** again; **mine** (full ingest when needed) so MemPalace matches the repo.
+- **Before a release:** `analyze`, tighten `run.md` checklist; re-read **`plan.md`** for gaps and **prompt** yourself or the agent for any unresolved **important** questions.
 
 ---
 
@@ -335,8 +350,8 @@ See [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md) and [`ROADMAP-WORKFLOW.md`](..
 
 1. **Import** ROADMAP-AGENT via PATH, vendor copy, or submodule—your **app repo** stays the cwd for **`rma`**.  
 2. **Setup** MemPalace + `.env`; **`doctor`** until clean.  
-3. **`init`**, then **author** `.rma/*.md` for ListHub (lists, sharing, categories, permissions).  
-4. **`plan` → execute-one → analyze`** in a tight loop; **`mempalace mine`** (often **`--dry-run`**) to keep the palace aligned with the tree.  
-5. **Expect** structured guidance and logs—not a generated production app without your code.
+3. **`init`**, then **author** `.rma/*.md` for ListHub (lists, sharing, categories, permissions)—this is what **`plan`** and agents **interpret** for **detailed** roadmaps.  
+4. **`mine` → `plan` → `execute-one` → `analyze`** in a tight loop: palace + Markdown **drive** intelligent iteration; **`execute-one`** tracks **real implementation** work toward a **shippable app**.  
+5. **Use an agent** to expand plans, implement tasks, and **ask you** important questions when context is thin; **capture answers** in `.rma` and re-run **`plan`**. The outcome is **working software** in your repo—not documentation for its own sake.
 
 For a shorter generic transcript (install → hub), see [`MOCK-WORKFLOW-SESSION.md`](MOCK-WORKFLOW-SESSION.md). For the mining vs roadmap diagram, see [`../roadmap-mining-and-loop.svg`](../roadmap-mining-and-loop.svg).
