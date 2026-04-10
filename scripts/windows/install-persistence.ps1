@@ -62,6 +62,37 @@ function Test-VersionOlder([string]$Installed, [string]$Current) {
     }
 }
 
+function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
+    $files = @(
+        "scripts\\unix\\roadmap-agent.sh",
+        "scripts\\unix\\setup-local-models-mempalace.sh",
+        "scripts\\windows\\roadmap-agent.ps1",
+        "scripts\\windows\\install-persistence.ps1",
+        "scripts\\windows\\setup-local-models-mempalace.ps1",
+        "roadmap-agent",
+        "roadmap-agent.cmd",
+        "rma",
+        "rma.cmd",
+        "rma.ps1",
+        "rma.sh"
+    )
+    foreach ($rel in $files) {
+        $src = Join-Path $SourceRoot $rel
+        $dst = Join-Path $InstallRoot $rel
+        if (Test-Path $src) {
+            if (-not (Test-Path $dst)) { return $false }
+            try {
+                $h1 = (Get-FileHash -Path $src -Algorithm SHA256).Hash
+                $h2 = (Get-FileHash -Path $dst -Algorithm SHA256).Hash
+                if ($h1 -ne $h2) { return $false }
+            } catch {
+                return $false
+            }
+        }
+    }
+    return $true
+}
+
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $installRoot = Join-Path ${env:ProgramFiles} "Roadmap-Agent"
 $binDir = Join-Path $installRoot "bin"
@@ -79,6 +110,7 @@ if (-not $repoVer) { $repoVer = "unknown" }
 $installedVer = Get-VersionFromChangelog (Join-Path $installRoot "CHANGELOG.md")
 if (-not $installedVer) { $installedVer = "unknown" }
 $isOlder = if ($installedVer -ne "unknown" -and $repoVer -ne "unknown") { Test-VersionOlder $installedVer $repoVer } else { $false }
+$scriptsInSync = Test-FilesInSync -SourceRoot $root -InstallRoot $installRoot
 
 if ($CheckOnly) {
     Write-Host "Persistence status"
@@ -89,12 +121,19 @@ if ($CheckOnly) {
     Write-Host "Current repo version: $repoVer"
     Write-Host "Installed app version: $installedVer"
     Write-Host "Installed older than current: $isOlder"
+    Write-Host "Installed scripts in sync: $scriptsInSync"
 
-    if ($hasBinPath -and $hasCmd -and $hasAlias -and -not $isOlder) {
+    if ($hasBinPath -and $hasCmd -and $hasAlias -and -not $isOlder -and $scriptsInSync) {
         Write-Host "Persistence already present and current." -ForegroundColor Green
         exit 0
     }
-    $prompt = if ($isOlder) { "Installed persistence is older than current version. Upgrade now? (y/N)" } else { "Persistence appears missing. Install now? (y/N)" }
+    if (-not $scriptsInSync) {
+        $prompt = "Installed persistence scripts differ from current app. Upgrade/sync now? (y/N)"
+    } elseif ($isOlder) {
+        $prompt = "Installed persistence is older than current version. Upgrade now? (y/N)"
+    } else {
+        $prompt = "Persistence appears missing. Install now? (y/N)"
+    }
     $ans = (Read-Host $prompt).Trim().ToLower()
     if ($ans -notmatch "^(y|yes)$") {
         Write-Host "Skipped persistence install."

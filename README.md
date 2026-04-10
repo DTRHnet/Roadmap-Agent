@@ -157,6 +157,7 @@ Windows PowerShell:
 
 - `init` - bootstrap `.rma/` and template files.
 - `status` - show project/branch and task execution summary.
+- `doctor` - run diagnostics for environment, providers, and persistence sync state.
 - `plan` - generate a dry-run roadmap plan file.
 - `analyze` - analyze codebase + markdown docs and sync canonical task/run files.
 - `analyze-init` - analyze current folder/subfolders and propose generated `.rma` markdown files with preview + accept/deny for each file.
@@ -175,7 +176,11 @@ These options are accessible from all main launchers (`roadmap-agent`, `rma`, `r
 
 - General form: `roadmap-agent <command> [options]`
 - Optional env override: `RMA_DISABLE_FZF=1` forces fallback text menus/selectors.
+- Optional env override: `RMA_LLM_PROVIDER=ollama|openllama|claude` selects LLM backend.
 - Optional env override: `RMA_OLLAMA_MODEL=<model>` selects local Ollama model for project-aware `.rma` generation (default: `llama3.1:latest`).
+- Optional env override: `RMA_OLLAMA_HOST=<url>` sets Ollama API host (default: `http://127.0.0.1:11434`).
+- Optional env override: `RMA_OPENAI_BASE_URL=<url>`, `RMA_OPENAI_MODEL=<model>`, `RMA_OPENAI_API_KEY=<key>` for OpenAI-compatible local hosting (openllama).
+- Optional env override: `RMA_CLAUDE_MODEL=<model>` with `ANTHROPIC_API_KEY` for Claude integration.
 - Optional env override: `RMA_REQUIRE_OLLAMA=1` requires local Ollama/model availability for generation.
 - Analyzer scaffolding:
   - `roadmap-agent analyze-init` -> interactive per-file preview + accept/deny
@@ -196,14 +201,36 @@ These options are accessible from all main launchers (`roadmap-agent`, `rma`, `r
   - menu navigation still works from terminal prompts
   - `analyze-init` still previews each generated `.md` file before accept/deny
 
+### Runtime Warnings Panel
+
+- In FZF UI mode, menus now show a runtime warnings panel in a preview window on the **right side (30% width)**.
+- The panel includes checks such as:
+  - missing required `.rma/*.md` files
+  - missing `.env` (informational)
+  - missing API tokens (informational)
+  - missing Ollama/model
+  - fallback menu mode and Git remote status
+- In non-FZF fallback mode, the same warnings are printed inline above menu selection prompts.
+
 ### Local LLM Generation (Ollama)
 
-- `analyze-init` now analyzes project files in the current directory/subfolders and generates `.rma` proposals using a local LLM via Ollama.
+- `analyze-init` now analyzes project files in the current directory/subfolders and generates `.rma` proposals using configurable LLM providers:
+  - `ollama` (default)
+  - `openllama` via OpenAI-compatible local API
+  - `claude` via Anthropic API
 - The prompt context is built from repository markdown, key config files, file inventory, and extracted task cues.
-- If Ollama is unavailable, ROADMAP-AGENT falls back to heuristic generation based on repository evidence.
+- If provider requirements are unavailable, ROADMAP-AGENT falls back to heuristic generation unless `--require-ollama`/`RMA_REQUIRE_OLLAMA=1` is set.
 - Default model is `llama3.1:latest`.
+- If the `ollama` binary is not on PATH (common in some WSL setups), ROADMAP-AGENT also checks Ollama over HTTP using `RMA_OLLAMA_HOST`.
 - You can configure runtime behavior via `.env` (copy from `.env.example`):
+  - `RMA_LLM_PROVIDER=ollama`
+  - `RMA_OLLAMA_HOST=http://127.0.0.1:11434`
   - `RMA_OLLAMA_MODEL=llama3.1:latest`
+  - `RMA_OPENAI_BASE_URL=http://127.0.0.1:11434/v1`
+  - `RMA_OPENAI_MODEL=openllama`
+  - `RMA_OPENAI_API_KEY=local-no-key`
+  - `RMA_CLAUDE_MODEL=claude-3-5-sonnet-latest`
+  - `ANTHROPIC_API_KEY=<your_key>`
   - `RMA_REQUIRE_OLLAMA=1`
   - `RMA_DISABLE_FZF=0`
 
@@ -294,6 +321,16 @@ The runtime works without custom environment variables, but supports useful over
 | Variable | Used By | Purpose | Example |
 |---|---|---|---|
 | `ROADMAP_AGENT_PROJECT_ROOT` | Unix runtime | Forces project root detection instead of deriving from script location | `export ROADMAP_AGENT_PROJECT_ROOT="$PWD"` |
+| `RMA_LLM_PROVIDER` | analyze-init | Selects LLM backend (`ollama`, `openllama`, `claude`) | `RMA_LLM_PROVIDER=ollama` |
+| `RMA_OLLAMA_HOST` | ollama provider | Ollama API host URL | `RMA_OLLAMA_HOST=http://127.0.0.1:11434` |
+| `RMA_OLLAMA_MODEL` | ollama provider | Model used for local generation | `RMA_OLLAMA_MODEL=llama3.1:latest` |
+| `RMA_OPENAI_BASE_URL` | openllama provider | OpenAI-compatible local endpoint URL | `RMA_OPENAI_BASE_URL=http://127.0.0.1:11434/v1` |
+| `RMA_OPENAI_MODEL` | openllama provider | OpenAI-compatible model name | `RMA_OPENAI_MODEL=openllama` |
+| `RMA_OPENAI_API_KEY` | openllama provider | OpenAI-compatible API key/token | `RMA_OPENAI_API_KEY=local-no-key` |
+| `RMA_CLAUDE_MODEL` | claude provider | Claude model name | `RMA_CLAUDE_MODEL=claude-3-5-sonnet-latest` |
+| `ANTHROPIC_API_KEY` | claude provider | Claude API key | `ANTHROPIC_API_KEY=...` |
+| `RMA_REQUIRE_OLLAMA` | analyze-init | Fail fast if Ollama/model unavailable | `RMA_REQUIRE_OLLAMA=1` |
+| `RMA_DISABLE_FZF` | menu system | Force fallback text menus/selectors | `RMA_DISABLE_FZF=1` |
 | `PATH` | All runtimes | Used to find `git`, `python`, `mempalace`, `fzf`, and installed launchers | `PATH=/usr/local/bin:$PATH` |
 | `FZF_DEFAULT_OPTS` | fzf | Optional global styling/behavior overrides for fzf menus | `export FZF_DEFAULT_OPTS='--height 85%'` |
 | `ProgramFiles` | Windows runtime | Resolves persistence install path (`Roadmap-Agent\bin`) | Inherited from Windows |
@@ -422,9 +459,9 @@ RoadmapAgent/
 ## Support Scripts
 
 - `scripts/windows/setup-local-models-mempalace.ps1`
-  - Best-effort local model setup on Windows.
+  - Dependency-aware local model setup on Windows with structured logs and verification.
 - `scripts/unix/setup-local-models-mempalace.sh`
-  - Best-effort local model setup on Linux/macOS.
+  - Dependency-aware local model setup on Linux/macOS with structured logs and verification.
 - `scripts/windows/install-persistence.ps1`
   - Admin installer for Windows global command access and machine PATH update.
 - `docker/entrypoint.sh`
@@ -434,6 +471,7 @@ RoadmapAgent/
 
 - `roadmap-agent init`
 - `roadmap-agent status`
+- `roadmap-agent doctor`
 - `roadmap-agent plan`
 - `roadmap-agent analyze`
 - `roadmap-agent analyze-init`

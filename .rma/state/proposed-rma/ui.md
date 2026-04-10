@@ -1,6 +1,6 @@
 # UI
 
-Generated: 2026-04-10T11:34:54Z
+Generated: 2026-04-10T11:59:22Z
 
 ## CLI UX Baseline
 - Define expected user workflows and critical interaction paths.

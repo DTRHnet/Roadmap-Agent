@@ -40,7 +40,13 @@ EXEC_LOG="$LOG_DIR/roadmap-agent-execution.log"
 HAVE_FZF=0
 
 # Local LLM defaults (overridable via environment or .env)
+RMA_LLM_PROVIDER="${RMA_LLM_PROVIDER:-ollama}"  # ollama | openllama | claude
 RMA_OLLAMA_MODEL="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+RMA_OLLAMA_HOST="${RMA_OLLAMA_HOST:-http://127.0.0.1:11434}"
+RMA_OPENAI_BASE_URL="${RMA_OPENAI_BASE_URL:-http://127.0.0.1:11434/v1}"
+RMA_OPENAI_API_KEY="${RMA_OPENAI_API_KEY:-local-no-key}"
+RMA_OPENAI_MODEL="${RMA_OPENAI_MODEL:-openllama}"
+RMA_CLAUDE_MODEL="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
 RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
 
 # Use real escape bytes so routed shells (e.g. PowerShell -> bash)
@@ -74,17 +80,24 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_OLLAMA_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
       val="${val#\"}"
       val="${val%\'}"
       val="${val#\'}"
+      val="${val%$'\r'}"
       export "$key=$val"
     fi
   done < "$env_file"
+  RMA_LLM_PROVIDER="${RMA_LLM_PROVIDER:-ollama}"
   RMA_OLLAMA_MODEL="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  RMA_OLLAMA_HOST="${RMA_OLLAMA_HOST:-http://127.0.0.1:11434}"
+  RMA_OPENAI_BASE_URL="${RMA_OPENAI_BASE_URL:-http://127.0.0.1:11434/v1}"
+  RMA_OPENAI_API_KEY="${RMA_OPENAI_API_KEY:-local-no-key}"
+  RMA_OPENAI_MODEL="${RMA_OPENAI_MODEL:-openllama}"
+  RMA_CLAUDE_MODEL="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
   RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
 }
 
@@ -207,6 +220,7 @@ USAGE
 COMMANDS
   init             Initialize .rma metadata and templates
   status           Show roadmap/project status summary
+  doctor           Run environment/provider/persistence diagnostics
   plan             Generate roadmap dry-run plan
   analyze          Analyze codebase/docs and sync tasks + run files
   analyze-init     Analyze repo and propose .rma/*.md generation
@@ -223,7 +237,13 @@ ANALYZE-INIT OPTIONS
   --yes, -y        Non-interactive: accept and write all proposed .rma files
   --dry-run        Generate proposals only; do not write .rma files
   --require-ollama Fail if local Ollama/model is unavailable
+  (env) RMA_LLM_PROVIDER=ollama|openllama|claude
   (env) RMA_OLLAMA_MODEL=<model>  Override local Ollama model (default: llama3.1:latest)
+  (env) RMA_OLLAMA_HOST=<url>     Ollama API host (default: http://127.0.0.1:11434)
+  (env) RMA_OPENAI_BASE_URL=<url> OpenAI-compatible local endpoint (default: http://127.0.0.1:11434/v1)
+  (env) RMA_OPENAI_MODEL=<model>  OpenAI-compatible model name (default: openllama)
+  (env) RMA_OPENAI_API_KEY=<key>  OpenAI-compatible API key (default: local-no-key)
+  (env) RMA_CLAUDE_MODEL=<model>  Anthropic Claude model (default: claude-3-5-sonnet-latest)
   (env) RMA_REQUIRE_OLLAMA=1      Require Ollama for generation (same as --require-ollama)
 
 PERSISTENCE MODE
@@ -247,6 +267,47 @@ MORE DOCS
   DOCS/ARCHITECTURE.md
   DOCS/TROUBLESHOOTING.md
 EOF
+}
+
+compare_file_if_exists() {
+  local src="$1"
+  local dst="$2"
+  [[ -f "$src" && -f "$dst" ]] || return 1
+  cmp -s "$src" "$dst"
+}
+
+persistence_scripts_in_sync() {
+  local install_root="/usr/local/lib/roadmap-agent"
+  local out_of_sync=0
+  local rel
+  local files=(
+    "scripts/unix/roadmap-agent.sh"
+    "scripts/unix/setup-local-models-mempalace.sh"
+    "scripts/windows/roadmap-agent.ps1"
+    "scripts/windows/install-persistence.ps1"
+    "scripts/windows/setup-local-models-mempalace.ps1"
+    "roadmap-agent"
+    "roadmap-agent.cmd"
+    "rma"
+    "rma.cmd"
+    "rma.ps1"
+    "rma.sh"
+  )
+  for rel in "${files[@]}"; do
+    local src="$APP_DIR/$rel"
+    local dst="$install_root/$rel"
+    if [[ -f "$src" ]]; then
+      if ! compare_file_if_exists "$src" "$dst"; then
+        out_of_sync=1
+        break
+      fi
+    fi
+  done
+  if [[ "$out_of_sync" -eq 0 ]]; then
+    printf "yes"
+  else
+    printf "no"
+  fi
 }
 
 analyze_workspace_snapshot() {
@@ -312,15 +373,19 @@ clean_llm_output() {
 
 ollama_model_available() {
   local model="$1"
-  ollama show "$model" >/dev/null 2>&1
+  if command -v ollama >/dev/null 2>&1; then
+    ollama show "$model" >/dev/null 2>&1 && return 0
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsS "${RMA_OLLAMA_HOST%/}/api/tags" 2>/dev/null | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${model}\"" && return 0
+  fi
+  return 1
 }
 
-generate_rma_file_with_ollama() {
+build_llm_prompt() {
   local section="$1"
   local context_file="$2"
-  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
-  local prompt output
-  prompt="$(cat <<EOF
+  cat <<EOF
 You are generating one configuration markdown file for a software project.
 Target file: .rma/${section}.md
 
@@ -333,8 +398,118 @@ Rules:
 Project context:
 $(cat "$context_file")
 EOF
-)"
-  output="$(ollama run "$model" "$prompt" 2>/dev/null || true)"
+}
+
+resolve_python_cmd() {
+  if command -v python >/dev/null 2>&1; then
+    printf "python"
+    return 0
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    printf "python3"
+    return 0
+  fi
+  return 1
+}
+
+generate_rma_file_with_ollama() {
+  local section="$1"
+  local context_file="$2"
+  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  local prompt output py
+  prompt="$(build_llm_prompt "$section" "$context_file")"
+  if command -v ollama >/dev/null 2>&1; then
+    output="$(ollama run "$model" "$prompt" 2>/dev/null || true)"
+  elif command -v curl >/dev/null 2>&1; then
+    py="$(resolve_python_cmd || true)"
+    [[ -z "$py" ]] && { printf ""; return 0; }
+    output="$(curl -fsS "${RMA_OLLAMA_HOST%/}/api/generate" \
+      -H "Content-Type: application/json" \
+      -d "{\"model\":\"$model\",\"prompt\":$("$py" -c 'import json,sys; print(json.dumps(sys.stdin.read()))' <<< "$prompt"),\"stream\":false}" 2>/dev/null | \
+      "$py" -c 'import json,sys; d=json.load(sys.stdin); print(d.get("response",""))' 2>/dev/null || true)"
+  fi
+  clean_llm_output "$output"
+}
+
+generate_rma_file_with_openllama() {
+  local section="$1"
+  local context_file="$2"
+  local model="${RMA_OPENAI_MODEL:-openllama}"
+  local prompt output
+  prompt="$(build_llm_prompt "$section" "$context_file")"
+  local py
+  py="$(resolve_python_cmd || true)"
+  [[ -z "$py" ]] && { printf ""; return 0; }
+  output="$("$py" - <<'PY'
+import json, os, sys, urllib.request
+base = os.getenv("RMA_OPENAI_BASE_URL", "http://127.0.0.1:11434/v1").rstrip("/")
+key = os.getenv("RMA_OPENAI_API_KEY", "local-no-key")
+model = os.getenv("RMA_OPENAI_MODEL", "openllama")
+prompt = sys.stdin.read()
+body = {
+    "model": model,
+    "messages": [{"role":"user","content":prompt}],
+    "temperature": 0.2
+}
+req = urllib.request.Request(
+    base + "/chat/completions",
+    data=json.dumps(body).encode("utf-8"),
+    headers={"Content-Type":"application/json","Authorization":f"Bearer {key}"}
+)
+try:
+    with urllib.request.urlopen(req, timeout=120) as r:
+        data = json.loads(r.read().decode("utf-8"))
+        print(data["choices"][0]["message"]["content"])
+except Exception:
+    pass
+PY
+<<< "$prompt")"
+  clean_llm_output "$output"
+}
+
+generate_rma_file_with_claude() {
+  local section="$1"
+  local context_file="$2"
+  local model="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
+  local key="${ANTHROPIC_API_KEY:-}"
+  local prompt output
+  [[ -z "$key" ]] && return 0
+  prompt="$(build_llm_prompt "$section" "$context_file")"
+  local py
+  py="$(resolve_python_cmd || true)"
+  [[ -z "$py" ]] && { printf ""; return 0; }
+  output="$("$py" - <<'PY'
+import json, os, sys, urllib.request
+key = os.getenv("ANTHROPIC_API_KEY","")
+model = os.getenv("RMA_CLAUDE_MODEL", "claude-3-5-sonnet-latest")
+prompt = sys.stdin.read()
+if not key:
+    raise SystemExit(0)
+body = {
+    "model": model,
+    "max_tokens": 1600,
+    "temperature": 0.2,
+    "messages": [{"role":"user","content":prompt}]
+}
+req = urllib.request.Request(
+    "https://api.anthropic.com/v1/messages",
+    data=json.dumps(body).encode("utf-8"),
+    headers={
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+)
+try:
+    with urllib.request.urlopen(req, timeout=120) as r:
+        data = json.loads(r.read().decode("utf-8"))
+        chunks = data.get("content", [])
+        text = "".join(c.get("text","") for c in chunks if c.get("type")=="text")
+        print(text)
+except Exception:
+    pass
+PY
+<<< "$prompt")"
   clean_llm_output "$output"
 }
 
@@ -342,37 +517,69 @@ generate_proposed_rma_files() {
   local require_ollama="${1:-0}"
   analyze_workspace_snapshot
   local proposal_dir="$STATE_DIR/proposed-rma"
-  local context_file llm_ok model
+  local context_file llm_ok model provider
   mkdir -p "$proposal_dir"
   context_file="$(collect_project_context_for_llm)"
   llm_ok="no"
+  provider="${RMA_LLM_PROVIDER:-ollama}"
   model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
-  if command -v ollama >/dev/null 2>&1; then
-    if ollama_model_available "$model"; then
-      llm_ok="yes"
-      printf "INFO: Using local LLM via Ollama model: %s\n" "$model" >&2
-    else
-      if [[ "$require_ollama" == "1" ]]; then
-        warn "Ollama model not found: $model"
-        warn "Run: ollama pull $model"
-        return 1
+  case "$provider" in
+    ollama)
+      if ollama_model_available "$model"; then
+        llm_ok="yes"
+        printf "INFO: Using Ollama provider model: %s\n" "$model" >&2
+      else
+        if [[ "$require_ollama" == "1" ]]; then
+          printf "WARN: Ollama provider requested but model unavailable: %s\n" "$model" >&2
+          printf "WARN: Set RMA_OLLAMA_HOST correctly and/or run: ollama pull %s\n" "$model" >&2
+          return 1
+        fi
+        printf "WARN: Ollama unavailable for model '%s'. Falling back to heuristic generation.\n" "$model" >&2
       fi
-      printf "WARN: Ollama model not found (%s). Falling back to heuristic generation.\n" "$model" >&2
-    fi
-  else
-    if [[ "$require_ollama" == "1" ]]; then
-      warn "Ollama is required but not available."
-      return 1
-    fi
-    printf "WARN: Ollama not found. Falling back to heuristic project-based generation.\n" >&2
-  fi
+      ;;
+    openllama)
+      if command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
+        llm_ok="yes"
+        printf "INFO: Using OpenAI-compatible local provider (openllama) model: %s\n" "${RMA_OPENAI_MODEL:-openllama}" >&2
+      else
+        printf "WARN: Python is required for openllama provider HTTP calls.\n" >&2
+      fi
+      ;;
+    claude)
+      if [[ -n "${ANTHROPIC_API_KEY:-}" ]] && (command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1); then
+        llm_ok="yes"
+        printf "INFO: Using Claude provider model: %s\n" "${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}" >&2
+      else
+        printf "WARN: Claude provider requires ANTHROPIC_API_KEY and Python.\n" >&2
+      fi
+      ;;
+    *)
+      printf "WARN: Unknown RMA_LLM_PROVIDER='%s'. Supported: ollama, openllama, claude\n" "$provider" >&2
+      ;;
+  esac
 
   if [[ "$llm_ok" == "yes" ]]; then
     local desc ui stack other
-    desc="$(generate_rma_file_with_ollama "description" "$context_file")"
-    ui="$(generate_rma_file_with_ollama "ui" "$context_file")"
-    stack="$(generate_rma_file_with_ollama "stack" "$context_file")"
-    other="$(generate_rma_file_with_ollama "other" "$context_file")"
+    case "$provider" in
+      ollama)
+        desc="$(generate_rma_file_with_ollama "description" "$context_file")"
+        ui="$(generate_rma_file_with_ollama "ui" "$context_file")"
+        stack="$(generate_rma_file_with_ollama "stack" "$context_file")"
+        other="$(generate_rma_file_with_ollama "other" "$context_file")"
+        ;;
+      openllama)
+        desc="$(generate_rma_file_with_openllama "description" "$context_file")"
+        ui="$(generate_rma_file_with_openllama "ui" "$context_file")"
+        stack="$(generate_rma_file_with_openllama "stack" "$context_file")"
+        other="$(generate_rma_file_with_openllama "other" "$context_file")"
+        ;;
+      claude)
+        desc="$(generate_rma_file_with_claude "description" "$context_file")"
+        ui="$(generate_rma_file_with_claude "ui" "$context_file")"
+        stack="$(generate_rma_file_with_claude "stack" "$context_file")"
+        other="$(generate_rma_file_with_claude "other" "$context_file")"
+        ;;
+    esac
     if [[ -n "${desc// }" ]]; then printf "%s\n" "$desc" > "$proposal_dir/description.md"; fi
     if [[ -n "${ui// }" ]]; then printf "%s\n" "$ui" > "$proposal_dir/ui.md"; fi
     if [[ -n "${stack// }" ]]; then printf "%s\n" "$stack" > "$proposal_dir/stack.md"; fi
@@ -877,8 +1084,9 @@ version_is_older() {
 }
 
 cmd_persistence_check() {
+  local non_interactive="${1:-0}"
   local os shell_name rc_file cmd_path has_cmd has_rc_block
-  local install_root current_ver installed_ver stale
+  local install_root current_ver installed_ver stale scripts_sync
   os="$(uname -s)"
   shell_name="$(basename "${SHELL:-unknown}")"
   rc_file="$(detect_shell_rc_file)"
@@ -887,6 +1095,7 @@ cmd_persistence_check() {
   has_cmd="no"
   has_rc_block="no"
   stale="no"
+  scripts_sync="$(persistence_scripts_in_sync)"
 
   current_ver="$(detect_project_version_from_docs)"
   [[ -z "${current_ver:-}" ]] && current_ver="$(app_version)"
@@ -908,18 +1117,26 @@ cmd_persistence_check() {
   printf "Current repo version: %s\n" "${current_ver:-unknown}"
   printf "Installed app version: %s\n" "${installed_ver:-unknown}"
   printf "Installed older than current: %s\n" "$stale"
+  printf "Installed scripts in sync: %s\n" "$scripts_sync"
   if [[ "$has_cmd" == "yes" ]]; then
     printf "Resolved command path: %s\n" "$cmd_path"
   fi
   printf "Managed rc PATH block present: %s\n" "$has_rc_block"
 
-  if [[ "$has_cmd" == "yes" && "$stale" != "yes" ]]; then
+  if [[ "$has_cmd" == "yes" && "$stale" != "yes" && "$scripts_sync" == "yes" ]]; then
     info "Persistence already present."
     return 0
   fi
 
+  if [[ "$non_interactive" == "1" ]]; then
+    info "Persistence needs install/update (non-interactive mode)."
+    return 0
+  fi
+
   local ans="n"
-  if [[ "$stale" == "yes" ]]; then
+  if [[ "$scripts_sync" != "yes" ]]; then
+    printf "Persistence scripts differ from current app. Upgrade/sync now? (y/N): "
+  elif [[ "$stale" == "yes" ]]; then
     printf "Persistence install is older than current version. Upgrade now? (y/N): "
   else
     printf "Persistence appears missing. Install now? (y/N): "
@@ -1038,6 +1255,168 @@ fzf_choose_one() {
 pause_prompt() {
   printf "\nPress Enter to continue: "
   read -r _
+}
+
+write_runtime_warnings_panel() {
+  ensure_core_dirs
+  local warn_file="$STATE_DIR/runtime-warnings.txt"
+  local missing=0
+  {
+    echo "ROADMAP-AGENT :: Runtime Warnings"
+    echo "---------------------------------"
+    echo "Project: $(project_name)"
+    echo "Branch : $(project_branch)"
+    echo "Time   : $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    echo
+
+    # Core .rma requirements
+    local req
+    for req in description.md ui.md stack.md other.md; do
+      if [[ ! -f "$RMA_DIR/$req" ]]; then
+        echo "WARN: Missing .rma/$req (run: roadmap-agent init)"
+        missing=1
+      fi
+    done
+
+    # Optional integration/env warnings
+    if [[ ! -f "$ROOT_DIR/.env" ]]; then
+      echo "INFO: .env not found (optional; copy from .env.example if needed)."
+    fi
+
+    echo "LLM provider: ${RMA_LLM_PROVIDER:-ollama}"
+
+    if [[ -z "${GITHUB_TOKEN:-}" ]]; then
+      echo "INFO: GITHUB_TOKEN not set (optional for authenticated GitHub operations)."
+    fi
+
+    case "${RMA_LLM_PROVIDER:-ollama}" in
+      ollama)
+        local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+        echo "Ollama host: ${RMA_OLLAMA_HOST:-http://127.0.0.1:11434}"
+        if ! ollama_model_available "$model"; then
+          echo "WARN: Ollama unavailable/model missing: $model"
+          echo "      Try: ollama pull $model"
+          echo "      If running remotely: set RMA_OLLAMA_HOST"
+          missing=1
+        fi
+        ;;
+      openllama)
+        echo "OpenAI-compatible base URL: ${RMA_OPENAI_BASE_URL:-http://127.0.0.1:11434/v1}"
+        echo "OpenAI-compatible model   : ${RMA_OPENAI_MODEL:-openllama}"
+        if command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
+          :
+        else
+          echo "WARN: Python missing; required for openllama HTTP integration."
+          missing=1
+        fi
+        ;;
+      claude)
+        echo "Claude model: ${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
+        if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+          echo "WARN: ANTHROPIC_API_KEY is not set for Claude integration."
+          missing=1
+        fi
+        if command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
+          :
+        else
+          echo "WARN: Python missing; required for Claude HTTP integration."
+          missing=1
+        fi
+        ;;
+      *)
+        echo "WARN: Unknown RMA_LLM_PROVIDER='${RMA_LLM_PROVIDER}'."
+        missing=1
+        ;;
+    esac
+
+    if [[ "${HAVE_FZF:-0}" -eq 0 ]]; then
+      echo "INFO: Running with fallback text menus (fzf unavailable)."
+    fi
+
+    if [[ "$(project_remote)" == "none" ]]; then
+      echo "INFO: Git remote origin not detected."
+    fi
+
+    echo
+    if [[ "$missing" -eq 0 ]]; then
+      echo "Status: No critical warnings detected."
+    else
+      echo "Status: Action recommended for one or more warnings."
+    fi
+  } > "$warn_file"
+  printf "%s" "$warn_file"
+}
+
+cmd_doctor() {
+  ensure_core_dirs
+  load_rma_env_file
+  local ok=0
+
+  echo "ROADMAP-AGENT Doctor"
+  echo "===================="
+  echo "Project: $(project_name)"
+  echo "Branch : $(project_branch)"
+  echo "Root   : $ROOT_DIR"
+  echo "App    : $APP_DIR"
+  echo "Time   : $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  echo
+
+  echo "[Core Tools]"
+  for t in bash git curl python python3 fzf ollama; do
+    if command -v "$t" >/dev/null 2>&1; then
+      echo "  OK   $t -> $(command -v "$t")"
+    else
+      echo "  WARN $t not found"
+      [[ "$t" == "bash" || "$t" == "git" || "$t" == "curl" ]] && ok=1
+    fi
+  done
+  echo
+
+  echo "[Environment]"
+  echo "  RMA_LLM_PROVIDER=${RMA_LLM_PROVIDER:-ollama}"
+  echo "  RMA_OLLAMA_HOST=${RMA_OLLAMA_HOST:-http://127.0.0.1:11434}"
+  echo "  RMA_OLLAMA_MODEL=${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  echo "  RMA_OPENAI_BASE_URL=${RMA_OPENAI_BASE_URL:-http://127.0.0.1:11434/v1}"
+  echo "  RMA_OPENAI_MODEL=${RMA_OPENAI_MODEL:-openllama}"
+  if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    echo "  ANTHROPIC_API_KEY=SET"
+  else
+    echo "  ANTHROPIC_API_KEY=UNSET"
+  fi
+  if [[ -n "${RMA_OPENAI_API_KEY:-}" ]]; then
+    echo "  RMA_OPENAI_API_KEY=SET"
+  else
+    echo "  RMA_OPENAI_API_KEY=UNSET"
+  fi
+  echo
+
+  echo "[Provider Readiness]"
+  if ollama_model_available "${RMA_OLLAMA_MODEL:-llama3.1:latest}"; then
+    echo "  OK   ollama (${RMA_OLLAMA_MODEL:-llama3.1:latest}) reachable"
+  else
+    echo "  WARN ollama model unavailable/reachability failed"
+  fi
+  if command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
+    echo "  OK   openllama provider prerequisites present (python + endpoint vars)"
+  else
+    echo "  WARN openllama provider requires python/python3"
+  fi
+  if [[ -n "${ANTHROPIC_API_KEY:-}" ]] && (command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1); then
+    echo "  OK   claude provider prerequisites present"
+  else
+    echo "  WARN claude provider requires ANTHROPIC_API_KEY + python"
+  fi
+  echo
+
+  echo "[Persistence]"
+  cmd_persistence_check 1
+  echo
+
+  if [[ "$ok" -eq 0 ]]; then
+    echo "Doctor status: completed (no critical blockers detected)."
+  else
+    echo "Doctor status: completed with blockers. Review WARN entries."
+  fi
 }
 
 ensure_rma_required_files() {
@@ -1341,11 +1720,12 @@ roadmap_unlock() {
 }
 
 render_menu() {
-  local project branch remote goal header selected batch
+  local project branch remote goal header selected batch warn_panel
   project="$(project_name)"
   branch="$(project_branch)"
   remote="$(project_remote)"
   goal="$(analyze_project_goal)"
+  warn_panel="$(write_runtime_warnings_panel)"
 
   header="${BOLD}${UNDERLINE}${BLUE}ROADMAP-AGENT :: Local AI Memory Palace${RESET}
 ${GRAY}App Version:${RESET} $(app_version)
@@ -1371,6 +1751,7 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
     "XI   Check/add persistence if missing"
     "XII  Analyze codebase and sync tasks/run"
     "XIII Analyze folder and propose .rma files"
+    "XIV  Doctor (env/provider/persistence checks)"
     "0    Back to hub"
   )
 
@@ -1382,9 +1763,14 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
       --border=rounded \
       --prompt="Select > " \
       --header="$header"$'\n'"Press Enter to continue:" \
+      --preview "cat \"$warn_panel\"" \
+      --preview-window=right:30% \
       --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
   else
     printf "%b\n" "$header"
+    printf "\n"
+    cat "$warn_panel"
+    printf "\n"
     selected="$(fzf_choose_one "Select menu option" "${options[@]}")"
   fi
 
@@ -1430,6 +1816,9 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
     XIII\ *)
       preview_and_apply_rma_proposals
       ;;
+    XIV\ *)
+      cmd_doctor
+      ;;
     0\ \ \ *)
       return 1
       ;;
@@ -1439,7 +1828,8 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
 }
 
 render_hub_menu() {
-  local selected
+  local selected warn_panel
+  warn_panel="$(write_runtime_warnings_panel)"
   local hub_options=(
     "I   Open AI submenu"
     "II  Roadmap status (quick view)"
@@ -1454,12 +1844,17 @@ render_hub_menu() {
         --border=rounded \
         --prompt="Hub > " \
         --header="${BOLD}${UNDERLINE}ROADMAP-AGENT HUB${RESET}"$'\n'"App Version: $(app_version)"$'\n'"Last Release: $(last_release_version)"$'\n'"Release Date: $(last_release_date)"$'\n'"Press Enter to continue:" \
+        --preview "cat \"$warn_panel\"" \
+        --preview-window=right:30% \
         --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
   else
     printf "%b\n" "${BOLD}${UNDERLINE}ROADMAP-AGENT HUB${RESET}"
     printf "App Version: %s\n" "$(app_version)"
     printf "Last Release: %s\n" "$(last_release_version)"
     printf "Release Date: %s\n" "$(last_release_date)"
+    printf "\n"
+    cat "$warn_panel"
+    printf "\n"
     selected="$(fzf_choose_one "Hub" "${hub_options[@]}")"
   fi
 
@@ -1499,6 +1894,9 @@ main() {
     status)
       ensure_rma_required_files
       roadmap_status
+      ;;
+    doctor)
+      cmd_doctor
       ;;
     plan)
       ensure_core_dirs
