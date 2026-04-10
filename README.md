@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="roadmap-agent-github-banner.png" alt="ROADMAP-AGENT — Local AI Memory Palace CLI" width="100%" />
+  <img src="main.jpg" alt="ROADMAP-AGENT — Local AI Memory Palace CLI" width="100%" />
 </p>
 
 <h1 align="center">ROADMAP-AGENT</h1>
