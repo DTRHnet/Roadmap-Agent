@@ -270,6 +270,9 @@ COMMANDS
   analyze          Analyze codebase/docs and sync tasks + run files
   analyze-init     Analyze repo and propose .rma/*.md generation
   execute-one      Execute exactly one selected planned task
+  agent            Autonomous ReAct loop (LLM chooses plan/analyze/status/tools)
+  run-agent        Alias of agent
+  tools            Print machine-oriented tool/command manifest (for external agents)
   unlock           Clear roadmap lock state
   persistence      Install global launcher/manpages (admin/root)
   persistance      Alias of persistence
@@ -277,6 +280,16 @@ COMMANDS
   man              Show built-in manual/manpage text
   help, --help,-h  Show this detailed help
   menu             Open interactive hub and AI submenu (default)
+
+AGENT OPTIONS (roadmap-agent agent "goal" ...)
+  --max-steps <n>           Maximum loop iterations (default: 10)
+  -y, --yes                 Do not prompt between steps (still logs; use with care)
+  --confirm-execute-one     Allow invoking interactive execute-one when the model requests it
+  --require-ollama          Fail if Ollama/model is unavailable (same as other commands)
+
+AGENT logs and memory:
+  - Session log: .rma/logs/agent.log
+  - Long-form history: .rma/mempalace/agent-history.md
 
 ANALYZE-INIT OPTIONS
   --yes, -y        Non-interactive: accept and write all proposed .rma files
@@ -1933,6 +1946,403 @@ render_hub_menu() {
   esac
 }
 
+AGENT_LOG="$LOG_DIR/agent.log"
+AGENT_HISTORY_FILE="$MEMPALACE_DIR/agent-history.md"
+AGENT_SCHEMA_HINT='{"thought":"string","action":"plan|analyze|execute-one|status|unlock|shell|reflect|stop","args":"optional shell command for action shell only"}'
+
+agent_append_log() {
+  local line="$1"
+  mkdir -p "$LOG_DIR"
+  printf "[%s] %s\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$line" >> "$AGENT_LOG"
+}
+
+agent_load_memory_context() {
+  local max_bytes="${1:-8000}"
+  local buf=""
+  local f
+  for f in "$RMA_DIR/description.md" "$RMA_DIR/ui.md" "$RMA_DIR/stack.md" "$RMA_DIR/other.md"; do
+    if [[ -f "$f" ]]; then
+      buf+=$(printf "\n\n### %s\n" "${f##*/}")
+      buf+=$(cat "$f" 2>/dev/null || true)
+    fi
+  done
+  if [[ -z "${buf// }" ]]; then
+    buf="(No .rma/*.md context yet; run: roadmap-agent init && roadmap-agent analyze-init)"
+  fi
+  printf "%s" "$buf" | head -c "$max_bytes"
+}
+
+agent_parse_response() {
+  local raw="$1"
+  local py_cmd="$2"
+  local tmpd
+  tmpd="$(mktemp -d "${TMPDIR:-/tmp}/rma-agent.XXXXXX")" || return 1
+  if ! RAW_JSON="$raw" AGENT_PARSE_DIR="$tmpd" "$py_cmd" - <<'PY'
+import json, os, pathlib
+raw = os.environ.get("RAW_JSON", "").strip()
+if raw.startswith("```"):
+    lines = raw.splitlines()
+    if lines and lines[0].startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+    raw = "\n".join(lines).strip()
+d = json.loads(raw)
+thought = d.get("thought") or d.get("Thought") or ""
+thought = " ".join(str(thought).split())
+action = (d.get("action") or d.get("Action") or "").strip().lower()
+args = d.get("args") or d.get("Args") or ""
+if isinstance(args, (dict, list)):
+    args = json.dumps(args)
+else:
+    args = str(args) if args is not None else ""
+base = os.environ["AGENT_PARSE_DIR"]
+pathlib.Path(base, "thought.txt").write_text(thought, encoding="utf-8")
+pathlib.Path(base, "action.txt").write_text(action, encoding="utf-8")
+pathlib.Path(base, "args.txt").write_text(args, encoding="utf-8")
+PY
+  then
+    rm -rf "$tmpd"
+    return 1
+  fi
+  RMA_PARSE_THOUGHT="$(cat "$tmpd/thought.txt")"
+  RMA_PARSE_ACTION="$(cat "$tmpd/action.txt")"
+  RMA_PARSE_ARGS="$(cat "$tmpd/args.txt")"
+  rm -rf "$tmpd"
+  return 0
+}
+
+call_agent_llm_json() {
+  local goal="$1"
+  local prior="$2"
+  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  local mem prompt raw
+  ensure_core_dirs
+  mem="$(agent_load_memory_context 7500)"
+  prior="${prior:-None}"
+  prompt="$(cat <<EOF
+You are ROADMAP-AGENT, an autonomous roadmap orchestrator for this repository.
+
+Project memory (.rma):
+${mem}
+
+Current goal: ${goal}
+
+Previous steps and observations (abbreviated):
+${prior}
+
+Available actions (choose exactly one per response):
+- plan: refresh dry-run roadmap at .rma/roadmaps/plan.md
+- analyze: sync tasks.md and run.md from the codebase
+- execute-one: run interactive single-task execution (only if user enabled it)
+- status: print roadmap/task counts
+- unlock: clear roadmap lock file if stuck
+- shell: run one read-only / safe repo inspection command (args = full command line)
+- reflect: append a short learning summary to agent memory (args = optional note)
+- stop: goal is complete or blocked; exit the loop
+
+Rules:
+- Prefer plan then analyze before execute-one.
+- Use shell only for inspection (git status, git diff, ls, rg, etc.).
+- Respond with ONLY valid JSON, no markdown fences, no other text.
+- Schema: ${AGENT_SCHEMA_HINT}
+EOF
+)"
+  if command -v ollama >/dev/null 2>&1; then
+    raw="$(ollama run "$model" "$prompt" --format json 2>/dev/null || true)"
+  elif command -v curl >/dev/null 2>&1; then
+    local py
+    py="$(resolve_python_cmd || true)"
+    [[ -z "$py" ]] && { printf ""; return 1; }
+    raw="$(curl -fsS "${RMA_OLLAMA_HOST%/}/api/generate" \
+      -H "Content-Type: application/json" \
+      -d "{\"model\":\"$model\",\"prompt\":$("$py" -c 'import json,sys; print(json.dumps(sys.stdin.read()))' <<< "$prompt"),\"stream\":false,\"format\":\"json\"}" 2>/dev/null | \
+      "$py" -c 'import json,sys; d=json.load(sys.stdin); print(d.get("response",""))' 2>/dev/null || true)"
+  else
+    raw=""
+  fi
+  printf "%s" "$raw"
+}
+
+agent_tail_log_excerpt() {
+  local n="${1:-40}"
+  if [[ -f "$AGENT_LOG" ]]; then
+    tail -n "$n" "$AGENT_LOG" 2>/dev/null | head -c 6000
+  else
+    printf "None"
+  fi
+}
+
+agent_shell_is_allowed() {
+  local cmdline="$1"
+  local stripped w1 w2 w3
+  stripped="$(printf "%s" "$cmdline" | tr -d '\r')"
+  [[ "${#stripped}" -gt 500 ]] && return 1
+  case "$stripped" in
+    *[\`\$\;\|\&]*|'('*')'*) return 1 ;;
+  esac
+  read -r w1 w2 w3 _ <<<"$stripped"
+  [[ -z "$w1" ]] && return 1
+  case "$w1" in
+    git)
+      case "$w2" in
+        status|diff|log|branch|rev-parse|remote|show|describe|grep|tag) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+    ls|pwd|cat|head|tail|wc|rg|grep|find|sed|awk|python|python3|ollama|dirname|basename|echo|tr|cut|sort|uniq|file|stat|du|which|command|true|test)
+      return 0
+      ;;
+    npm)
+      case "$w2" in
+        ls|outdated|version|help) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+    node|go|cargo)
+      case "$w2" in
+        version|help|-V|--version) return 0 ;;
+        *) return 1 ;;
+      esac
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+agent_run_shell_safe() {
+  local cmdline="$1"
+  local out
+  if ! agent_shell_is_allowed "$cmdline"; then
+    printf "BLOCKED (not on whitelist or unsafe): %s\n" "$cmdline"
+    return 2
+  fi
+  out="$(cd "$ROOT_DIR" && eval "$cmdline" 2>&1)" || out="${out:-}(exit $?)"
+  printf "%s\n" "$out"
+}
+
+agent_reflect_append() {
+  local note="$1"
+  local ts
+  ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  mkdir -p "$MEMPALACE_DIR"
+  if [[ ! -f "$AGENT_HISTORY_FILE" ]]; then
+    cat > "$AGENT_HISTORY_FILE" <<'EOF'
+# Agent history
+
+Compressed reflections and milestones from autonomous agent runs.
+EOF
+  fi
+  {
+    echo
+    echo "## $ts"
+    echo "$note"
+  } >> "$AGENT_HISTORY_FILE"
+}
+
+cmd_tools() {
+  local fmt="${1:-text}"
+  case "$fmt" in
+    --json)
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","ROADMAP_AGENT_PROJECT_ROOT"]}'
+      ;;
+    *)
+      cat <<'EOF'
+ROADMAP-AGENT tool manifest (for humans and external agents)
+
+CLI commands:
+  init, status, doctor, plan, analyze, analyze-init, execute-one, agent, run-agent,
+  tools [--json], unlock, menu, persistence, persistence-check, man, help
+
+Agent loop (roadmap-agent agent "goal"):
+  Internally dispatches: plan, analyze, execute-one (optional), status, unlock,
+  shell (whitelist), reflect, stop.
+
+Key paths:
+  .rma/description.md, .rma/ui.md, .rma/stack.md, .rma/other.md
+  .rma/roadmaps/plan.md, tasks.md, run.md
+  .rma/logs/agent.log, .rma/mempalace/agent-history.md
+
+EOF
+      ;;
+  esac
+}
+
+cmd_agent() {
+  local max_steps=10
+  local pause_each=1
+  local allow_execute_one=0
+  local require_ollama=0
+  local goal=""
+  local step thought action args raw prior out
+  local py=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --max-steps)
+        max_steps="${2:-10}"
+        shift
+        ;;
+      -y|--yes)
+        pause_each=0
+        ;;
+      --confirm-execute-one)
+        allow_execute_one=1
+        ;;
+      --require-ollama)
+        require_ollama=1
+        ;;
+      *)
+        if [[ -z "$goal" ]]; then
+          goal="$1"
+        else
+          goal="$goal $1"
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  goal="$(printf "%s" "$goal" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  if [[ -z "$goal" ]]; then
+    warn "Usage: roadmap-agent agent [--max-steps N] [-y] [--confirm-execute-one] \"Your goal\""
+    return 1
+  fi
+
+  load_rma_env_file
+  configure_python_runtime
+  ensure_core_dirs
+  mkdir -p "$LOG_DIR" "$MEMPALACE_DIR"
+  touch "$AGENT_LOG"
+  if [[ ! -f "$AGENT_HISTORY_FILE" ]]; then
+    cat > "$AGENT_HISTORY_FILE" <<'EOF'
+# Agent history
+
+Observations from autonomous agent runs (see also .rma/logs/agent.log).
+EOF
+  fi
+
+  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  if [[ "$require_ollama" == "1" ]]; then
+    if ! ollama_model_available "$model"; then
+      warn "Ollama model unavailable: $model (set RMA_OLLAMA_HOST or run: ollama pull $model)"
+      return 1
+    fi
+  fi
+  if ! command -v ollama >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1; then
+    warn "agent mode needs ollama CLI or curl for HTTP to Ollama."
+    return 1
+  fi
+  py="$(resolve_python_cmd 2>/dev/null || true)"
+  if [[ -z "$py" ]]; then
+    warn "Python is required to parse JSON agent responses."
+    return 1
+  fi
+
+  agent_append_log "=== agent session start: $goal ==="
+  step=0
+  while [[ "$step" -lt "$max_steps" ]]; do
+    step=$((step + 1))
+    prior="$(agent_tail_log_excerpt 35)"
+    raw="$(call_agent_llm_json "$goal" "$prior")"
+    if [[ -z "${raw// }" ]]; then
+      warn "Empty LLM response (step $step). Check Ollama and RMA_OLLAMA_MODEL."
+      agent_append_log "step $step ERROR empty LLM response"
+      return 1
+    fi
+
+    if ! agent_parse_response "$raw" "$py"; then
+      warn "Could not parse JSON from model (step $step)."
+      agent_append_log "step $step RAW (truncated): ${raw:0:800}"
+      return 1
+    fi
+    thought="$RMA_PARSE_THOUGHT"
+    action="$RMA_PARSE_ACTION"
+    args="$RMA_PARSE_ARGS"
+
+    if [[ -z "$action" ]]; then
+      warn "Could not parse JSON from model (step $step)."
+      agent_append_log "step $step RAW: ${raw:0:500}"
+      return 1
+    fi
+
+    info "Step $step | thought: $thought"
+    info "Action: $action ${args:+($args)}"
+    agent_append_log "step $step thought: $thought"
+    agent_append_log "step $step action: $action args: $args"
+
+    out=""
+    case "$action" in
+      plan)
+        ensure_rma_required_files
+        roadmap_plan_dry_run
+        out="plan refreshed at $PLAN_FILE"
+        ;;
+      analyze)
+        ensure_rma_required_files
+        sync_tasks_and_run_files
+        out="analyze complete; tasks and run synced"
+        ;;
+      execute-one)
+        if [[ "$allow_execute_one" != "1" ]]; then
+          out="execute-one skipped (agent mode requires --confirm-execute-one)"
+        else
+          ensure_rma_required_files
+          roadmap_execute_one_task
+          out="execute-one finished (interactive)"
+        fi
+        ;;
+      status)
+        out="$(roadmap_status)"
+        ;;
+      unlock)
+        roadmap_unlock
+        out="unlock done"
+        ;;
+      shell)
+        out="$(agent_run_shell_safe "$args")" || true
+        ;;
+      reflect)
+        agent_reflect_append "${args:-$thought}"
+        out="reflection recorded in $AGENT_HISTORY_FILE"
+        ;;
+      stop|done|exit|quit)
+        agent_append_log "stop requested by model"
+        info "Agent loop completed (stop)."
+        return 0
+        ;;
+      *)
+        warn "Unknown action from model: $action"
+        out="unknown action"
+        ;;
+    esac
+
+    agent_append_log "observation: ${out:0:2000}"
+    {
+      echo
+      echo "### Step $step observation"
+      printf "%s\n" "$out" | head -c 4000
+    } >> "$AGENT_HISTORY_FILE" 2>/dev/null || true
+
+    if [[ "$pause_each" -eq 1 ]]; then
+      local cfm="n"
+      printf "Continue agent loop? (Y/n): "
+      read -r cfm
+      if [[ "$cfm" =~ ^[Nn] ]]; then
+        info "Agent loop stopped by user."
+        break
+      fi
+    fi
+  done
+
+  if [[ "$step" -ge "$max_steps" ]]; then
+    warn "Reached max steps ($max_steps)."
+  fi
+  agent_append_log "=== agent session end ==="
+  return 0
+}
+
 main() {
   local cmd="${1:-menu}"
   if [[ $# -gt 0 ]]; then
@@ -1975,6 +2385,12 @@ main() {
       ensure_core_dirs
       ensure_rma_required_files
       roadmap_execute_one_task
+      ;;
+    agent|run-agent)
+      cmd_agent "$@"
+      ;;
+    tools)
+      cmd_tools "$@"
       ;;
     unlock)
       roadmap_unlock
