@@ -20,9 +20,9 @@ git clone https://github.com/DTRHnet/Roadmap-Agent.git
 cd RoadmapAgent
 ```
 
-### 2. (Optional) Python / MemPalace stack
+### 2. Python / MemPalace stack (required for `plan` and safe mine)
 
-Creates `.rma\venv` and installs Python dependencies used by health checks and local tooling:
+Creates `.rma\venv` and installs **`mempalace`**, **`chromadb`**, and related dependencies:
 
 ```powershell
 .\scripts\windows\setup-local-models-mempalace.ps1
@@ -92,7 +92,7 @@ cd RoadmapAgent
 chmod +x roadmap-agent rma scripts/unix/roadmap-agent.sh
 ```
 
-### 2. (Optional) Python / MemPalace stack
+### 2. Python / MemPalace stack (required for `plan` and safe mine)
 
 ```bash
 ./scripts/unix/setup-local-models-mempalace.sh

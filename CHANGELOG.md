@@ -6,14 +6,21 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-10
+
+### Changed (Breaking)
+
+- **MemPalace is required** for real `plan` and **safe mine** operations: removed simulated safe-mine log lines, removed placeholder `EXEC_LOG` entries when the setup script was missing, and removed silent `2>/dev/null` swallowing on `mempalace plan`.
+- **`roadmap-agent plan`** now exits with a non-zero status if MemPalace cannot produce a plan, unless **`RMA_ALLOW_PLAN_FALLBACK=1`** is set (writes an explicit markdown template and logs the fallback to `EXEC_LOG`).
+- New environment variables (see `.env.example` and `--help`): **`RMA_REQUIRE_MEMPALACE`** (default `1`), **`RMA_MEMPALACE_BIN`**, **`RMA_ALLOW_PLAN_FALLBACK`** (default `0`). `doctor` and the runtime warnings panel include a **[MemPalace]** section when strict mode is on.
+
+### Removed
+
+- [`scripts/windows/_tmp_noheader.ps1`](scripts/windows/_tmp_noheader.ps1) (unused; MemPalace logic lives in the Unix runtime).
+
 ### Added
 
-- `DOCS/examples/MOCK-WORKFLOW-SESSION.md` — illustrative mock transcripts from persistence install through `init`, `doctor`, interactive hub, `plan` / `analyze` / `execute-one`, and sample `.rma/logs` lines.
-
-### Changed
-
-- `README.md`: expanded “Documentation at a glance” and **Documentation Index** (links to `QUICKSTART`, `MANUAL`, `ROADMAP-WORKFLOW`, `MOCK-WORKFLOW-SESSION`, `CHANGELOG`; grouped index into onboarding, reference, releases).
-- `DOCS/GETTING-STARTED.md`: links to `QUICKSTART.md` / `MANUAL.md`; Windows persistence notes updated for `setup-rma.ps1` user vs machine scope and PATH refresh.
+- `resolve_mempalace_cmd`, `mempalace_python_imports_ok`, `mempalace_assert_ready`, and `write_plan_fallback_template` in [`scripts/unix/roadmap-agent.sh`](scripts/unix/roadmap-agent.sh).
 
 ## [0.2.0] - 2026-04-10
 
@@ -29,10 +36,11 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 - Unix manpage source at `DOCS/man/roadmap-agent.1`.
 - Windows persistence installer script at `scripts/windows/install-persistence.ps1`.
 - GitHub-oriented banner image `roadmap-agent-github-banner.png`.
+- `DOCS/examples/MOCK-WORKFLOW-SESSION.md` — illustrative mock transcripts.
 
 ### Changed
 
-- `README.md`: refreshed presentation; linked documentation; removed placeholder clone URLs; linked `DOCS/QUICKSTART.md` and `DOCS/MANUAL.md` from Quick Start and the documentation index.
+- `README.md`: refreshed presentation; documentation index and MemPalace notes; linked `DOCS/QUICKSTART.md` and `DOCS/MANUAL.md` from Quick Start and the documentation index.
 - Reorganized repository by operating system:
   - Windows runtime/scripts in `scripts/windows/`
   - Linux/macOS runtime/scripts in `scripts/unix/`
@@ -42,6 +50,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 - Updated menu display labels from `SUB::...` format to Roman numerals for cleaner UX.
 - Added persistence health-check option (`persistence-check`) and menu entry to detect and optionally remediate missing global persistence.
 - Implemented a Defender-safe Windows bridge runtime in `scripts/windows/roadmap-agent.ps1` that delegates full CLI execution to `scripts/unix/roadmap-agent.sh` through `bash` while keeping Windows persistence installation local.
+- `DOCS/GETTING-STARTED.md`: links to `QUICKSTART.md` / `MANUAL.md`; Windows persistence notes updated for `setup-rma.ps1` user vs machine scope and PATH refresh.
 
 ## [0.1.0] - 2026-04-10
 

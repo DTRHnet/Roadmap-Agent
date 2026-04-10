@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.2.0-8b5cf6" alt="version">
+  <img src="https://img.shields.io/badge/version-v0.3.0-8b5cf6" alt="version">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="platform">
   <img src="https://img.shields.io/badge/runtime-bash%20%2B%20powershell-green" alt="runtime">
   <img src="https://img.shields.io/badge/interface-fzf-orange" alt="interface">
@@ -25,7 +25,7 @@
 | **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** | **Operator manual** — every command, interactive hub, writing `.rma` Markdown (`description`, `ui`, `stack`, `other`), `analyze` / `analyze-init`, LLM providers, persistence, safety. |
 | **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** | **Process guide** — plan → review → `execute-one` loop, keeping context fresh, low-risk habits. |
 | **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
-| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.2.0`, …). |
+| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.3.0`, …). |
 
 **ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
 
@@ -37,7 +37,7 @@
 - **Project memory that stays in the repo** — Markdown under `.rma/`, not a black-box database.
 - **Roadmap lifecycle** — `init`, `status`, `plan`, `execute-one`, `unlock` for small, reviewable steps.
 - **Repo-aware analysis** — `analyze` keeps `tasks.md` / `run.md` honest; `analyze-init` drafts context files with preview (and LLM help when configured).
-- **MemPalace-flavored workflows** — setup, health, logs, and related helpers when Python tooling is available.
+- **MemPalace-backed workflows** — `plan` and safe **mine** use the real **mempalace** CLI (after `setup-local-models-mempalace`); no simulated mining or silent plan fallback unless you set **`RMA_ALLOW_PLAN_FALLBACK=1`** (dev-only).
 - **Run from anywhere (if you want)** — persistence installers for Windows, Linux, and macOS so `rma` can live on your PATH.
 
 ---
@@ -150,7 +150,7 @@ Generated files/directories include:
 
 ## Optional Tools
 
-- `mempalace` CLI (if available, runtime uses it; otherwise it falls back to safe placeholders where possible).
+- **`mempalace` CLI** and Python packages **`mempalace`** + **`chromadb`** in the project venv — required for **`plan`** and AI submenu mine actions. Run the setup script under `scripts/` to install them. See **`RMA_REQUIRE_MEMPALACE`**, **`RMA_MEMPALACE_BIN`**, and **`RMA_ALLOW_PLAN_FALLBACK`** in `.env.example`.
 
 ---
 
@@ -176,7 +176,7 @@ Windows PowerShell:
 ## Full setup workflow
 
 1. **Clone** this repository and open a terminal at the repo root (or use your project’s root when using ROADMAP-AGENT against another codebase).
-2. **Python + MemPalace (recommended)** — creates `.rma/venv` (or `RMA_PYTHON_VENV_DIR`) and installs Python dependencies used by health checks and local tooling:
+2. **Python + MemPalace (required for `plan` / mine)** — creates `.rma/venv` (or `RMA_PYTHON_VENV_DIR`) and installs **`mempalace`** + **`chromadb`** plus health-check dependencies:
    - Windows: `.\scripts\windows\setup-local-models-mempalace.ps1`
    - Linux/macOS: `./scripts/unix/setup-local-models-mempalace.sh`
 3. **Environment variables** — copy `.env.example` to `.env` at the **project root** you work in (the app or repo under analysis). Edit `RMA_*` values and any API keys. The runtime reads `.env` from the detected project root when present.
@@ -384,6 +384,9 @@ The runtime works without custom environment variables, but supports useful over
 | `RMA_REQUIRE_OLLAMA` | analyze-init | Fail fast if Ollama/model unavailable | `RMA_REQUIRE_OLLAMA=1` |
 | `RMA_DISABLE_FZF` | menu system | Force fallback text menus/selectors | `RMA_DISABLE_FZF=1` |
 | `RMA_PYTHON_VENV_DIR` | setup-local-models | Virtualenv path used by local setup scripts | `RMA_PYTHON_VENV_DIR=.rma/venv` |
+| `RMA_REQUIRE_MEMPALACE` | doctor, warnings | `1` = treat missing MemPalace CLI or Python imports as errors in diagnostics | `RMA_REQUIRE_MEMPALACE=1` |
+| `RMA_MEMPALACE_BIN` | plan, mine | Optional absolute path to `mempalace` if not on `PATH` | `RMA_MEMPALACE_BIN=/path/to/mempalace` |
+| `RMA_ALLOW_PLAN_FALLBACK` | plan | `1` = write a generic template to `plan.md` if `mempalace plan` fails or is unavailable (dev-only) | `RMA_ALLOW_PLAN_FALLBACK=0` |
 | `PATH` | All runtimes | Used to find `git`, `python`, `mempalace`, `fzf`, and installed launchers | `PATH=/usr/local/bin:$PATH` |
 | `FZF_DEFAULT_OPTS` | fzf | Optional global styling/behavior overrides for fzf menus | `export FZF_DEFAULT_OPTS='--height 85%'` |
 | `ProgramFiles` | Windows runtime | Resolves persistence install path (`Roadmap-Agent\bin`) | Inherited from Windows |
@@ -453,9 +456,9 @@ The runtime works without custom environment variables, but supports useful over
 
 ## Versioning
 
-- **Canonical release number** lives in the root **`VERSION`** file (for example `0.2.0`). The Unix runtime prints it in the banner as `v0.2.0` when present.
+- **Canonical release number** lives in the root **`VERSION`** file (for example `0.3.0`). The Unix runtime prints it in the banner as `v0.3.0` when present.
 - **`CHANGELOG.md`** follows [Keep a Changelog](https://keepachangelog.com/) with dated sections per release.
-- **Git tags** use the `v` prefix (for example `v0.2.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v0.2.0` checks out that tag.
+- **Git tags** use the `v` prefix (for example `v0.3.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v0.3.0` checks out that tag.
 
 ---
 

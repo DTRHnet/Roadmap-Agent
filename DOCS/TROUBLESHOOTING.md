@@ -60,17 +60,18 @@ roadmap-agent unlock
 
 Then rerun `execute-one`.
 
-## 5) MemPalace commands are simulated
+## 5) `plan` or safe mine fails / doctor shows MemPalace WARN
 
 Cause:
 
-- `mempalace` command not installed in environment.
+- **`mempalace` CLI** not on `PATH` (often missing pip install into `.rma/venv`), or Python cannot **`import mempalace`** / **`import chromadb`**.
+- **`RMA_REQUIRE_MEMPALACE=1`** (default) surfaces this in **doctor** and the runtime warnings panel.
 
 Fix:
 
-- run setup option in AI submenu
-- install local MemPalace runtime manually if needed
-- verify with health check option
+- Run **`scripts/unix/setup-local-models-mempalace.sh`** or **`scripts/windows/setup-local-models-mempalace.ps1`** from the project root so the venv gets the packages and the `mempalace` console script.
+- Ensure **`configure_python_runtime`** runs (normal `rma` / `roadmap-agent` entry) so the venv’s `bin` is on `PATH`, or set **`RMA_MEMPALACE_BIN`** to the full path of the `mempalace` executable.
+- **Dev-only:** set **`RMA_ALLOW_PLAN_FALLBACK=1`** if you need a generic markdown plan when MemPalace is broken (logged to `EXEC_LOG`). This does **not** apply to **mine** — mine always requires a working CLI.
 
 ## 6) Git metadata not showing expected values
 

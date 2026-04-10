@@ -10,7 +10,7 @@ REM
 REM A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 REM -------------------------------------------------------------------------------------------
 REM Summary: Windows CMD alias launcher for roadmap-agent.cmd.
-REM Last updated: 2026-04-10 | Version: v0.2.0
+REM Last updated: 2026-04-10 | Version: v0.3.0
 
 @echo off
 setlocal

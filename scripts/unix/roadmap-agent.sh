@@ -11,7 +11,7 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Unix core ROADMAP-AGENT runtime (menu, roadmap, persistence, help).
-# Last updated: 2026-04-10 | Version: v0.2.0
+# Last updated: 2026-04-10 | Version: v0.3.0
 
 
 set -u
@@ -49,6 +49,10 @@ RMA_OPENAI_MODEL="${RMA_OPENAI_MODEL:-openllama}"
 RMA_CLAUDE_MODEL="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
 RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
 RMA_PYTHON_VENV_DIR="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
+# MemPalace: strict checks for doctor/warnings; plan/mine never use simulated data.
+RMA_REQUIRE_MEMPALACE="${RMA_REQUIRE_MEMPALACE:-1}"
+RMA_MEMPALACE_BIN="${RMA_MEMPALACE_BIN:-}"
+RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
 
 # Use real escape bytes so routed shells (e.g. PowerShell -> bash)
 # do not render literal "\033[...m" sequences.
@@ -81,7 +85,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -101,6 +105,8 @@ load_rma_env_file() {
   RMA_CLAUDE_MODEL="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
   RMA_REQUIRE_OLLAMA="${RMA_REQUIRE_OLLAMA:-0}"
   RMA_PYTHON_VENV_DIR="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
+  RMA_REQUIRE_MEMPALACE="${RMA_REQUIRE_MEMPALACE:-1}"
+  RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
 }
 
 configure_python_runtime() {
@@ -304,6 +310,13 @@ ANALYZE-INIT OPTIONS
   (env) RMA_CLAUDE_MODEL=<model>  Anthropic Claude model (default: claude-3-5-sonnet-latest)
   (env) RMA_REQUIRE_OLLAMA=1      Require Ollama for generation (same as --require-ollama)
 
+MEMPALACE (Local AI Memory Palace stack)
+  plan and mine use the real mempalace CLI — no simulated output.
+  (env) RMA_REQUIRE_MEMPALACE=1   Fail doctor/warnings if imports or CLI missing (default: 1)
+  (env) RMA_MEMPALACE_BIN=path     Optional absolute path to mempalace executable
+  (env) RMA_ALLOW_PLAN_FALLBACK=1  If mempalace plan fails or is unavailable, write a markdown template
+                                   to plan.md and log (dev-only; default: 0)
+
 PERSISTENCE MODE
   Linux/macOS:
     - Detects active shell and suggests rc file (.bashrc/.zshrc/etc)
@@ -472,6 +485,65 @@ resolve_python_cmd() {
     return 0
   fi
   return 1
+}
+
+resolve_mempalace_cmd() {
+  if [[ -n "${RMA_MEMPALACE_BIN:-}" ]]; then
+    if [[ -x "${RMA_MEMPALACE_BIN}" ]]; then
+      printf "%s" "$RMA_MEMPALACE_BIN"
+      return 0
+    fi
+    return 1
+  fi
+  if command -v mempalace >/dev/null 2>&1; then
+    command -v mempalace
+    return 0
+  fi
+  return 1
+}
+
+mempalace_python_imports_ok() {
+  local py
+  py="$(resolve_python_cmd 2>/dev/null)" || return 1
+  [[ -z "${py:-}" ]] && return 1
+  if ! "$py" - <<'PY' 2>/dev/null; then
+import mempalace
+import chromadb
+PY
+    return 1
+  fi
+  return 0
+}
+
+# MemPalace stack ready: Python packages + CLI. Prints remediation on failure to stderr.
+mempalace_assert_ready() {
+  local mp
+  if ! mempalace_python_imports_ok; then
+    printf "%s\n" "MemPalace: Python cannot import mempalace and chromadb. Run: ${ROOT_DIR}/scripts/unix/setup-local-models-mempalace.sh (or Windows .ps1), or: pip install mempalace chromadb in ${RMA_PYTHON_VENV_DIR:-.rma/venv}" >&2
+    return 1
+  fi
+  mp="$(resolve_mempalace_cmd 2>/dev/null)" || true
+  if [[ -z "${mp:-}" ]]; then
+    printf "%s\n" "MemPalace: mempalace CLI not found on PATH (install pip package into project venv or set RMA_MEMPALACE_BIN to the executable)." >&2
+    return 1
+  fi
+  return 0
+}
+
+write_plan_fallback_template() {
+  cat > "$PLAN_FILE" <<EOF
+# Current Plan (Dry Run)
+
+- [ ] Review \`.rma/description.md\` and verify project scope alignment.
+- [ ] Compare \`.rma/ui.md\` against current UX flows and capture gaps.
+- [ ] Validate \`.rma/stack.md\` versions against installed dependencies.
+- [ ] Update \`.rma/other.md\` with operational constraints and risks.
+- [ ] Define next implementation task with explicit acceptance criteria.
+
+Context snapshot: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+Goal signal: $(analyze_project_goal)
+Note: template written because RMA_ALLOW_PLAN_FALLBACK=1 (not from mempalace plan).
+EOF
 }
 
 generate_rma_file_with_ollama() {
@@ -1353,6 +1425,16 @@ write_runtime_warnings_panel() {
       missing=1
     fi
 
+    if [[ "${RMA_REQUIRE_MEMPALACE:-1}" == "1" ]]; then
+      if ! mempalace_python_imports_ok; then
+        echo "WARN: MemPalace requires Python packages mempalace + chromadb (run setup-local-models-mempalace)."
+        missing=1
+      elif ! resolve_mempalace_cmd >/dev/null 2>&1; then
+        echo "WARN: mempalace CLI not on PATH after venv (pip install mempalace or set RMA_MEMPALACE_BIN)."
+        missing=1
+      fi
+    fi
+
     echo "LLM provider: ${RMA_LLM_PROVIDER:-ollama}"
 
     if [[ -z "${GITHUB_TOKEN:-}" ]]; then
@@ -1478,6 +1560,28 @@ cmd_doctor() {
   fi
   echo
 
+  echo "[MemPalace]"
+  echo "  RMA_REQUIRE_MEMPALACE=${RMA_REQUIRE_MEMPALACE:-1}"
+  echo "  RMA_ALLOW_PLAN_FALLBACK=${RMA_ALLOW_PLAN_FALLBACK:-0}"
+  if [[ -n "${RMA_MEMPALACE_BIN:-}" ]]; then
+    echo "  RMA_MEMPALACE_BIN=${RMA_MEMPALACE_BIN}"
+  fi
+  local mp_bin
+  mp_bin="$(resolve_mempalace_cmd 2>/dev/null)" || true
+  if [[ -n "${mp_bin:-}" ]]; then
+    echo "  OK   mempalace CLI -> $mp_bin"
+  else
+    echo "  WARN mempalace CLI not found (install pip package in project venv or set RMA_MEMPALACE_BIN)"
+    [[ "${RMA_REQUIRE_MEMPALACE:-1}" == "1" ]] && ok=1
+  fi
+  if mempalace_python_imports_ok; then
+    echo "  OK   Python imports: mempalace + chromadb"
+  else
+    echo "  WARN Python cannot import mempalace and/or chromadb (run setup-local-models-mempalace script)"
+    [[ "${RMA_REQUIRE_MEMPALACE:-1}" == "1" ]] && ok=1
+  fi
+  echo
+
   echo "[Persistence]"
   cmd_persistence_check 1
   echo
@@ -1593,22 +1697,29 @@ mempalace_setup_local_models() {
   done
 
   if [[ -n "$script" ]]; then
-    bash "$script" || warn "setup-local-models script returned an error."
-  else
-    warn "Missing setup-local-models-mempalace.sh in app/project install paths. Creating placeholder log entry."
-    printf "%s setup-local-models placeholder invoked\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
+    bash "$script" || {
+      warn "setup-local-models script returned an error."
+      return 1
+    }
+    return 0
   fi
+  warn "Missing setup-local-models-mempalace.sh. Searched APP_DIR, project root, and /usr/local/lib/roadmap-agent. Install ROADMAP-AGENT from source or persistence copy."
+  return 1
 }
 
 mempalace_safe_mine() {
   ensure_core_dirs
   local limit="$1"
-  if command -v mempalace >/dev/null 2>&1; then
-    mempalace mine --limit "$limit" --safe || warn "mempalace mine command returned an error."
-  else
-    warn "mempalace CLI not found. Simulating safe mine (limit=$limit)."
-    printf "%s safe-mine limit=%s simulated\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$limit" >> "$MEMPALACE_DIR/mine.log"
+  local mp
+  if ! mempalace_assert_ready; then
+    return 1
   fi
+  mp="$(resolve_mempalace_cmd)"
+  if ! "$mp" mine --limit "$limit" --safe; then
+    warn "mempalace mine returned an error."
+    return 1
+  fi
+  return 0
 }
 
 mempalace_health_check() {
@@ -1713,30 +1824,55 @@ build_context_bundle() {
 roadmap_plan_dry_run() {
   ensure_core_dirs
   sync_tasks_and_run_files
-  local ctx
+  local ctx mp errf
   ctx="$(build_context_bundle)"
   mkdir -p "$ROADMAP_DIR"
 
-  if command -v mempalace >/dev/null 2>&1; then
-    mempalace plan --input "$ctx" --dry-run > "$PLAN_FILE" 2>/dev/null || true
+  mp="$(resolve_mempalace_cmd 2>/dev/null)" || true
+  if [[ -n "${mp:-}" ]] && mempalace_python_imports_ok; then
+    errf="$(mktemp)"
+    if "$mp" plan --input "$ctx" --dry-run > "$PLAN_FILE" 2>"$errf"; then
+      rm -f "$errf"
+      if [[ -s "$PLAN_FILE" ]]; then
+        printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
+        return 0
+      fi
+      warn "mempalace plan succeeded but produced an empty file."
+      if [[ "${RMA_ALLOW_PLAN_FALLBACK:-0}" == "1" ]]; then
+        write_plan_fallback_template
+        printf "%s plan_fallback_empty_mempalace_output\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
+        printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
+        return 0
+      fi
+      return 1
+    else
+      if [[ "${RMA_ALLOW_PLAN_FALLBACK:-0}" == "1" ]]; then
+        warn "mempalace plan failed; using fallback template (RMA_ALLOW_PLAN_FALLBACK=1). stderr:"
+        cat "$errf" >&2
+        write_plan_fallback_template
+        printf "%s plan_fallback_after_mempalace_error\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
+        rm -f "$errf"
+        printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
+        return 0
+      fi
+      warn "mempalace plan failed:"
+      cat "$errf" >&2
+      rm -f "$errf"
+      return 1
+    fi
+    rm -f "$errf"
   fi
 
-  if [[ ! -s "$PLAN_FILE" ]]; then
-    cat > "$PLAN_FILE" <<EOF
-# Current Plan (Dry Run)
-
-- [ ] Review \`.rma/description.md\` and verify project scope alignment.
-- [ ] Compare \`.rma/ui.md\` against current UX flows and capture gaps.
-- [ ] Validate \`.rma/stack.md\` versions against installed dependencies.
-- [ ] Update \`.rma/other.md\` with operational constraints and risks.
-- [ ] Define next implementation task with explicit acceptance criteria.
-
-Context snapshot: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-Goal signal: $(analyze_project_goal)
-EOF
+  if [[ "${RMA_ALLOW_PLAN_FALLBACK:-0}" == "1" ]]; then
+    warn "MemPalace CLI or Python imports unavailable; using fallback template (RMA_ALLOW_PLAN_FALLBACK=1)."
+    write_plan_fallback_template
+    printf "%s plan_fallback_mempalace_unavailable\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
+    printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
+    return 0
   fi
 
-  printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
+  warn "MemPalace plan is required. Run scripts/unix/setup-local-models-mempalace.sh (or Windows .ps1), ensure mempalace is on PATH, or set RMA_MEMPALACE_BIN. For a dev-only markdown template, set RMA_ALLOW_PLAN_FALLBACK=1."
+  return 1
 }
 
 roadmap_execute_one_task() {
@@ -2145,7 +2281,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","ROADMAP_AGENT_PROJECT_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_ALLOW_PLAN_FALLBACK","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -2371,7 +2507,7 @@ main() {
     plan)
       ensure_core_dirs
       ensure_rma_required_files
-      roadmap_plan_dry_run
+      roadmap_plan_dry_run || exit $?
       ;;
     analyze)
       ensure_core_dirs

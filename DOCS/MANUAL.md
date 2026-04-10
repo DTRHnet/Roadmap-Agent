@@ -427,6 +427,9 @@ The Unix runtime reads supported `RMA_*` and related keys from `.env` when prese
 | `RMA_REQUIRE_OLLAMA` | If set to require Ollama for generation paths |
 | `RMA_DISABLE_FZF` | Force non-fzf menus |
 | `RMA_PYTHON_VENV_DIR` | Path to venv (often `.rma/venv`) |
+| `RMA_REQUIRE_MEMPALACE` | Default `1`: doctor/warnings treat missing MemPalace stack as problems |
+| `RMA_MEMPALACE_BIN` | Optional absolute path to `mempalace` CLI |
+| `RMA_ALLOW_PLAN_FALLBACK` | Default `0`; set `1` for dev-only markdown plan if `mempalace plan` fails |
 | `ROADMAP_AGENT_PROJECT_ROOT` | Force project root |
 
 See also the **README** environment table for a fuller list and examples.
@@ -470,7 +473,18 @@ Setup scripts create a venv under **`RMA_PYTHON_VENV_DIR`** (default `.rma/venv`
 
 ## MemPalace-related features
 
-MemPalace-oriented actions live behind the interactive menus when dependencies are present. If Python packages are missing, the runtime may degrade gracefully — see warnings from **`doctor`** and [MENU-REFERENCE.md](MENU-REFERENCE.md).
+**`roadmap-agent plan`** and **safe mine** (AI submenu) invoke the real **`mempalace`** CLI with project context — there is **no simulated mining** and no silent discard of `mempalace plan` errors.
+
+**Requirements:**
+
+- Python **`mempalace`** and **`chromadb`** packages (install via **`scripts/unix/setup-local-models-mempalace.sh`** or **`scripts/windows/setup-local-models-mempalace.ps1`** into `.rma/venv` by default).
+- The **`mempalace`** executable on `PATH` after the venv is activated (or set **`RMA_MEMPALACE_BIN`**).
+
+**Diagnostics:** **`doctor`** prints a **[MemPalace]** section (CLI path, imports). With **`RMA_REQUIRE_MEMPALACE=1`** (default), missing pieces are treated as failures in doctor and in the runtime warnings panel.
+
+**Plan fallback:** Only if **`RMA_ALLOW_PLAN_FALLBACK=1`**, a generic markdown template may be written to **`plan.md`** when MemPalace is unavailable or errors — the action is logged in **`EXEC_LOG`**. Safe **mine** never uses a fallback.
+
+See [MENU-REFERENCE.md](MENU-REFERENCE.md) for menu labels.
 
 ---
 
@@ -505,6 +519,7 @@ Run **`doctor`** when:
 - You switched **WSL** distributions or **Git Bash** versions.
 - **`execute-one`** or **`analyze-init`** misbehave.
 - You want to confirm **persistence** sync on Windows.
+- **`plan`** or **mine** fail — check the **[MemPalace]** section (CLI + Python imports).
 
 Capture the output when reporting issues (redact secrets).
 
