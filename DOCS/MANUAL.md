@@ -162,14 +162,14 @@ Runs diagnostics: tools on PATH, virtualenv, LLM provider readiness, persistence
 
 ### `plan`
 
-Generates or refreshes the **dry-run** roadmap plan (typically `.rma/roadmaps/plan.md`) via the **MemPalace** CLI. Use it when scope changes.
+Generates or refreshes the **dry-run** roadmap plan at **`.rma/roadmaps/plan.md`** using your configured **LLM** (`RMA_LLM_PROVIDER`: Ollama, OpenAI-compatible, or Claude) and a **context bundle** built from `.rma/*.md` plus project signals. The upstream **`mempalace`** package does **not** provide a `plan` subcommand; ROADMAP-AGENT optionally runs **`mempalace wake-up --palace .rma/mempalace`** when that directory exists and appends the text to the LLM prompt for richer prioritization. Use **`plan`** when scope changes.
 
 **Interactive open questions (built in):** When **`RMA_PLAN_INTERACTIVE=1`** (default) and **stdin is a TTY**, `plan` **first** prompts you for any unresolved decisions:
 
 - Bullets in **`.rma/open-questions.md`** (one question per `-` list item, skip `#` comment lines).
 - Lines containing **`Open:`** in `.rma/description.md`, `ui.md`, `stack.md`, or `other.md`.
 
-Non-empty answers are appended to **`.rma/other.md`** under `## Decisions recorded (timestamp) — interactive plan`, then the context bundle is rebuilt and **`mempalace plan`** runs—so the plan sees your decisions.
+Non-empty answers are appended to **`.rma/other.md`** under `## Decisions recorded (timestamp) — interactive plan`, then the context bundle is rebuilt and the **LLM** writes **`plan.md`**.
 
 | Flag / env | Meaning |
 |------------|---------|
@@ -446,7 +446,7 @@ The Unix runtime reads supported `RMA_*` and related keys from `.env` when prese
 | `RMA_REQUIRE_MEMPALACE` | Default `1`: doctor/warnings treat missing MemPalace stack as problems |
 | `RMA_MEMPALACE_BIN` | Optional absolute path to `mempalace` CLI |
 | `RMA_MEMPALACE_MINE_DIR` | Directory for `mempalace mine <dir>` (upstream requires it; default project root) |
-| `RMA_ALLOW_PLAN_FALLBACK` | Default `0`; set `1` for dev-only markdown plan if `mempalace plan` fails |
+| `RMA_ALLOW_PLAN_FALLBACK` | Default `0`; set `1` for dev-only markdown plan if **LLM** plan generation fails |
 | `ROADMAP_AGENT_PROJECT_ROOT` | Force project root |
 
 See also the **README** environment table for a fuller list and examples.
@@ -490,17 +490,21 @@ Setup scripts create a venv under **`RMA_PYTHON_VENV_DIR`** (default `.rma/venv`
 
 ## MemPalace-related features
 
-**`roadmap-agent plan`** and **safe mine** (AI submenu) invoke the real **`mempalace`** CLI with project context — there is **no simulated mining** and no silent discard of `mempalace plan` errors.
+**`roadmap-agent plan`** uses your **LLM** (see [LLM providers](#llm-providers)), not a `mempalace plan` command (upstream does not implement one). Optional **`mempalace wake-up`** output is added to the plan prompt when **`.rma/mempalace`** exists.
 
-**Requirements:**
+**Safe mine** (AI submenu) invokes the real **`mempalace mine`** CLI — there is **no simulated mining**.
+
+**Requirements (mine / wake-up):**
 
 - Python **`mempalace`** and **`chromadb`** packages (install via **`scripts/unix/setup-local-models-mempalace.sh`** or **`scripts/windows/setup-local-models-mempalace.ps1`** into `.rma/venv` by default).
 - The **`mempalace`** executable on `PATH` after the venv is activated (or set **`RMA_MEMPALACE_BIN`**).
 - A **mine directory**: the upstream CLI is `mempalace mine <dir> …`. ROADMAP-AGENT passes **`RMA_MEMPALACE_MINE_DIR`** (default: project root); safe mine uses **`--dry-run`** (not `--safe`).
 
+**Requirements (`plan`):** a reachable **LLM** per **`RMA_LLM_PROVIDER`** (e.g. Ollama model pulled). MemPalace is optional for **`plan`** but recommended if you use **mine** so **wake-up** has content.
+
 **Diagnostics:** **`doctor`** prints a **[MemPalace]** section (CLI path, imports). With **`RMA_REQUIRE_MEMPALACE=1`** (default), missing pieces are treated as failures in doctor and in the runtime warnings panel.
 
-**Plan fallback:** Only if **`RMA_ALLOW_PLAN_FALLBACK=1`**, a generic markdown template may be written to **`plan.md`** when MemPalace is unavailable or errors — the action is logged in **`EXEC_LOG`**. Safe **mine** never uses a fallback.
+**Plan fallback:** Only if **`RMA_ALLOW_PLAN_FALLBACK=1`**, a generic markdown template may be written to **`plan.md`** when **LLM** generation fails — the action is logged in **`EXEC_LOG`**. Safe **mine** never uses a fallback.
 
 See [MENU-REFERENCE.md](MENU-REFERENCE.md) for menu labels.
 

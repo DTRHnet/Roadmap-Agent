@@ -40,7 +40,7 @@
 - **Project memory that stays in the repo** — Markdown under `.rma/`, not a black-box database.
 - **Roadmap lifecycle** — `init`, `status`, `plan`, `execute-one`, `unlock` for small, reviewable steps.
 - **Repo-aware analysis** — `analyze` keeps `tasks.md` / `run.md` honest; `analyze-init` drafts context files with preview (and LLM help when configured).
-- **MemPalace-backed workflows** — `plan` and safe **mine** use the real **mempalace** CLI (after `setup-local-models-mempalace`); no simulated mining or silent plan fallback unless you set **`RMA_ALLOW_PLAN_FALLBACK=1`** (dev-only).
+- **MemPalace + LLM workflows** — **`plan`** writes **`plan.md`** using your **LLM** (Ollama by default) and the `.rma` context bundle; optional **`mempalace wake-up`** text enriches the prompt when **`.rma/mempalace`** exists. Safe **mine** uses the real **`mempalace`** CLI (after `setup-local-models-mempalace`). Set **`RMA_ALLOW_PLAN_FALLBACK=1`** for a static template if the LLM is unavailable (dev-only).
 - **Run from anywhere (if you want)** — persistence installers for Windows, Linux, and macOS so `rma` can live on your PATH.
 
 ---
@@ -81,7 +81,7 @@ The palace and the roadmap files are complementary: the roadmap is **human-reada
 ROADMAP-AGENT is designed for **iterated implementation**: **`.rma/*.md`** is the **product contract** MemPalace-aware **`plan`** and your **AI agent** should **read**; **mining** keeps retrieval aligned with the repo; **`execute-one`** drives **concrete work** that lands in **your codebase**. Logs and `plan.md` are for **steering and audit**.
 
 - **Detailed roadmaps:** Invest in context files and refresh **`plan`** so **`plan.md` / `tasks.md`** can be **very detailed**—phases, dependencies, risks, acceptance-style notes—not a thin outline.
-- **Interpretation + prompting:** Where **`description.md` / `ui.md` / `stack.md` / `other.md`** are silent or ambiguous, the **agent in your loop** should **ask you** (auth model, visibility rules, compliance) and you **record** answers back into `.rma/` before the next **`plan`**. The CLI can help: **`plan`** (interactive TTY) prompts for bullets in **`.rma/open-questions.md`** and for **`Open:`** lines in the four context files, then appends answers to **`other.md`** before MemPalace—use **`plan --no-interactive`** or **`RMA_PLAN_INTERACTIVE=0`** in CI.
+- **Interpretation + prompting:** Where **`description.md` / `ui.md` / `stack.md` / `other.md`** are silent or ambiguous, the **agent in your loop** should **ask you** (auth model, visibility rules, compliance) and you **record** answers back into `.rma/` before the next **`plan`**. The CLI can help: **`plan`** (interactive TTY) prompts for bullets in **`.rma/open-questions.md`** and for **`Open:`** lines in the four context files, then appends answers to **`other.md`** before the LLM generates **`plan.md`**—use **`plan --no-interactive`** or **`RMA_PLAN_INTERACTIVE=0`** in CI.
 - **Shipping:** Each cycle should move you toward **runnable software**; see **[`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md)** for that narrative end-to-end.
 
 ### Visual overview
@@ -205,7 +205,7 @@ Generated files/directories include:
 
 ## Optional Tools
 
-- **`mempalace` CLI** and Python packages **`mempalace`** + **`chromadb`** in the project venv — required for **`plan`** and AI submenu mine actions. Run the setup script under `scripts/` to install them. See **`RMA_REQUIRE_MEMPALACE`**, **`RMA_MEMPALACE_BIN`**, and **`RMA_ALLOW_PLAN_FALLBACK`** in `.env.example`.
+- **`mempalace` CLI** and Python packages **`mempalace`** + **`chromadb`** in the project venv — required for **mine** (and for **`mempalace wake-up`** when generating **`plan`**). **`plan`** also needs a working **LLM** (e.g. Ollama). Run the setup script under `scripts/` to install MemPalace. See **`RMA_REQUIRE_MEMPALACE`**, **`RMA_MEMPALACE_BIN`**, and **`RMA_ALLOW_PLAN_FALLBACK`** in `.env.example`.
 
 ---
 
@@ -231,7 +231,7 @@ Windows PowerShell:
 ## Full setup workflow
 
 1. **Clone** this repository and open a terminal at the repo root (or use your project’s root when using ROADMAP-AGENT against another codebase).
-2. **Python + MemPalace (required for `plan` / mine)** — creates `.rma/venv` (or `RMA_PYTHON_VENV_DIR`) and installs **`mempalace`** + **`chromadb`** plus health-check dependencies:
+2. **Python + MemPalace (required for `mine`; recommended for `plan` wake-up context)** — creates `.rma/venv` (or `RMA_PYTHON_VENV_DIR`) and installs **`mempalace`** + **`chromadb`** plus health-check dependencies. Configure an **LLM** for **`plan`** (Ollama is typical):
    - Windows: `.\scripts\windows\setup-local-models-mempalace.ps1`
    - Linux/macOS: `./scripts/unix/setup-local-models-mempalace.sh`
 3. **Environment variables** — copy `.env.example` to `.env` at the **project root** you work in (the app or repo under analysis). Edit `RMA_*` values and any API keys. The runtime reads `.env` from the detected project root when present.
@@ -440,10 +440,10 @@ The runtime works without custom environment variables, but supports useful over
 | `RMA_DISABLE_FZF` | menu system | Force fallback text menus/selectors | `RMA_DISABLE_FZF=1` |
 | `RMA_PYTHON_VENV_DIR` | setup-local-models | Virtualenv path used by local setup scripts | `RMA_PYTHON_VENV_DIR=.rma/venv` |
 | `RMA_REQUIRE_MEMPALACE` | doctor, warnings | `1` = treat missing MemPalace CLI or Python imports as errors in diagnostics | `RMA_REQUIRE_MEMPALACE=1` |
-| `RMA_MEMPALACE_BIN` | plan, mine | Optional absolute path to `mempalace` if not on `PATH` | `RMA_MEMPALACE_BIN=/path/to/mempalace` |
+| `RMA_MEMPALACE_BIN` | mine, wake-up (plan prompt) | Optional absolute path to `mempalace` if not on `PATH` | `RMA_MEMPALACE_BIN=/path/to/mempalace` |
 | `RMA_MEMPALACE_MINE_DIR` | mine (menu II, III) | Directory passed to `mempalace mine <dir>`; relative paths resolve under project root (default: project root) | `RMA_MEMPALACE_MINE_DIR=.` |
-| `RMA_ALLOW_PLAN_FALLBACK` | plan | `1` = write a generic template to `plan.md` if `mempalace plan` fails or is unavailable (dev-only) | `RMA_ALLOW_PLAN_FALLBACK=0` |
-| `RMA_PLAN_INTERACTIVE` | plan | `1` = on an interactive TTY, prompt for open questions from `.rma/open-questions.md` and `Open:` lines before MemPalace; `0` for CI | `RMA_PLAN_INTERACTIVE=1` |
+| `RMA_ALLOW_PLAN_FALLBACK` | plan | `1` = write a generic template to `plan.md` if **LLM** plan generation fails (dev-only) | `RMA_ALLOW_PLAN_FALLBACK=0` |
+| `RMA_PLAN_INTERACTIVE` | plan | `1` = on an interactive TTY, prompt for open questions from `.rma/open-questions.md` and `Open:` lines before the LLM runs; `0` for CI | `RMA_PLAN_INTERACTIVE=1` |
 | `RMA_PLAN_INTERACTIVE_MAX` | plan | Max questions per `plan` run | `15` |
 | `PATH` | All runtimes | Used to find `git`, `python`, `mempalace`, `fzf`, and installed launchers | `PATH=/usr/local/bin:$PATH` |
 | `FZF_DEFAULT_OPTS` | fzf | Optional global styling/behavior overrides for fzf menus | `export FZF_DEFAULT_OPTS='--height 85%'` |

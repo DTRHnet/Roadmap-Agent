@@ -1,13 +1,13 @@
 # Run State
 
-Generated: 2026-04-10T12:30:01Z
+Generated: 2026-04-10T14:21:15Z
 Project: RoadmapAgent
 Branch: main
 Remote: https://github.com/DTRHnet/Roadmap-Agent.git
 Framework: unknown
-Detected Version: 0.1.0
-App Version: v0.0.0-dev+21786b3
-Last Release Version: unreleased
+Detected Version: 0.4.0
+App Version: v0.4.0
+Last Release Version: v0.4.0
 Last Release Date: 2026-04-10
 
 ## Canonical Files

@@ -55,7 +55,7 @@ RMA_MEMPALACE_BIN="${RMA_MEMPALACE_BIN:-}"
 RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
 # Directory for mempalace mine <dir> (upstream requires a path; empty = project root).
 RMA_MEMPALACE_MINE_DIR="${RMA_MEMPALACE_MINE_DIR:-}"
-# Before mempalace plan: prompt for answers to open questions (TTY only; skip in CI).
+# Before LLM plan generation: prompt for answers to open questions (TTY only; skip in CI).
 RMA_PLAN_INTERACTIVE="${RMA_PLAN_INTERACTIVE:-1}"
 RMA_PLAN_INTERACTIVE_MAX="${RMA_PLAN_INTERACTIVE_MAX:-15}"
 
@@ -318,12 +318,13 @@ ANALYZE-INIT OPTIONS
   (env) RMA_REQUIRE_OLLAMA=1      Require Ollama for generation (same as --require-ollama)
 
 MEMPALACE (Local AI Memory Palace stack)
-  plan and mine use the real mempalace CLI — no simulated output.
+  mine uses the real mempalace CLI. plan uses your LLM (RMA_LLM_PROVIDER) plus context; optional
+  mempalace wake-up enriches the prompt when .rma/mempalace exists (upstream has no mempalace plan).
   (env) RMA_REQUIRE_MEMPALACE=1   Fail doctor/warnings if imports or CLI missing (default: 1)
   (env) RMA_MEMPALACE_BIN=path     Optional absolute path to mempalace executable
   (env) RMA_MEMPALACE_MINE_DIR=path Directory passed to mempalace mine <dir> (default: project root)
-  (env) RMA_ALLOW_PLAN_FALLBACK=1  If mempalace plan fails or is unavailable, write a markdown template
-                                   to plan.md and log (dev-only; default: 0)
+  (env) RMA_ALLOW_PLAN_FALLBACK=1  If LLM plan generation fails, write a markdown template to plan.md
+                                   (dev-only; default: 0)
   (env) RMA_PLAN_INTERACTIVE=1     Before plan, prompt on open questions (TTY only; default: 1)
   (env) RMA_PLAN_INTERACTIVE_MAX=15 Max questions per plan run
 
@@ -558,8 +559,175 @@ write_plan_fallback_template() {
 
 Context snapshot: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 Goal signal: $(analyze_project_goal)
-Note: template written because RMA_ALLOW_PLAN_FALLBACK=1 (not from mempalace plan).
+Note: template written because RMA_ALLOW_PLAN_FALLBACK=1 (LLM unavailable).
 EOF
+}
+
+# Upstream mempalace has no `plan` subcommand; roadmap plans are generated via the configured LLM
+# (Ollama / OpenAI-compatible / Claude) using the context bundle, optionally enriched by `mempalace wake-up`.
+build_plan_llm_prompt() {
+  local context_file="$1"
+  local wakeup_file="${2:-}"
+  cat <<'EOF'
+You are generating the roadmap dry-run file for a software project at .rma/roadmaps/plan.md.
+
+Rules:
+- Return markdown only (no code fences, no preamble).
+- Start with a single "# " title line for the plan.
+- Include sections ## Current focus, ## Suggested sequence (numbered steps), and ## Risks (if any).
+- Include concrete next actions as markdown task lines starting with "- [ ] " (unchecked boxes).
+- Ground everything in the project context below. Do not invent secrets, API keys, or deployment URLs.
+
+Project context bundle:
+EOF
+  cat "$context_file"
+  if [[ -n "${wakeup_file:-}" ]] && [[ -f "$wakeup_file" ]] && [[ -s "$wakeup_file" ]]; then
+    echo ""
+    echo "MemPalace wake-up context (local palace retrieval; may help prioritization):"
+    cat "$wakeup_file"
+  fi
+}
+
+generate_plan_with_ollama() {
+  local context_file="$1"
+  local wakeup_file="${2:-}"
+  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+  local prompt output py
+  prompt="$(build_plan_llm_prompt "$context_file" "${wakeup_file:-}")"
+  if command -v ollama >/dev/null 2>&1; then
+    output="$(ollama run "$model" "$prompt" 2>/dev/null || true)"
+  elif command -v curl >/dev/null 2>&1; then
+    py="$(resolve_python_cmd || true)"
+    [[ -z "${py:-}" ]] && { printf ""; return 0; }
+    output="$(curl -fsS "${RMA_OLLAMA_HOST%/}/api/generate" \
+      -H "Content-Type: application/json" \
+      -d "{\"model\":\"$model\",\"prompt\":$("$py" -c 'import json,sys; print(json.dumps(sys.stdin.read()))' <<< "$prompt"),\"stream\":false}" 2>/dev/null | \
+      "$py" -c 'import json,sys; d=json.load(sys.stdin); print(d.get("response",""))' 2>/dev/null || true)"
+  fi
+  clean_llm_output "$output"
+}
+
+generate_plan_with_openllama() {
+  local context_file="$1"
+  local wakeup_file="${2:-}"
+  local model="${RMA_OPENAI_MODEL:-openllama}"
+  local prompt output
+  prompt="$(build_plan_llm_prompt "$context_file" "${wakeup_file:-}")"
+  local py
+  py="$(resolve_python_cmd || true)"
+  [[ -z "${py:-}" ]] && { printf ""; return 0; }
+  output="$("$py" - <<'PY'
+import json, os, sys, urllib.request
+base = os.getenv("RMA_OPENAI_BASE_URL", "http://127.0.0.1:11434/v1").rstrip("/")
+key = os.getenv("RMA_OPENAI_API_KEY", "local-no-key")
+model = os.getenv("RMA_OPENAI_MODEL", "openllama")
+prompt = sys.stdin.read()
+body = {
+    "model": model,
+    "messages": [{"role":"user","content":prompt}],
+    "temperature": 0.2
+}
+req = urllib.request.Request(
+    base + "/chat/completions",
+    data=json.dumps(body).encode("utf-8"),
+    headers={"Content-Type": "application/json","Authorization":f"Bearer {key}"}
+)
+try:
+    with urllib.request.urlopen(req, timeout=180) as r:
+        data = json.loads(r.read().decode("utf-8"))
+        print(data["choices"][0]["message"]["content"])
+except Exception:
+    pass
+PY
+<<< "$prompt")"
+  clean_llm_output "$output"
+}
+
+generate_plan_with_claude() {
+  local context_file="$1"
+  local wakeup_file="${2:-}"
+  local model="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
+  local key="${ANTHROPIC_API_KEY:-}"
+  local prompt output
+  [[ -z "$key" ]] && { printf ""; return 0; }
+  prompt="$(build_plan_llm_prompt "$context_file" "${wakeup_file:-}")"
+  local py
+  py="$(resolve_python_cmd || true)"
+  [[ -z "${py:-}" ]] && { printf ""; return 0; }
+  output="$("$py" - <<'PY'
+import json, os, sys, urllib.request
+key = os.getenv("ANTHROPIC_API_KEY","")
+model = os.getenv("RMA_CLAUDE_MODEL", "claude-3-5-sonnet-latest")
+prompt = sys.stdin.read()
+if not key:
+    raise SystemExit(0)
+body = {
+    "model": model,
+    "max_tokens": 4096,
+    "temperature": 0.2,
+    "messages": [{"role":"user","content":prompt}]
+}
+req = urllib.request.Request(
+    "https://api.anthropic.com/v1/messages",
+    data=json.dumps(body).encode("utf-8"),
+    headers={
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+)
+try:
+    with urllib.request.urlopen(req, timeout=180) as r:
+        data = json.loads(r.read().decode("utf-8"))
+        chunks = data.get("content", [])
+        text = "".join(c.get("text","") for c in chunks if c.get("type")=="text")
+        print(text)
+except Exception:
+    pass
+PY
+<<< "$prompt")"
+  clean_llm_output "$output"
+}
+
+# Writes PLAN_FILE from LLM using ctx path and optional wake-up text file. Returns 0 on success.
+roadmap_plan_generate_llm() {
+  local ctx_path="$1"
+  local wakeup_path="${2:-}"
+  local provider="${RMA_LLM_PROVIDER:-ollama}"
+  local model out
+  out=""
+  case "$provider" in
+    ollama)
+      model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+      if ollama_model_available "$model"; then
+        out="$(generate_plan_with_ollama "$ctx_path" "$wakeup_path")"
+      else
+        return 1
+      fi
+      ;;
+    openllama)
+      if command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
+        out="$(generate_plan_with_openllama "$ctx_path" "$wakeup_path")"
+      else
+        return 1
+      fi
+      ;;
+    claude)
+      if [[ -n "${ANTHROPIC_API_KEY:-}" ]] && (command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1); then
+        out="$(generate_plan_with_claude "$ctx_path" "$wakeup_path")"
+      else
+        return 1
+      fi
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  if [[ -n "${out// }" ]]; then
+    printf "%s\n" "$out" > "$PLAN_FILE"
+    return 0
+  fi
+  return 1
 }
 
 generate_rma_file_with_ollama() {
@@ -1962,7 +2130,7 @@ plan_interactive_resolve_open_questions() {
     info "Recorded decision(s) in .rma/other.md (session $stamp)."
     printf "%s plan_interactive_decisions_recorded\n" "$stamp" >> "$EXEC_LOG"
   fi
-  printf "\n%b\n" "${BOLD}--- MemPalace plan ---${RESET}" >&2
+  printf "\n%b\n" "${BOLD}--- Generating plan (LLM) ---${RESET}" >&2
   return 0
 }
 
@@ -2004,54 +2172,40 @@ EOF
   [[ -f "$RMA_DIR/other.md" ]] || touch "$RMA_DIR/other.md"
   plan_interactive_resolve_open_questions
 
-  local ctx mp errf
+  local ctx mp wakeup_tmp
   ctx="$(build_context_bundle)"
   mkdir -p "$ROADMAP_DIR"
 
+  # Optional MemPalace wake-up text (upstream CLI has no `plan`; wake-up supplies L0+L1 context).
+  wakeup_tmp="$(mktemp)"
   mp="$(resolve_mempalace_cmd 2>/dev/null)" || true
-  if [[ -n "${mp:-}" ]] && mempalace_python_imports_ok; then
-    errf="$(mktemp)"
-    if "$mp" plan --input "$ctx" --dry-run > "$PLAN_FILE" 2>"$errf"; then
-      rm -f "$errf"
-      if [[ -s "$PLAN_FILE" ]]; then
-        printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
-        return 0
-      fi
-      warn "mempalace plan succeeded but produced an empty file."
-      if [[ "${RMA_ALLOW_PLAN_FALLBACK:-0}" == "1" ]]; then
-        write_plan_fallback_template
-        printf "%s plan_fallback_empty_mempalace_output\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
-        printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
-        return 0
-      fi
-      return 1
+  if [[ -n "${mp:-}" ]] && [[ -d "$MEMPALACE_DIR" ]]; then
+    if "$mp" --palace "$MEMPALACE_DIR" wake-up >"$wakeup_tmp" 2>/dev/null && [[ -s "$wakeup_tmp" ]]; then
+      info "Included MemPalace wake-up context in plan prompt (.rma/mempalace)."
     else
-      if [[ "${RMA_ALLOW_PLAN_FALLBACK:-0}" == "1" ]]; then
-        warn "mempalace plan failed; using fallback template (RMA_ALLOW_PLAN_FALLBACK=1). stderr:"
-        cat "$errf" >&2
-        write_plan_fallback_template
-        printf "%s plan_fallback_after_mempalace_error\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
-        rm -f "$errf"
-        printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
-        return 0
-      fi
-      warn "mempalace plan failed:"
-      cat "$errf" >&2
-      rm -f "$errf"
-      return 1
+      : >"$wakeup_tmp"
     fi
-    rm -f "$errf"
+  else
+    : >"$wakeup_tmp"
   fi
 
+  if roadmap_plan_generate_llm "$ctx" "$wakeup_tmp"; then
+    rm -f "$wakeup_tmp"
+    printf "%s plan_generated_llm\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
+    printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
+    return 0
+  fi
+  rm -f "$wakeup_tmp"
+
   if [[ "${RMA_ALLOW_PLAN_FALLBACK:-0}" == "1" ]]; then
-    warn "MemPalace CLI or Python imports unavailable; using fallback template (RMA_ALLOW_PLAN_FALLBACK=1)."
+    warn "LLM plan generation unavailable; using fallback template (RMA_ALLOW_PLAN_FALLBACK=1)."
     write_plan_fallback_template
-    printf "%s plan_fallback_mempalace_unavailable\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
+    printf "%s plan_fallback_llm_unavailable\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
     printf "Plan dry run generated at: %s\n" "$PLAN_FILE"
     return 0
   fi
 
-  warn "MemPalace plan is required. Run scripts/unix/setup-local-models-mempalace.sh (or Windows .ps1), ensure mempalace is on PATH, or set RMA_MEMPALACE_BIN. For a dev-only markdown template, set RMA_ALLOW_PLAN_FALLBACK=1."
+  warn "Could not generate plan: ensure your LLM provider is configured (e.g. RMA_LLM_PROVIDER=ollama, model pulled: ollama pull ${RMA_OLLAMA_MODEL:-llama3.1:latest}), or set RMA_ALLOW_PLAN_FALLBACK=1 for a static template. MemPalace mine/wake-up is optional for plan; install mempalace for mining and palace retrieval."
   return 1
 }
 

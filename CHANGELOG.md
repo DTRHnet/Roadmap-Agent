@@ -6,6 +6,10 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`roadmap-agent plan`** no longer invokes non-existent **`mempalace plan`** (upstream CLI has `init`, `mine`, `search`, `wake-up`, etc.). Plans are generated with the configured **LLM** and `.rma` context; optional **`mempalace wake-up --palace .rma/mempalace`** enriches the prompt when the palace directory exists.
+
 ## [0.4.0] - 2026-04-10
 
 ### Added
