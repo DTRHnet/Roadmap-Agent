@@ -53,6 +53,8 @@ RMA_PYTHON_VENV_DIR="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
 RMA_REQUIRE_MEMPALACE="${RMA_REQUIRE_MEMPALACE:-1}"
 RMA_MEMPALACE_BIN="${RMA_MEMPALACE_BIN:-}"
 RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
+# Directory for mempalace mine <dir> (upstream requires a path; empty = project root).
+RMA_MEMPALACE_MINE_DIR="${RMA_MEMPALACE_MINE_DIR:-}"
 
 # Use real escape bytes so routed shells (e.g. PowerShell -> bash)
 # do not render literal "\033[...m" sequences.
@@ -85,7 +87,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -314,6 +316,7 @@ MEMPALACE (Local AI Memory Palace stack)
   plan and mine use the real mempalace CLI — no simulated output.
   (env) RMA_REQUIRE_MEMPALACE=1   Fail doctor/warnings if imports or CLI missing (default: 1)
   (env) RMA_MEMPALACE_BIN=path     Optional absolute path to mempalace executable
+  (env) RMA_MEMPALACE_MINE_DIR=path Directory passed to mempalace mine <dir> (default: project root)
   (env) RMA_ALLOW_PLAN_FALLBACK=1  If mempalace plan fails or is unavailable, write a markdown template
                                    to plan.md and log (dev-only; default: 0)
 
@@ -1432,6 +1435,9 @@ write_runtime_warnings_panel() {
       elif ! resolve_mempalace_cmd >/dev/null 2>&1; then
         echo "WARN: mempalace CLI not on PATH after venv (pip install mempalace or set RMA_MEMPALACE_BIN)."
         missing=1
+      elif ! mempalace_mine_root >/dev/null 2>&1; then
+        echo "WARN: mempalace mine directory missing or invalid (set RMA_MEMPALACE_MINE_DIR to a project subdirectory or use project root)."
+        missing=1
       fi
     fi
 
@@ -1580,6 +1586,14 @@ cmd_doctor() {
     echo "  WARN Python cannot import mempalace and/or chromadb (run setup-local-models-mempalace script)"
     [[ "${RMA_REQUIRE_MEMPALACE:-1}" == "1" ]] && ok=1
   fi
+  local mine_root
+  mine_root="$(mempalace_mine_root 2>/dev/null)" || true
+  if [[ -n "${mine_root:-}" ]]; then
+    echo "  OK   mempalace mine directory -> $mine_root"
+  else
+    echo "  WARN mempalace mine directory invalid (set RMA_MEMPALACE_MINE_DIR to an existing directory under project root)"
+    [[ "${RMA_REQUIRE_MEMPALACE:-1}" == "1" ]] && ok=1
+  fi
   echo
 
   echo "[Persistence]"
@@ -1707,15 +1721,29 @@ mempalace_setup_local_models() {
   return 1
 }
 
+mempalace_mine_root() {
+  local d="${RMA_MEMPALACE_MINE_DIR:-$ROOT_DIR}"
+  if [[ "$d" != /* ]]; then
+    d="$ROOT_DIR/$d"
+  fi
+  if [[ ! -d "$d" ]]; then
+    printf "%s\n" "MemPalace mine: directory does not exist or is not a directory: $d (set RMA_MEMPALACE_MINE_DIR or run from project root)." >&2
+    return 1
+  fi
+  (cd "$d" && pwd)
+}
+
 mempalace_safe_mine() {
   ensure_core_dirs
   local limit="$1"
-  local mp
+  local mp mine_root
   if ! mempalace_assert_ready; then
     return 1
   fi
+  mine_root="$(mempalace_mine_root)" || return 1
   mp="$(resolve_mempalace_cmd)"
-  if ! "$mp" mine --limit "$limit" --safe; then
+  # Upstream CLI: mempalace mine <dir> [--limit N] [--dry-run] (no --safe)
+  if ! "$mp" mine "$mine_root" --limit "$limit" --dry-run; then
     warn "mempalace mine returned an error."
     return 1
   fi
@@ -2281,7 +2309,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_ALLOW_PLAN_FALLBACK","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
       ;;
     *)
       cat <<'EOF'

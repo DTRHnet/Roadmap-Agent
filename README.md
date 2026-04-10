@@ -386,6 +386,7 @@ The runtime works without custom environment variables, but supports useful over
 | `RMA_PYTHON_VENV_DIR` | setup-local-models | Virtualenv path used by local setup scripts | `RMA_PYTHON_VENV_DIR=.rma/venv` |
 | `RMA_REQUIRE_MEMPALACE` | doctor, warnings | `1` = treat missing MemPalace CLI or Python imports as errors in diagnostics | `RMA_REQUIRE_MEMPALACE=1` |
 | `RMA_MEMPALACE_BIN` | plan, mine | Optional absolute path to `mempalace` if not on `PATH` | `RMA_MEMPALACE_BIN=/path/to/mempalace` |
+| `RMA_MEMPALACE_MINE_DIR` | mine (menu II, III) | Directory passed to `mempalace mine <dir>`; relative paths resolve under project root (default: project root) | `RMA_MEMPALACE_MINE_DIR=.` |
 | `RMA_ALLOW_PLAN_FALLBACK` | plan | `1` = write a generic template to `plan.md` if `mempalace plan` fails or is unavailable (dev-only) | `RMA_ALLOW_PLAN_FALLBACK=0` |
 | `PATH` | All runtimes | Used to find `git`, `python`, `mempalace`, `fzf`, and installed launchers | `PATH=/usr/local/bin:$PATH` |
 | `FZF_DEFAULT_OPTS` | fzf | Optional global styling/behavior overrides for fzf menus | `export FZF_DEFAULT_OPTS='--height 85%'` |

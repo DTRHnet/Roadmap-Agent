@@ -429,6 +429,7 @@ The Unix runtime reads supported `RMA_*` and related keys from `.env` when prese
 | `RMA_PYTHON_VENV_DIR` | Path to venv (often `.rma/venv`) |
 | `RMA_REQUIRE_MEMPALACE` | Default `1`: doctor/warnings treat missing MemPalace stack as problems |
 | `RMA_MEMPALACE_BIN` | Optional absolute path to `mempalace` CLI |
+| `RMA_MEMPALACE_MINE_DIR` | Directory for `mempalace mine <dir>` (upstream requires it; default project root) |
 | `RMA_ALLOW_PLAN_FALLBACK` | Default `0`; set `1` for dev-only markdown plan if `mempalace plan` fails |
 | `ROADMAP_AGENT_PROJECT_ROOT` | Force project root |
 
@@ -479,6 +480,7 @@ Setup scripts create a venv under **`RMA_PYTHON_VENV_DIR`** (default `.rma/venv`
 
 - Python **`mempalace`** and **`chromadb`** packages (install via **`scripts/unix/setup-local-models-mempalace.sh`** or **`scripts/windows/setup-local-models-mempalace.ps1`** into `.rma/venv` by default).
 - The **`mempalace`** executable on `PATH` after the venv is activated (or set **`RMA_MEMPALACE_BIN`**).
+- A **mine directory**: the upstream CLI is `mempalace mine <dir> …`. ROADMAP-AGENT passes **`RMA_MEMPALACE_MINE_DIR`** (default: project root); safe mine uses **`--dry-run`** (not `--safe`).
 
 **Diagnostics:** **`doctor`** prints a **[MemPalace]** section (CLI path, imports). With **`RMA_REQUIRE_MEMPALACE=1`** (default), missing pieces are treated as failures in doctor and in the runtime warnings panel.
 
