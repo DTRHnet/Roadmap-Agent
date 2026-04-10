@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Continue"
 
-$RootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RootDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
 $RmaDir = Join-Path $RootDir ".rma"
 $RoadmapDir = Join-Path $RmaDir "roadmaps"
 $StateDir = Join-Path $RmaDir "state"
@@ -173,11 +173,11 @@ function Invoke-Init {
 
 function Invoke-LocalSetup {
     Initialize-CoreDirs
-    $scriptPath = Join-Path $RootDir "scripts/setup-local-models-mempalace.ps1"
+    $scriptPath = Join-Path $RootDir "scripts/windows/setup-local-models-mempalace.ps1"
     if (Test-Path $scriptPath) {
         & $scriptPath
     } else {
-        Write-Host "WARN: Missing scripts/setup-local-models-mempalace.ps1. Writing placeholder log." -ForegroundColor Magenta
+        Write-Host "WARN: Missing scripts/windows/setup-local-models-mempalace.ps1. Writing placeholder log." -ForegroundColor Magenta
         Add-Content -Path $ExecLog -Value "$(Get-Date -Format o) setup-local-models placeholder invoked"
     }
 }
@@ -338,12 +338,78 @@ function Invoke-Unlock {
     Write-Host "Roadmap agent unlocked."
 }
 
+function Get-ShellContext {
+    $hostName = $Host.Name
+    $proc = ""
+    try {
+        $parent = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+        if ($parent -and $parent.ParentProcessId) {
+            $p = Get-CimInstance Win32_Process -Filter "ProcessId=$($parent.ParentProcessId)"
+            if ($p) { $proc = $p.Name }
+        }
+    } catch {}
+    if ($proc -match "cmd.exe") { return "cmd" }
+    if ($proc -match "pwsh|powershell") { return "powershell" }
+    if ($hostName -match "Visual Studio Code") { return "vscode-terminal" }
+    return "other"
+}
+
+function Invoke-PersistenceCheck {
+    $shellCtx = Get-ShellContext
+    $installRoot = Join-Path ${env:ProgramFiles} "Roadmap-Agent"
+    $binDir = Join-Path $installRoot "bin"
+    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $hasBinPath = $false
+    if ($machinePath) {
+        foreach ($part in ($machinePath -split ";")) {
+            if ($part.TrimEnd('\') -ieq $binDir.TrimEnd('\')) { $hasBinPath = $true; break }
+        }
+    }
+
+    $cmdPath = (Get-Command roadmap-agent.cmd -ErrorAction SilentlyContinue)
+    $rmaPath = (Get-Command rma.cmd -ErrorAction SilentlyContinue)
+    $installer = Join-Path $RootDir "scripts/windows/install-persistence.ps1"
+
+    Write-Host "Persistence status"
+    Write-Host "Shell context: $shellCtx"
+    Write-Host "Expected bin path: $binDir"
+    Write-Host "Machine PATH has bin: $hasBinPath"
+    Write-Host "roadmap-agent.cmd found: $([bool]$cmdPath)"
+    Write-Host "rma.cmd found: $([bool]$rmaPath)"
+
+    if ($hasBinPath -and $cmdPath -and $rmaPath) {
+        Write-Host "Persistence already present." -ForegroundColor Green
+        return
+    }
+
+    Write-Host "Persistence appears missing or partial." -ForegroundColor Yellow
+    if (-not (Test-Path $installer)) {
+        Write-Host "Installer missing: $installer" -ForegroundColor Red
+        return
+    }
+
+    $choice = "No"
+    if (Initialize-Fzf) {
+        $choice = Select-One "Run persistence installer now? (admin)" @("No", "Yes")
+    } else {
+        $ans = (Read-Host "Run persistence installer now? (y/N)").Trim().ToLower()
+        if ($ans -match "^(y|yes)$") { $choice = "Yes" }
+    }
+    if ($choice -ne "Yes") {
+        Write-Host "Skipped persistence install."
+        return
+    }
+    & $installer
+}
+
 function Show-Menu {
     $esc = [char]27
     $purple = "$esc[38;5;135m"
+    $bold = "$esc[1m"
+    $ul = "$esc[4m"
     $reset = "$esc[0m"
     $header = @(
-        "ROADMAP-AGENT :: Local AI Memory Palace",
+        "${bold}${ul}ROADMAP-AGENT :: Local AI Memory Palace${reset}",
         "Project: $(Get-ProjectName)",
         "Branch: $(Get-ProjectBranch)",
         "GitHub: $(Get-ProjectRemote)",
@@ -353,17 +419,18 @@ function Show-Menu {
     ) -join "`n"
 
     $options = @(
-        "SUB::ai::1::1  Local AI setup script",
-        "SUB::ai::1::2  Safe mine dry run (limit 200)",
-        "SUB::ai::1::3  Safe mine batch (300,800,1500)",
-        "SUB::ai::1::4  Health check (mempalace/chromadb versions)",
-        "SUB::ai::1::5  Open MemPalace logs folder",
-        "SUB::ai::1::6  Reset MemPalace/Chrome stores (backup + recreate)",
-        "${purple}SUB::ai::1::7  Roadmap agent status${reset}",
-        "${purple}SUB::ai::1::8  Roadmap agent plan (safe dry run)${reset}",
-        "${purple}SUB::ai::1::9  Roadmap agent execute one task${reset}",
-        "${purple}SUB::ai::1::10 Roadmap agent unlock${reset}",
-        "ACT::subback::0  Back to hub"
+        "I    Local AI setup script",
+        "II   Safe mine dry run (limit 200)",
+        "III  Safe mine batch (300,800,1500)",
+        "IV   Health check (mempalace/chromadb versions)",
+        "V    Open MemPalace logs folder",
+        "VI   Reset MemPalace/Chrome stores (backup + recreate)",
+        "${purple}VII  Roadmap agent status${reset}",
+        "${purple}VIII Roadmap agent plan (safe dry run)${reset}",
+        "${purple}IX   Roadmap agent execute one task${reset}",
+        "${purple}X    Roadmap agent unlock${reset}",
+        "XI   Check/add persistence if missing",
+        "0    Exit"
     )
     return (($options -join "`n") | fzf --ansi --layout=reverse --height=90% --border=rounded --prompt "Select > " --header $header --color "border:blue,pointer:magenta,marker:magenta,header:cyan")
 }
@@ -375,20 +442,21 @@ function Invoke-MenuLoop {
         $selected = Show-Menu
         if (-not $selected) { break }
         switch -Wildcard ($selected) {
-            "*SUB::ai::1::1*" { Invoke-LocalSetup }
-            "*SUB::ai::1::2*" { Invoke-SafeMine -Limit 200 }
-            "*SUB::ai::1::3*" {
+            "I    *" { Invoke-LocalSetup }
+            "II   *" { Invoke-SafeMine -Limit 200 }
+            "III  *" {
                 $batch = Select-One "Choose safe mine batch limit" @("300","800","1500")
                 if ($batch) { Invoke-SafeMine -Limit ([int]$batch) }
             }
-            "*SUB::ai::1::4*" { Invoke-HealthCheck }
-            "*SUB::ai::1::5*" { Invoke-OpenLogs }
-            "*SUB::ai::1::6*" { Invoke-ResetStores }
-            "*SUB::ai::1::7*" { Invoke-Status }
-            "*SUB::ai::1::8*" { Invoke-PlanDryRun }
-            "*SUB::ai::1::9*" { Invoke-ExecuteOneTask }
-            "*SUB::ai::1::10*" { Invoke-Unlock }
-            "*ACT::subback::0*" { break }
+            "IV   *" { Invoke-HealthCheck }
+            "V    *" { Invoke-OpenLogs }
+            "VI   *" { Invoke-ResetStores }
+            "VII  *" { Invoke-Status }
+            "VIII *" { Invoke-PlanDryRun }
+            "IX   *" { Invoke-ExecuteOneTask }
+            "X    *" { Invoke-Unlock }
+            "XI   *" { Invoke-PersistenceCheck }
+            "0    *" { break }
         }
         Wait-Continue
     }
@@ -396,6 +464,9 @@ function Invoke-MenuLoop {
 
 $cmd = if ($args.Count -gt 0) { $args[0] } else { "menu" }
 switch ($cmd) {
+    "persistence" { Invoke-PersistenceCheck }
+    "persistance" { Invoke-PersistenceCheck }
+    "persistence-check" { Invoke-PersistenceCheck }
     "init" { Invoke-Init }
     "status" { Test-RmaRequiredFiles; Invoke-Status }
     "plan" { Initialize-CoreDirs; Test-RmaRequiredFiles; Invoke-PlanDryRun }

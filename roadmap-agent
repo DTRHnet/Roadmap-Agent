@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  ____   ___    ____  ___    ___ ___   ____  ____          ____   ____    ___  ____   ______ 
+# |    \ /   \  /    ||   \  |   |   | /    ||    \        /    | /    |  /  _]|    \ |      |
+# |  D  )     ||  o  ||    \ | _   _ ||  o  ||  o  )_____ |  o  ||   __| /  [_ |  _  ||      |
+# |    /|  O  ||     ||  D  ||  \_/  ||     ||   _/|     ||     ||  |  ||    _]|  |  ||_|  |_|
+# |    \|     ||  _  ||     ||   |   ||  _  ||  |  |_____||  _  ||  |_ ||   [_ |  |  |  |  |  
+# |  .  \     ||  |  ||     ||   |   ||  |  ||  |         |  |  ||     ||     ||  |  |  |  |  
+# |__|\_|\___/ |__|__||_____||___|___||__|__||__|         |__|__||___,_||_____||__|__|  |__|  
+#                                                                                             
+# A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
+# -------------------------------------------------------------------------------------------
+# Summary: Portable launcher that routes to OS-specific runtime script.
+# Last updated: 2026-04-10 | Version: v0.1.0
+
 
 set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -6,11 +20,11 @@ SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
     if command -v pwsh >/dev/null 2>&1; then
-      exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$SELF_DIR/roadmap-agent.ps1" "$@"
+      exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$SELF_DIR/scripts/windows/roadmap-agent.ps1" "$@"
     fi
-    exec powershell -NoProfile -ExecutionPolicy Bypass -File "$SELF_DIR/roadmap-agent.ps1" "$@"
+    exec powershell -NoProfile -ExecutionPolicy Bypass -File "$SELF_DIR/scripts/windows/roadmap-agent.ps1" "$@"
     ;;
   *)
-    exec bash "$SELF_DIR/roadmap-agent.sh" "$@"
+    exec bash "$SELF_DIR/scripts/unix/roadmap-agent.sh" "$@"
     ;;
 esac

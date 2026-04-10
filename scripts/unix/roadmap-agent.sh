@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  ____   ___    ____  ___    ___ ___   ____  ____          ____   ____    ___  ____   ______ 
+# |    \ /   \  /    ||   \  |   |   | /    ||    \        /    | /    |  /  _]|    \ |      |
+# |  D  )     ||  o  ||    \ | _   _ ||  o  ||  o  )_____ |  o  ||   __| /  [_ |  _  ||      |
+# |    /|  O  ||     ||  D  ||  \_/  ||     ||   _/|     ||     ||  |  ||    _]|  |  ||_|  |_|
+# |    \|     ||  _  ||     ||   |   ||  _  ||  |  |_____||  _  ||  |_ ||   [_ |  |  |  |  |  
+# |  .  \     ||  |  ||     ||   |   ||  |  ||  |         |  |  ||     ||     ||  |  |  |  |  
+# |__|\_|\___/ |__|__||_____||___|___||__|__||__|         |__|__||___,_||_____||__|__|  |__|  
+#                                                                                             
+# A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
+# -------------------------------------------------------------------------------------------
+# Summary: Unix core ROADMAP-AGENT runtime (menu, roadmap, persistence, help).
+# Last updated: 2026-04-10 | Version: v0.1.0
+
 
 set -u
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${ROADMAP_AGENT_PROJECT_ROOT:-}" ]] && [[ -d "${ROADMAP_AGENT_PROJECT_ROOT}" ]]; then
+  ROOT_DIR="$(cd "${ROADMAP_AGENT_PROJECT_ROOT}" && pwd)"
+else
+  ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+fi
 RMA_DIR="$ROOT_DIR/.rma"
 ROADMAP_DIR="$RMA_DIR/roadmaps"
 STATE_DIR="$RMA_DIR/state"
@@ -19,6 +37,7 @@ CYAN="\033[38;5;45m"
 GRAY="\033[38;5;245m"
 RESET="\033[0m"
 BOLD="\033[1m"
+UNDERLINE="\033[4m"
 
 warn() { printf "${PURPLE}WARN${RESET}: %s\n" "$1"; }
 info() { printf "${CYAN}%s${RESET}\n" "$1"; }
@@ -62,6 +81,284 @@ analyze_project_goal() {
   fi
 
   printf "%s" "$goal"
+}
+
+latest_release_tag() {
+  if command -v git >/dev/null 2>&1; then
+    git -C "$ROOT_DIR" tag --sort=-creatordate 2>/dev/null | awk 'NF{print; exit}'
+  fi
+}
+
+app_version() {
+  local tag hash
+  tag="$(latest_release_tag)"
+  if [[ -n "${tag:-}" ]]; then
+    printf "%s" "$tag"
+    return
+  fi
+  if command -v git >/dev/null 2>&1; then
+    hash="$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || true)"
+    if [[ -n "${hash:-}" ]]; then
+      printf "v0.0.0-dev+%s" "$hash"
+      return
+    fi
+  fi
+  printf "v0.0.0"
+}
+
+last_release_version() {
+  local tag
+  tag="$(latest_release_tag)"
+  if [[ -n "${tag:-}" ]]; then
+    printf "%s" "$tag"
+  else
+    printf "unreleased"
+  fi
+}
+
+last_release_date() {
+  local tag
+  tag="$(latest_release_tag)"
+  if [[ -n "${tag:-}" ]] && command -v git >/dev/null 2>&1; then
+    git -C "$ROOT_DIR" log -1 --format=%cs "$tag" 2>/dev/null || printf "unknown"
+  elif command -v git >/dev/null 2>&1; then
+    git -C "$ROOT_DIR" log -1 --format=%cs 2>/dev/null || printf "unknown"
+  else
+    printf "unknown"
+  fi
+}
+
+truncate_banner_value() {
+  local v="$1"
+  if [[ "${#v}" -le 34 ]]; then
+    printf "%s" "$v"
+  else
+    printf "%s..." "${v:0:31}"
+  fi
+}
+
+show_initial_banner() {
+  local v rv rd
+  v="$(truncate_banner_value "$(app_version)")"
+  rv="$(truncate_banner_value "$(last_release_version)")"
+  rd="$(truncate_banner_value "$(last_release_date)")"
+  printf "%b\n" "${BLUE}+----------------------------------------+${RESET}"
+  printf "%b\n" "${BLUE}|${RESET} ${CYAN}ROADMAP-AGENT AI SUBMENU            ${RESET} ${BLUE}|${RESET}"
+  printf "| App Version : %s\n" "$v"
+  printf "| Last Release: %s\n" "$rv"
+  printf "| Release Date: %s\n" "$rd"
+  printf "%b\n" "${BLUE}+----------------------------------------+${RESET}"
+}
+
+show_help() {
+  cat <<'EOF'
+ROADMAP-AGENT - Local AI Memory Palace CLI
+
+USAGE
+  roadmap-agent [command]
+  rma [command]
+
+COMMANDS
+  init             Initialize .rma metadata and templates
+  status           Show roadmap/project status summary
+  plan             Generate roadmap dry-run plan
+  execute-one      Execute exactly one selected planned task
+  unlock           Clear roadmap lock state
+  persistence      Install global launcher/manpages (admin/root)
+  persistance      Alias of persistence
+  persistence-check Check persistence status and offer install
+  man              Show built-in manual/manpage text
+  help, --help,-h  Show this detailed help
+  menu             Open interactive hub and AI submenu (default)
+
+PERSISTENCE MODE
+  Linux/macOS:
+    - Detects active shell and suggests rc file (.bashrc/.zshrc/etc)
+    - Installs global launchers in /usr/local/bin (requires sudo/root)
+    - Installs core runtime in /usr/local/lib/roadmap-agent
+    - Installs manpage in /usr/local/share/man/man1
+    - Updates rc PATH only once using managed markers (no duplicates)
+
+  Windows:
+    - Run from PowerShell as Administrator
+    - Uses Program Files install root and machine PATH updates
+    - See `roadmap-agent.ps1 persistence --help` behavior
+
+MORE DOCS
+  README.md
+  DOCS/GETTING-STARTED.md
+  DOCS/MENU-REFERENCE.md
+  DOCS/ROADMAP-WORKFLOW.md
+  DOCS/ARCHITECTURE.md
+  DOCS/TROUBLESHOOTING.md
+EOF
+}
+
+show_manpage() {
+  local manfile="$ROOT_DIR/DOCS/man/roadmap-agent.1"
+  local fallback="/usr/local/share/man/man1/roadmap-agent.1"
+  if [[ -f "$manfile" ]]; then
+    sed 's/^\.\\".*$//g' "$manfile"
+  elif [[ -f "$fallback" ]]; then
+    sed 's/^\.\\".*$//g' "$fallback"
+  else
+    show_help
+  fi
+}
+
+detect_shell_rc_file() {
+  local shname rc
+  shname="$(basename "${SHELL:-}")"
+  case "$shname" in
+    bash) rc="$HOME/.bashrc" ;;
+    zsh) rc="$HOME/.zshrc" ;;
+    fish) rc="$HOME/.config/fish/config.fish" ;;
+    ksh) rc="$HOME/.kshrc" ;;
+    *) rc="$HOME/.profile" ;;
+  esac
+  printf "%s" "$rc"
+}
+
+append_rc_path_block_once() {
+  local rcfile="$1"
+  local block
+  mkdir -p "$(dirname "$rcfile")"
+  touch "$rcfile"
+  if grep -Fq "# >>> ROADMAP-AGENT PATH >>>" "$rcfile"; then
+    info "PATH block already present in $rcfile"
+    return 0
+  fi
+  block=$'\n# >>> ROADMAP-AGENT PATH >>>\nexport PATH="/usr/local/bin:$PATH"\n# <<< ROADMAP-AGENT PATH <<<\n'
+  printf "%s" "$block" >> "$rcfile"
+  info "Added PATH block to $rcfile"
+}
+
+cmd_persistence_unix() {
+  local shell_name rc_file use_rc ans sudo_cmd
+  local install_root="/usr/local/lib/roadmap-agent"
+  local bin_dir="/usr/local/bin"
+  local man_dir="/usr/local/share/man/man1"
+  local this_sh="$ROOT_DIR/scripts/unix/roadmap-agent.sh"
+  local this_ps1="$ROOT_DIR/scripts/windows/roadmap-agent.ps1"
+  local src_setup="$ROOT_DIR/scripts/unix/setup-local-models-mempalace.sh"
+  local man_src="$ROOT_DIR/DOCS/man/roadmap-agent.1"
+
+  shell_name="$(basename "${SHELL:-unknown}")"
+  rc_file="$(detect_shell_rc_file)"
+
+  printf "Persistence mode (global install)\n"
+  printf "Detected shell: %s\n" "$shell_name"
+  printf "Suggested rc file: %s\n" "$rc_file"
+  printf "Install target: %s and %s\n" "$install_root" "$bin_dir"
+
+  if [[ ! -f "$this_sh" ]]; then
+    warn "Missing runtime script: $this_sh"
+    return 1
+  fi
+
+  sudo_cmd=""
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    if command -v sudo >/dev/null 2>&1; then
+      sudo_cmd="sudo"
+    else
+      warn "Root privileges required and sudo not available."
+      return 1
+    fi
+  fi
+
+  ans="n"
+  printf "Proceed with privileged install? (y/N): "
+  read -r ans
+  if [[ ! "$ans" =~ ^[Yy]$ ]]; then
+    info "Persistence mode cancelled."
+    return 0
+  fi
+
+  $sudo_cmd mkdir -p "$install_root" "$install_root/scripts" "$bin_dir" "$man_dir" || return 1
+  $sudo_cmd cp "$this_sh" "$install_root/roadmap-agent.sh" || return 1
+  [[ -f "$this_ps1" ]] && $sudo_cmd cp "$this_ps1" "$install_root/roadmap-agent.ps1" || true
+  [[ -f "$src_setup" ]] && $sudo_cmd cp "$src_setup" "$install_root/scripts/setup-local-models-mempalace.sh" || true
+  if [[ -f "$man_src" ]]; then
+    $sudo_cmd cp "$man_src" "$man_dir/roadmap-agent.1" || true
+  fi
+
+  cat <<'EOF' | $sudo_cmd tee "$bin_dir/roadmap-agent" >/dev/null
+#!/usr/bin/env bash
+set -u
+if [[ -f "$PWD/roadmap-agent.sh" ]]; then
+  exec bash "$PWD/roadmap-agent.sh" "$@"
+fi
+export ROADMAP_AGENT_PROJECT_ROOT="$PWD"
+exec bash "/usr/local/lib/roadmap-agent/roadmap-agent.sh" "$@"
+EOF
+
+  cat <<'EOF' | $sudo_cmd tee "$bin_dir/rma" >/dev/null
+#!/usr/bin/env bash
+set -u
+exec /usr/local/bin/roadmap-agent "$@"
+EOF
+
+  $sudo_cmd chmod +x "$bin_dir/roadmap-agent" "$bin_dir/rma" "$install_root/roadmap-agent.sh" || true
+  if command -v mandb >/dev/null 2>&1; then
+    $sudo_cmd mandb >/dev/null 2>&1 || true
+  fi
+
+  use_rc="n"
+  printf "Update shell rc file to ensure /usr/local/bin in PATH? (y/N): "
+  read -r use_rc
+  if [[ "$use_rc" =~ ^[Yy]$ ]]; then
+    append_rc_path_block_once "$rc_file"
+  fi
+
+  info "Persistence install complete."
+  printf "Global commands: roadmap-agent, rma\n"
+  printf "Open a new terminal or run: source %s\n" "$rc_file"
+}
+
+cmd_persistence() {
+  case "$(uname -s)" in
+    Linux|Darwin) cmd_persistence_unix ;;
+    *) warn "Persistence mode for this platform is handled by roadmap-agent.ps1 on Windows." ;;
+  esac
+}
+
+cmd_persistence_check() {
+  local os shell_name rc_file cmd_path has_cmd has_rc_block
+  os="$(uname -s)"
+  shell_name="$(basename "${SHELL:-unknown}")"
+  rc_file="$(detect_shell_rc_file)"
+  cmd_path="$(command -v roadmap-agent 2>/dev/null || true)"
+  has_cmd="no"
+  has_rc_block="no"
+
+  [[ -n "${cmd_path:-}" ]] && has_cmd="yes"
+  if [[ -f "$rc_file" ]] && grep -Fq "# >>> ROADMAP-AGENT PATH >>>" "$rc_file"; then
+    has_rc_block="yes"
+  fi
+
+  printf "Persistence status\n"
+  printf "OS: %s\n" "$os"
+  printf "Shell: %s\n" "$shell_name"
+  printf "Suggested rc: %s\n" "$rc_file"
+  printf "Global command available: %s\n" "$has_cmd"
+  if [[ "$has_cmd" == "yes" ]]; then
+    printf "Resolved command path: %s\n" "$cmd_path"
+  fi
+  printf "Managed rc PATH block present: %s\n" "$has_rc_block"
+
+  if [[ "$has_cmd" == "yes" ]]; then
+    info "Persistence already present."
+    return 0
+  fi
+
+  local ans="n"
+  printf "Persistence appears missing. Install now? (y/N): "
+  read -r ans
+  if [[ "$ans" =~ ^[Yy]$ ]]; then
+    cmd_persistence
+  else
+    info "Skipped persistence install."
+  fi
 }
 
 ensure_fzf() {
@@ -230,11 +527,11 @@ EOF
 
 mempalace_setup_local_models() {
   ensure_core_dirs
-  local script="$ROOT_DIR/scripts/setup-local-models-mempalace.sh"
+  local script="$ROOT_DIR/scripts/unix/setup-local-models-mempalace.sh"
   if [[ -f "$script" ]]; then
     bash "$script" || warn "setup-local-models script returned an error."
   else
-    warn "Missing scripts/setup-local-models-mempalace.sh. Creating placeholder log entry."
+    warn "Missing scripts/unix/setup-local-models-mempalace.sh. Creating placeholder log entry."
     printf "%s setup-local-models placeholder invoked\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> "$EXEC_LOG"
   fi
 }
@@ -429,7 +726,10 @@ render_menu() {
   remote="$(project_remote)"
   goal="$(analyze_project_goal)"
 
-  header="${BOLD}${BLUE}ROADMAP-AGENT :: Local AI Memory Palace${RESET}
+  header="${BOLD}${UNDERLINE}${BLUE}ROADMAP-AGENT :: Local AI Memory Palace${RESET}
+${GRAY}App Version:${RESET} $(app_version)
+${GRAY}Last Release:${RESET} $(last_release_version)
+${GRAY}Release Date:${RESET} $(last_release_date)
 ${GRAY}Project:${RESET} ${project}
 ${GRAY}Branch:${RESET} ${branch}
 ${GRAY}GitHub:${RESET} ${remote}
@@ -437,17 +737,18 @@ ${GRAY}Goal:${RESET} ${goal}
 ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
 
   local options=(
-    "SUB::ai::1::1  Local AI setup script"
-    "SUB::ai::1::2  Safe mine dry run (limit 200)"
-    "SUB::ai::1::3  Safe mine batch (300,800,1500)"
-    "SUB::ai::1::4  Health check (mempalace/chromadb versions)"
-    "SUB::ai::1::5  Open MemPalace logs folder"
-    "SUB::ai::1::6  Reset MemPalace/Chrome stores (backup + recreate)"
-    "${PURPLE}SUB::ai::1::7  Roadmap agent status${RESET}"
-    "${PURPLE}SUB::ai::1::8  Roadmap agent plan (safe dry run)${RESET}"
-    "${PURPLE}SUB::ai::1::9  Roadmap agent execute one task${RESET}"
-    "${PURPLE}SUB::ai::1::10 Roadmap agent unlock${RESET}"
-    "ACT::subback::0  Back to hub"
+    "I    Local AI setup script"
+    "II   Safe mine dry run (limit 200)"
+    "III  Safe mine batch (300,800,1500)"
+    "IV   Health check (mempalace/chromadb versions)"
+    "V    Open MemPalace logs folder"
+    "VI   Reset MemPalace/Chrome stores (backup + recreate)"
+    "${PURPLE}VII  Roadmap agent status${RESET}"
+    "${PURPLE}VIII Roadmap agent plan (safe dry run)${RESET}"
+    "${PURPLE}IX   Roadmap agent execute one task${RESET}"
+    "${PURPLE}X    Roadmap agent unlock${RESET}"
+    "XI   Check/add persistence if missing"
+    "0    Back to hub"
   )
 
   selected="$(printf "%b\n" "${options[@]}" | fzf \
@@ -460,29 +761,89 @@ ${GRAY}Roadmaps:${RESET} ${ROADMAP_DIR}"
     --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
 
   case "$selected" in
-    *"SUB::ai::1::1"*) mempalace_setup_local_models ;;
-    *"SUB::ai::1::2"*) mempalace_safe_mine "200" ;;
-    *"SUB::ai::1::3"*)
+    I\ \ \ *)
+      mempalace_setup_local_models
+      ;;
+    II\ \ *)
+      mempalace_safe_mine "200"
+      ;;
+    III\ *)
       batch="$(fzf_choose_one "Choose safe mine batch limit" "300" "800" "1500")"
       [[ -n "${batch:-}" ]] && mempalace_safe_mine "$batch"
       ;;
-    *"SUB::ai::1::4"*) mempalace_health_check ;;
-    *"SUB::ai::1::5"*) mempalace_open_logs ;;
-    *"SUB::ai::1::6"*) mempalace_reset_stores ;;
-    *"SUB::ai::1::7"*) roadmap_status ;;
-    *"SUB::ai::1::8"*) roadmap_plan_dry_run ;;
-    *"SUB::ai::1::9"*) roadmap_execute_one_task ;;
-    *"SUB::ai::1::10"*) roadmap_unlock ;;
-    *"ACT::subback::0"*) return 1 ;;
+    IV\ \ *)
+      mempalace_health_check
+      ;;
+    V\ \ \ *)
+      mempalace_open_logs
+      ;;
+    VI\ \ *)
+      mempalace_reset_stores
+      ;;
+    VII\ *)
+      roadmap_status
+      ;;
+    VIII\ *)
+      roadmap_plan_dry_run
+      ;;
+    IX\ \ *)
+      roadmap_execute_one_task
+      ;;
+    X\ \ \ *)
+      roadmap_unlock
+      ;;
+    XI\ \ *)
+      cmd_persistence_check
+      ;;
+    0\ \ \ *)
+      return 1
+      ;;
     *) ;;
   esac
   return 0
+}
+
+render_hub_menu() {
+  local selected
+  selected="$(printf "%b\n" \
+    "I   Open AI submenu" \
+    "II  Roadmap status (quick view)" \
+    "III Check/add persistence if missing" \
+    "0   Exit roadmap-agent" | fzf \
+      --ansi \
+      --layout=reverse \
+      --height=65% \
+      --border=rounded \
+      --prompt="Hub > " \
+      --header="${BOLD}${UNDERLINE}ROADMAP-AGENT HUB${RESET}"$'\n'"App Version: $(app_version)"$'\n'"Last Release: $(last_release_version)"$'\n'"Release Date: $(last_release_date)"$'\n'"Press Enter to continue:" \
+      --color=border:blue,pointer:magenta,marker:magenta,header:cyan)"
+
+  case "$selected" in
+    I\ \ \ *)
+      return 10
+      ;;
+    II\ \ *)
+      roadmap_status
+      return 0
+      ;;
+    III\ *)
+      cmd_persistence_check
+      return 0
+      ;;
+    *) return 1 ;;
+  esac
 }
 
 main() {
   local cmd="${1:-menu}"
 
   case "$cmd" in
+    -h|--help|help)
+      show_help
+      ;;
+    man)
+      show_manpage
+      ;;
     init)
       cmd_init
       ;;
@@ -503,12 +864,32 @@ main() {
     unlock)
       roadmap_unlock
       ;;
+    persistence|persistance)
+      cmd_persistence
+      ;;
+    persistence-check)
+      cmd_persistence_check
+      ;;
     menu|*)
       ensure_fzf || exit 1
       ensure_rma_required_files
+      show_initial_banner
       while true; do
-        render_menu || break
-        pause_prompt
+        render_hub_menu
+        case "$?" in
+          10)
+            while true; do
+              render_menu || break
+              pause_prompt
+            done
+            ;;
+          0)
+            pause_prompt
+            ;;
+          *)
+            break
+            ;;
+        esac
       done
       ;;
   esac

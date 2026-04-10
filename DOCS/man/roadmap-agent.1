@@ -1,0 +1,75 @@
+.\" ROADMAP-AGENT manual page
+.TH ROADMAP-AGENT 1 "2026-04-10" "ROADMAP-AGENT" "User Commands"
+.SH NAME
+roadmap-agent \- cross-platform Local AI Memory Palace CLI
+.SH SYNOPSIS
+.B roadmap-agent
+[\fICOMMAND\fR]
+.br
+.B rma
+[\fICOMMAND\fR]
+.SH DESCRIPTION
+ROADMAP-AGENT is a script-first local CLI that manages a roadmap workflow powered by project metadata in .rma.
+.PP
+It supports:
+.IP \(bu 2
+Dry-run planning and safe task-by-task execution
+.IP \(bu 2
+Local AI Memory Palace helper actions
+.IP \(bu 2
+Cross-platform operation on Windows, Linux, macOS, and Docker
+.SH COMMANDS
+.TP
+.B init
+Initialize .rma metadata files and roadmap state.
+.TP
+.B status
+Show project/branch/task and execution summary.
+.TP
+.B plan
+Generate dry-run roadmap plan.
+.TP
+.B execute-one
+Execute exactly one selected task from the plan.
+.TP
+.B unlock
+Clear stale lock state.
+.TP
+.B persistence
+Install global launchers and runtime with elevated privileges.
+.TP
+.B persistance
+Alias of persistence.
+.TP
+.B help, -h, --help
+Show detailed command help.
+.TP
+.B man
+Show manual text.
+.TP
+.B menu
+Open interactive hub and AI submenu (default).
+.SH PERSISTENCE MODE
+.SS Linux/macOS
+Installs runtime to /usr/local/lib/roadmap-agent and launchers to /usr/local/bin.
+Optionally updates shell rc PATH block without duplication.
+Installs this manpage into /usr/local/share/man/man1.
+Requires root or sudo.
+.SS Windows
+Requires Administrator privileges.
+Installs runtime under C:\\Program Files\\Roadmap-Agent and updates Machine PATH once.
+.SH FILES
+.TP
+.B .rma/description.md
+Primary product/function context.
+.TP
+.B .rma/ui.md
+Expected UI/UX behavior context.
+.TP
+.B .rma/stack.md
+Tech stack and versions.
+.TP
+.B .rma/other.md
+Additional operational or architectural context.
+.SH SEE ALSO
+README.md, DOCS/GETTING-STARTED.md, DOCS/TROUBLESHOOTING.md
