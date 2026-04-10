@@ -12,6 +12,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ### Changed
 
+- `README.md`: expanded “Documentation at a glance” and **Documentation Index** (links to `QUICKSTART`, `MANUAL`, `ROADMAP-WORKFLOW`, `MOCK-WORKFLOW-SESSION`, `CHANGELOG`; grouped index into onboarding, reference, releases).
 - `DOCS/GETTING-STARTED.md`: links to `QUICKSTART.md` / `MANUAL.md`; Windows persistence notes updated for `setup-rma.ps1` user vs machine scope and PATH refresh.
 
 ## [0.2.0] - 2026-04-10

@@ -21,8 +21,11 @@
 
 | Doc | What you get |
 |-----|----------------|
-| **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** | **Fast lane by OS** — clone, optional Python/MemPalace setup, `.env`, `init`, `doctor`, and global `rma` on Windows (including `setup-rma.ps1` and PATH refresh). |
-| **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** | **The deep cut** — every command, interactive hub behavior, how to write and evolve `.rma` Markdown (`description`, `ui`, `stack`, `other`), `analyze` / `analyze-init`, LLM providers, persistence, and safe operations. |
+| **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** | **Fast lane by OS** — clone, optional Python/MemPalace setup, `.env`, `init`, `doctor`, and global `rma` on Windows (`setup-rma.ps1`, PATH refresh). |
+| **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** | **Operator manual** — every command, interactive hub, writing `.rma` Markdown (`description`, `ui`, `stack`, `other`), `analyze` / `analyze-init`, LLM providers, persistence, safety. |
+| **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** | **Process guide** — plan → review → `execute-one` loop, keeping context fresh, low-risk habits. |
+| **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
+| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.2.0`, …). |
 
 **ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
 
@@ -166,7 +169,7 @@ Windows PowerShell:
 .\rma.ps1
 ```
 
-**More detail**: step-by-step instructions for each OS (including persistence and PATH) are in **`DOCS/QUICKSTART.md`**. For command reference, interactive mode, and how to write `.rma` Markdown (`description.md`, `ui.md`, etc.), see **`DOCS/MANUAL.md`**.
+**More detail:** **[`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md)** (by OS), **[`DOCS/MANUAL.md`](DOCS/MANUAL.md)** (full reference), **[`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
 
 ---
 
@@ -458,13 +461,21 @@ The runtime works without custom environment variables, but supports useful over
 
 ## Documentation Index
 
-- `DOCS/QUICKSTART.md` — fastest path by OS (Windows, Linux, macOS, Docker)
-- `DOCS/MANUAL.md` — full operator manual (commands, `.rma` files, env, persistence)
-- `DOCS/GETTING-STARTED.md`
-- `DOCS/MENU-REFERENCE.md`
-- `DOCS/ROADMAP-WORKFLOW.md`
-- `DOCS/ARCHITECTURE.md`
-- `DOCS/TROUBLESHOOTING.md`
-- `DOCS/examples/MOCK-WORKFLOW-SESSION.md` — fictional terminal transcripts (install → init → doctor → menus → roadmap → mock log lines)
-- `DOCS/man/roadmap-agent.1`
-- `CHANGELOG.md`
+**Onboarding and workflow**
+
+- [`DOCS/QUICKSTART.md`](DOCS/QUICKSTART.md) — fastest path by OS (Windows, Linux, macOS, Docker)
+- [`DOCS/GETTING-STARTED.md`](DOCS/GETTING-STARTED.md) — short first-run checklist
+- [`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md) — effective plan → execute-one operating model
+- [`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md) — fictional terminal log from install through hub, roadmap commands, and mock `.rma/logs` lines
+
+**Reference**
+
+- [`DOCS/MANUAL.md`](DOCS/MANUAL.md) — full operator manual (commands, `.rma` files, env, persistence)
+- [`DOCS/MENU-REFERENCE.md`](DOCS/MENU-REFERENCE.md) — hub / submenu labels and actions
+- [`DOCS/ARCHITECTURE.md`](DOCS/ARCHITECTURE.md) — how the runtime pieces fit together
+- [`DOCS/TROUBLESHOOTING.md`](DOCS/TROUBLESHOOTING.md) — common failures and fixes
+- [`DOCS/man/roadmap-agent.1`](DOCS/man/roadmap-agent.1) — Unix man page source
+
+**Releases**
+
+- [`CHANGELOG.md`](CHANGELOG.md) — version-by-version notes (see also **Versioning** above)
