@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Cross-platform Local AI Memory Palace CLI</b><br/>
-  Script-first • fzf when you want it • a real roadmap in <code>.rma/</code>
+  Terminal-first roadmap CLI: keep project memory in <code>.rma/</code>, run <code>plan</code> → <code>execute-one</code> → <code>analyze</code>, plug in local LLMs (Ollama) and MemPalace—no hosted dashboard.
 </p>
 
 <p align="center">
