@@ -1,64 +1,70 @@
-<p align="center">
-  <img src="img/rma.jpg" alt="ROADMAP-AGENT — Local AI Memory Palace CLI" width="100%" />
-</p>
+<div align="center">
 
-<h1 align="center">ROADMAP-AGENT</h1>
+<img src="img/rma.png" alt="ROADMAP-AGENT — terminal-first roadmap workflow" width="780" />
 
-<p align="center">
-  <b>Cross-platform Local AI Memory Palace CLI</b><br/>
-  Terminal-first roadmap CLI: keep project memory in <code>.rma/</code>, run <code>plan</code> → <code>execute-one</code> → <code>analyze</code>, plug in local LLMs (Ollama) and MemPalace—no hosted dashboard.
-</p>
+# ROADMAP-AGENT
 
-<p align="center">
-  <img src="https://img.shields.io/badge/version-v1.0.0-8b5cf6" alt="version">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="platform">
-  <img src="https://img.shields.io/badge/runtime-bash%20%2B%20powershell-green" alt="runtime">
-  <img src="https://img.shields.io/badge/interface-fzf-orange" alt="interface">
-  <img src="https://img.shields.io/badge/status-active-success" alt="status">
-</p>
+**Terminal-first roadmap workflow** — plain Markdown in `.rma/`, local and remote LLMs, optional MemPalace, optional web UI.
 
-### Documentation at a glance
+[![Version](https://img.shields.io/badge/release-v1.0.1-5b4cdb?style=flat-square)](CHANGELOG.md)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-495057?style=flat-square&logo=docker&logoColor=white)](#deployment-guide)
+[![Runtime](https://img.shields.io/badge/runtime-Bash%20%2B%20PowerShell-2f9e44?style=flat-square)](#runtime-model)
+[![Quick start](https://img.shields.io/badge/read-quick%20start-228be6?style=flat-square)](docs/QUICKSTART.md)
 
-| Doc | What you get |
-|-----|----------------|
-| **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** | **Fast lane by OS** — clone, optional Python/MemPalace setup, `.env`, `init`, `doctor`, and global `rma` on Windows (`launchers/setup-rma.ps1`, PATH refresh). |
-| **[`docs/TESTING.md`](docs/TESTING.md)** | **Tests** — run `pytest` layout checks; copy-paste prompt to extend coverage (doctor JSON, web API, installers). |
-| **[`docs/MANUAL.md`](docs/MANUAL.md)** | **Operator manual** — every command, interactive hub, writing `.rma` Markdown (`description`, `ui`, `stack`, `other`), `analyze` / `analyze-init`, LLM providers, persistence, safety. |
-| **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** | **Process guide** — plan → review → `execute-one` loop, keeping context fresh, low-risk habits. |
-| **[`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg)** | **Visual** — MemPalace mining (directory, limit, dry-run) vs roadmap loop; same concepts as the section below. |
-| **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** | **Sample `.rma` context** — three folders (`weather-app`, `list-sharing`, `devtools-cli`) with `description.md`, `ui.md`, `stack.md`, `other.md`; copy into `.rma/` after `init`. See README there for **MCP** integration notes. |
-| **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** | **End-to-end walkthrough** — import, MemPalace + `.rma` driving **detailed** roadmaps, **agent prompts** for open decisions, **`execute-one`** loop toward a **real shipped app** (mock transcripts). |
-| **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
-| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v1.0.0`, …). |
-| **[`docs/RELEASING.md`](docs/RELEASING.md)** | **Shipping a release** — tags, GitHub releases, source archives, Docker image; why there is no required compiled “binary”. |
-| **[`web/README.md`](web/README.md)** | **Optional web UI** — FastAPI + React: **Guided** (grouped keys + hints) and **Advanced** (filter + bulk `KEY=value`) `.env` editor, footer doc links, `doctor --json`, model probes; dev, single-port, Docker; build-time **`VITE_DOCS_BASE`** for doc URLs. |
+<br/>
 
-**ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
+**[Overview](#what-it-does)** · **[MemPalace & loop](#mempalace-mining-and-the-roadmap-loop)** · **[Layout](#repository-layout)** · **[Runtime](#runtime-model)** · **[Requirements](#requirements)** · **[Quick start](#quick-start)** · **[Setup](#full-setup-workflow)** · **[Commands](#command-reference)** · **[Deploy](#deployment-guide)** · **[Environment](#environment-variables)** · **[`.rma/` best practices](#best-practices-for-the-rma-directory)** · **[Troubleshooting](#troubleshooting)** · **[Security](#security-and-operational-notes)** · **[All docs](#documentation-index)**
+
+</div>
 
 ---
 
-## What It Does
+### Documentation
 
-ROADMAP-AGENT is a **terminal-first workflow** for turning a codebase—**brand new or years old**—into something you can plan and ship in **small, reviewable steps**. It does not replace your editor, Git, or issue tracker. It gives you a **single place in the repo** (the **`.rma/`** folder) where product intent, UX rules, stack facts, and “everything else” live as **plain Markdown**, plus generated **roadmaps** (`plan.md`, `tasks.md`, `run.md`) that stay aligned with reality through **`analyze`** and **`execute-one`**.
+| Resource | Description |
+|----------|-------------|
+| **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** | Fast path by OS — clone, Python/MemPalace, `.env`, `init`, `doctor`, Windows PATH (`launchers/setup-rma.ps1`). |
+| **[`docs/TESTING.md`](docs/TESTING.md)** | Tests — `pytest`, extending coverage (doctor JSON, web API, installers). |
+| **[`docs/MANUAL.md`](docs/MANUAL.md)** | Operator manual — commands, hub, `.rma` Markdown, `analyze` / `analyze-init`, LLM providers, persistence. |
+| **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** | Process — plan → review → `execute-one`, keeping context current. |
+| **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** | Sample `.rma` context (`weather-app`, `list-sharing`, `devtools-cli`); MCP notes in folder README. |
+| **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** | End-to-end walkthrough (mock transcripts): MemPalace + `.rma`, agent prompts, `execute-one`. |
+| **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** | Illustrative session — install → `init` → hub → `plan` / `analyze` / `execute-one`. |
+| **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (`v1.0.0`, …). |
+| **[`docs/RELEASING.md`](docs/RELEASING.md)** | Shipping — tags, GitHub releases, archives, Docker; no required binary artifact. |
+| **[`web/README.md`](web/README.md)** | Optional web UI — FastAPI + React, guided/advanced `.env` editor, `doctor --json`, model probes, Docker, **`VITE_DOCS_BASE`**. |
 
-**How it fits a project**
+Project memory lives in **`.rma/`**; plans and execution run from the **terminal** with **local LLMs** (Ollama by default) when you want repo-aware help — **no** hosted dashboard or vendor lock-in for the core workflow.
+                                                                                                                                                                  
+---
 
-- **Fresh repo:** run **`init`** once. You get templates for `description.md`, `ui.md`, `stack.md`, and `other.md`. Fill them in (or use **`analyze-init`** so an LLM proposes drafts you accept or edit). Then **`plan`** produces a structured **`plan.md`** grounded in that context.
-- **Existing repo:** point the tool at the project root (or **`init`** / **`analyze-init`** there). The same `.rma/` layout applies: the CLI **`analyze`**es the tree and docs to refresh task lists; **`plan`** re-synthesizes the roadmap when scope changes. You are not forced to migrate to a new app structure—ROADMAP-AGENT **wraps** what you already have.
+## What it does
 
-**How MemPalace fits**
+ROADMAP-AGENT is a **terminal-first workflow** for turning a codebase—**new or mature**—into something you can plan and ship in **small, reviewable steps**. It complements your editor, Git, and trackers: one folder, **`.rma/`**, holds product intent, UX rules, stack facts, and notes as **plain Markdown**, while **`plan`**, **`analyze`**, and **`execute-one`** keep **`plan.md`**, **`tasks.md`**, and **`run.md`** tied to the real tree.
 
-**MemPalace** (the **`mempalace`** CLI and Python package, with **ChromaDB** in the project venv) is **optional but powerful**: it **indexes** a directory you choose (often the repo or a subtree) into a **local vector store** so retrieval and “what does this codebase say?” workflows stay **on your machine**. In this toolkit, **mining** is exposed as safe **`mempalace mine … --dry-run`** previews from the menu; a full ingest is a deliberate **`mempalace mine`** you run when ready. Separately, when **`.rma/mempalace`** metadata exists, **`plan`** can fold in **`mempalace wake-up`** context so the LLM sees **retrieval-aware** snippets alongside your `.rma` Markdown. So: **`.rma/`** is the **human-readable contract**; **MemPalace** is **searchable memory** over files—complementary, not redundant.
+### How it fits your project
 
-**LLMs: local-first, not local-only**
+| Scenario | Typical path |
+|----------|----------------|
+| **Greenfield** | `init` → fill `description.md` … `other.md` (or `analyze-init` for LLM-drafted proposals) → `plan`. |
+| **Brownfield** | Point at the repo root → `init` / `analyze-init` → `analyze` refreshes tasks → `plan` when scope shifts. No forced migration—**`.rma/`** wraps what you already have. |
 
-- **Default posture** is **local**: **Ollama** (or any server speaking the same HTTP API) drives **`plan`**, **`analyze-init`**, and agent-style flows—no vendor account required.
-- The same code paths support **OpenAI-compatible** endpoints (**LM Studio**, **vLLM**, hosted APIs, etc.) via **`RMA_LLM_PROVIDER=openllama`** and **`RMA_OPENAI_*`**, and **Anthropic Claude** via **`RMA_LLM_PROVIDER=claude`**. You choose per project in **`.env`**.
-- If no model is available, some flows can **fall back** to heuristics; for **`plan`** you can set **`RMA_ALLOW_PLAN_FALLBACK=1`** in development to emit a static scaffold (not a substitute for a real plan in production).
+### MemPalace (optional)
 
-**Everything else in one line**
+**MemPalace** (`mempalace` CLI + **ChromaDB** in the project venv) **indexes** a directory into a **local vector store** for retrieval on your machine. This repo exposes **safe `mempalace mine … --dry-run`** from the menu; full ingest is an explicit `mempalace mine` when you choose. With **`.rma/mempalace`**, **`plan`** can add **`mempalace wake-up`** text so the model sees retrieval-aware context **and** your `.rma` Markdown—**contract** (Markdown) plus **searchable memory** (vectors).
 
-Interactive **`fzf`** menus (with plain-text fallback), optional **companion web UI** to edit whitelisted **`.env`** keys and run **`doctor`**, and **persistence** installers so **`rma`** can sit on your **PATH**—all of it is **local**, script-driven, and **under your repo’s version control** except secrets (see **Security and operational notes** below).
+### LLM providers
+
+| Mode | Role |
+|------|------|
+| **Local-first** | **Ollama** (default) for `plan`, `analyze-init`, agents — no cloud account required. |
+| **OpenAI-compatible** | LM Studio, vLLM, hosted APIs — `RMA_LLM_PROVIDER=openllama`, **`RMA_OPENAI_*`**. |
+| **Claude** | `RMA_LLM_PROVIDER=claude` + **`ANTHROPIC_API_KEY`**. |
+| **Degraded / dev** | Heuristics where implemented; **`RMA_ALLOW_PLAN_FALLBACK=1`** for a static `plan` scaffold only in development. |
+
+### Interfaces
+
+**`fzf`** menus (text fallback when needed), optional **local web UI** for `.env` + **`doctor`**, and **persistence** so **`rma`** is on your **PATH** — all **local** and git-friendly except secrets ([Security](#security-and-operational-notes)).
 
 ---
 
@@ -109,7 +115,7 @@ ROADMAP-AGENT is designed for **iterated implementation**: **`.rma/*.md`** is th
 
 ---
 
-## Directory Structure
+## Repository layout
 
 ```text
 RoadmapAgent/
@@ -165,7 +171,7 @@ RoadmapAgent/
 
 ---
 
-## Runtime Model
+## Runtime model
 
 ### 1) Launchers
 
@@ -204,19 +210,15 @@ Generated files/directories include:
 - Includes roadmap and persistence-check entries in the same UI.
 
 <figure align="center">
-  <img src="img/tui.png" alt="ROADMAP-AGENT terminal hub menu" width="100%" />
-  <figcaption>
-    <p align="center">
-      <i>Local terminal UI (TUI) hub for configuration and roadmap work — use root <code>RUN.ps1</code>, <code>RUN.sh</code>, or <code>RUN.cmd</code>, or <code>launchers/rma</code> / <code>launchers/roadmap-agent</code> with no arguments to open this menu.</i>
-    </p>
-  </figcaption>
+  <img src="img/tui.png" alt="ROADMAP-AGENT terminal hub menu" width="92%" style="max-width: 920px;" />
+  <figcaption align="center"><sub><i>Terminal hub — run <code>RUN.ps1</code>, <code>RUN.sh</code>, or <code>RUN.cmd</code> at the repo root, or <code>launchers/rma</code> / <code>launchers/roadmap-agent</code> with no arguments.</i></sub></figcaption>
 </figure>
 
 ### 4) Optional companion web UI
 
 <figure align="center">
-  <img src="img/ui.png" alt="ROADMAP-AGENT local web UI" width="100%" />
-  <figcaption><p align="center"><i>Local web UI for easy configuration and management.</i></p></figcaption>
+  <img src="img/ui.png" alt="ROADMAP-AGENT local web UI" width="92%" style="max-width: 920px;" />
+  <figcaption align="center"><sub><i>Local web UI — guided <code>.env</code> editing, diagnostics, and model checks (optional companion to the terminal hub).</i></sub></figcaption>
 </figure>
 
 A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelisted keys as `load_rma_env_file()` in `.env`, run **`rma doctor --json`**, read **`rma tools --json`**, probe Ollama / OpenAI-compatible endpoints, and stream **`ollama pull`**. The backend invokes **`scripts/windows/roadmap-agent.ps1`** or **`scripts/unix/roadmap-agent.sh`** under **`RMA_WEB_APP_ROOT`** (the toolkit checkout), with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the app directory you pick in the UI — same bridge behavior as the CLI, not a separate SaaS.
@@ -243,29 +245,26 @@ Full reference: **[`web/README.md`](web/README.md)**, **[`docs/MANUAL.md`](docs/
 
 ## Requirements
 
-## Windows
+### Windows
 
-- PowerShell 7+ recommended (`pwsh`), Windows PowerShell also supported through launcher fallback.
-- `bash` required for full interactive/menu runtime on Windows bridge mode (WSL bash or Git Bash).
-- `git` recommended for project/branch/remote detection.
-- `python` optional (for health checks).
-- `fzf` is auto-installed locally if missing.
+- **PowerShell 7+** (`pwsh`) recommended; Windows PowerShell supported via launcher fallback.
+- **`bash`** — full hub/menu on Windows uses WSL or **Git Bash**.
+- **`git`** recommended (branch/remote detection).
+- **`python`** optional (health checks); **`fzf`** auto-installed when missing.
 
-## Linux/macOS
+### Linux / macOS
 
-- `bash`
-- `git` recommended
-- `python` optional
-- `fzf` (auto-install supported in runtime when absent)
+- **`bash`**, **`git`** recommended, **`python`** optional.
+- **`fzf`** — auto-install attempted when absent.
 
-## Optional Tools
+### Optional components
 
-- **`mempalace` CLI** and Python packages **`mempalace`** + **`chromadb`** in the project venv — required for **mine** (and for **`mempalace wake-up`** when generating **`plan`**). **`plan`** also needs a working **LLM** (e.g. Ollama). Run the setup script under `scripts/` to install MemPalace. See **`RMA_REQUIRE_MEMPALACE`**, **`RMA_MEMPALACE_BIN`**, and **`RMA_ALLOW_PLAN_FALLBACK`** in `.env.example`.
-- **Companion web UI** — Python **`requirements-web.txt`** for the API; **Node.js 18+** and **`npm`** only if you run the Vite dev server or build `web/frontend/dist`. See **[`web/README.md`](web/README.md)**.
+- **MemPalace** — `mempalace` + **`chromadb`** in the project venv for **mine** and optional **`mempalace wake-up`** on **`plan`**. **`plan`** still needs a working **LLM** (e.g. Ollama). Install via `scripts/*/setup-local-models-mempalace.*`; see **`.env.example`** (`RMA_REQUIRE_MEMPALACE`, `RMA_MEMPALACE_BIN`, `RMA_ALLOW_PLAN_FALLBACK`).
+- **Web UI** — **`requirements-web.txt`** for the API; **Node.js 18+** / **`npm`** for Vite dev or `web/frontend/dist`. See **[`web/README.md`](web/README.md)**.
 
 ---
 
-## Quick Start
+## Quick start
 
 ```bash
 # from clone root (launchers/ holds CLI shims; root has only RUN.*)
@@ -315,7 +314,7 @@ That script rebuilds `$env:Path` from the Machine + User registry values (the sa
 
 ---
 
-## Commands
+## Command reference
 
 - `init` - bootstrap `.rma/` and template files; when the toolkit checkout differs from the project root, also copies the CLI into **`.roadmap-agent/`** and adds project-local **`rma` / `rma.ps1` / `rma.cmd`** (see **`docs/QUICKSTART.md`**). Flags: **`-y`**, **`--embed`**, **`--no-embed`**.
 - `status` - show project/branch and task execution summary.
@@ -407,11 +406,11 @@ These options are accessible from **`launchers/`** (`roadmap-agent`, `rma`, `rma
 
 ---
 
-## Deployment Guide
+## Deployment guide
 
-This section covers how to run ROADMAP-AGENT in development, team environments, and persistent/global mode.
+Use the toolkit **per repo**, **globally on PATH**, or **in Docker**, depending on your team.
 
-## A) Project-local deployment (recommended default)
+### A) Project-local (recommended)
 
 Use repository scripts directly, keeping everything scoped to the current project.
 
@@ -438,9 +437,9 @@ chmod +x launchers/roadmap-agent launchers/rma scripts/unix/roadmap-agent.sh
 
 Best when you want isolated behavior per repository.
 
-## B) Global/persistence deployment
+### B) Global / persistence
 
-Global mode is intended to make `roadmap-agent` / `rma` available from any directory.
+Install so **`roadmap-agent`** / **`rma`** work from any directory.
 
 ### Windows
 
@@ -456,7 +455,7 @@ Global mode is intended to make `roadmap-agent` / `rma` available from any direc
 - Runtime installs command wrappers under `/usr/local/bin`.
 - Runtime can update the detected shell RC file with a deduplicated managed PATH block. Open a **new** terminal after install so PATH and profile changes apply.
 
-## C) Container deployment (Docker)
+### C) Docker
 
 Build:
 
@@ -477,7 +476,7 @@ Notes:
 
 ---
 
-## Environment Variables
+## Environment variables
 
 The runtime works without custom environment variables, but supports useful overrides and inherited shell configuration.
 
@@ -519,7 +518,7 @@ The runtime works without custom environment variables, but supports useful over
 
 ---
 
-## `.rma/` Best Practices
+## Best practices for the `.rma/` directory
 
 - Keep `.rma/description.md` current with product intent and hard constraints.
 - Use `.rma/ui.md` for CLI UX rules and formatting expectations.
@@ -532,30 +531,26 @@ The runtime works without custom environment variables, but supports useful over
 
 ## Troubleshooting
 
-## Menu does not open
+### Menu does not open
 
-- Ensure `fzf` is installed/available in PATH.
-- Re-run command from project root.
-- Try non-interactive command (`status`) to confirm runtime pathing.
+- Confirm **`fzf`** on `PATH` (or let the runtime install it).
+- Run from the **project root**; try **`status`** to verify wiring.
 
-## Missing `.rma` warnings
+### Missing `.rma` warnings
 
-- Run `roadmap-agent init`.
-- Confirm `.rma/description.md`, `ui.md`, `stack.md`, `other.md` exist.
+- Run **`roadmap-agent init`**.
+- Ensure **`.rma/description.md`**, **`ui.md`**, **`stack.md`**, **`other.md`** exist.
 
-## Windows script blocked by AV
+### Windows script blocked by antivirus
 
-- Keep runtime scripts small/modular and avoid unnecessary obfuscation patterns.
-- Run from trusted folder and verify file integrity from source control.
-- If your environment blocks script content, test with `status` first after each change.
-- This repository currently uses a Windows PowerShell bridge strategy to reduce AV false positives by keeping heavy runtime logic in shell scripts.
+- Run from a **trusted** directory; avoid obfuscated wrappers.
+- Heavy logic stays in **shell** scripts to reduce false positives; try **`status`** after changes.
 
-## Persistence not detected
+### Persistence not detected
 
-- Run `persistence-check` (or `.\launchers\setup-rma.ps1 -CheckOnly -Scope Auto` on Windows).
-- Verify the install `bin` directory is on User or Machine PATH (`%LOCALAPPDATA%\Roadmap-Agent\bin` for typical user installs).
-- On Windows, run `.\refresh-rma-path.ps1` in the current PowerShell session, or open a **new** terminal after install.
-- If `rma` still fails, reinstall from the repo with `.\launchers\setup-rma.ps1 -Scope User` and confirm `Test-Path "$env:LOCALAPPDATA\Roadmap-Agent\scripts\windows\roadmap-agent.ps1"` is true.
+- **`persistence-check`** or **`.\launchers\setup-rma.ps1 -CheckOnly -Scope Auto`**.
+- Confirm **`…\Roadmap-Agent\bin`** on PATH; **`.\refresh-rma-path.ps1`** in the current PowerShell session if needed.
+- Reinstall with **`.\launchers\setup-rma.ps1 -Scope User`** if commands still fail.
 
 ---
 
@@ -581,9 +576,9 @@ This project is **script-first** (bash + PowerShell). There is no official singl
 
 ---
 
-## Documentation Index
+## Documentation index
 
-**Onboarding and workflow**
+**Onboarding & workflow**
 
 - [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — fastest path by OS (Windows, Linux, macOS, Docker)
 - [`docs/TESTING.md`](docs/TESTING.md) — repository tests and how to grow the suite
