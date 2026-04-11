@@ -20,6 +20,11 @@ ENV_FILE_KEYS: frozenset[str] = frozenset(
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
         "GITHUB_TOKEN",
+        "RMA_WEB_HOST",
+        "RMA_WEB_PORT",
+        "RMA_WEB_VITE_PORT",
+        "RMA_WEB_FREE_PORT_ASK",
+        "RMA_WEB_VITE_PROXY_TARGET",
     }
 )
 

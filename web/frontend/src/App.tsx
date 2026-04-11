@@ -42,6 +42,17 @@ type PyEnvRow = {
   inProject: boolean
 }
 
+type WebStackInfo = {
+  projectRoot?: string
+  effectiveApi: { host: string; port: number }
+  fromProjectDotEnv: Record<string, string>
+  fromToolkitYaml?: Record<string, unknown>
+  toolkitYamlPath: string
+  toolkitYamlExists: boolean
+  yamlExamplePath: string
+  yamlExampleExists: boolean
+}
+
 type Masked = { masked: boolean; last4?: string }
 type EnvValues = Record<string, string | Masked>
 
@@ -92,6 +103,7 @@ export default function App() {
   const [pyEnvs, setPyEnvs] = useState<PyEnvRow[]>([])
   const [pyEnvsErr, setPyEnvsErr] = useState('')
   const [pyEnvsLoading, setPyEnvsLoading] = useState(false)
+  const [webStack, setWebStack] = useState<WebStackInfo | null>(null)
 
   const q = useMemo(
     () => new URLSearchParams({ project: project.trim() }).toString(),
@@ -118,13 +130,15 @@ export default function App() {
       setForm({})
       setProjectInfo(null)
       setDoctor(null)
+      setWebStack(null)
       return
     }
     try {
-      const [mRes, eRes, pRes] = await Promise.all([
+      const [mRes, eRes, pRes, wRes] = await Promise.all([
         fetch(`/api/manifest?${q}`),
         fetch(`/api/env?${q}`),
         fetch(`/api/project-info?${q}`),
+        fetch(`/api/web-stack?${q}`),
       ])
       if (!mRes.ok) throw new Error(await mRes.text())
       if (!eRes.ok) throw new Error(await eRes.text())
@@ -135,6 +149,11 @@ export default function App() {
       setForm(nextForm)
       setBulkText(formToBulkLines(nextForm, m.env.filter((k) => !SKIP_MANIFEST_KEYS.has(k))))
       if (pRes.ok) setProjectInfo(await pRes.json())
+      if (wRes.ok) {
+        setWebStack((await wRes.json()) as WebStackInfo)
+      } else {
+        setWebStack(null)
+      }
     } catch (e) {
       setErr(String(e))
     }
@@ -708,6 +727,76 @@ export default function App() {
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+
+            <h3 className="subcard-title">Web stack (API &amp; Vite)</h3>
+            <p className="field-hint" style={{ marginTop: 0 }}>
+              The <strong>running</strong> FastAPI server uses the toolkit process env and optional{' '}
+              <code className="inline-code">web/rma-web.yaml</code> (see{' '}
+              <code className="inline-code">web/rma-web.config.example.yaml</code>). When you start{' '}
+              <code className="inline-code">web-api</code> / <code className="inline-code">web-frontend</code> from the
+              hub, the <strong>project</strong> <code className="inline-code">.env</code> is loaded first — edit the
+              &quot;Web UI (hub VII / VIII)&quot; group above to set ports, proxy URL, and whether to prompt (y/N) before
+              killing processes on busy ports. Values in <code className="inline-code">.env</code> override YAML for those
+              CLI flows; YAML plus <code className="inline-code">RMA_WEB_*</code> on the API process control this server.
+            </p>
+            {webStack && (
+              <div className="web-stack-block" style={{ marginTop: '0.75rem' }}>
+                <p className="msg" style={{ marginTop: 0 }}>
+                  <strong>This API</strong> is bound to{' '}
+                  <code className="inline-code">
+                    http://{webStack.effectiveApi.host}:{webStack.effectiveApi.port}
+                  </code>
+                  .
+                </p>
+                {webStack.projectRoot ? (
+                  <p className="field-hint" style={{ marginTop: '0.35rem' }}>
+                    Selected project root: <code className="inline-code">{webStack.projectRoot}</code>
+                  </p>
+                ) : null}
+                <p className="field-hint" style={{ marginTop: '0.5rem' }}>
+                  <strong>Project .env (web-related keys)</strong> — used when the hub/CLI starts the stack; does not
+                  retroactively reconfigure this already-running server.
+                </p>
+                {Object.keys(webStack.fromProjectDotEnv).length > 0 ? (
+                  <ul className="web-stack-env-list" style={{ margin: '0.35rem 0 0', paddingLeft: '1.25rem' }}>
+                    {Object.entries(webStack.fromProjectDotEnv).map(([k, v]) => (
+                      <li key={k}>
+                        <code className="inline-code">{k}</code> = <code className="inline-code">{v}</code>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="field-hint" style={{ marginTop: '0.25rem' }}>
+                    No <code className="inline-code">RMA_WEB_*</code> keys in this project&apos;s .env yet — defaults from
+                    the toolkit apply when you run the hub commands.
+                  </p>
+                )}
+                <p className="field-hint" style={{ marginTop: '0.65rem' }}>
+                  <strong>Toolkit YAML</strong>{' '}
+                  <code className="inline-code" title={webStack.toolkitYamlPath}>
+                    {webStack.toolkitYamlExists ? 'found' : 'missing'}
+                  </code>
+                  {webStack.yamlExampleExists ? (
+                    <>
+                      {' '}
+                      · example: <code className="inline-code">{webStack.yamlExamplePath}</code>
+                    </>
+                  ) : null}
+                </p>
+                {webStack.fromToolkitYaml && Object.keys(webStack.fromToolkitYaml).length > 0 ? (
+                  <details style={{ marginTop: '0.5rem' }}>
+                    <summary className="details-summary">Parsed toolkit YAML (non-secret fields)</summary>
+                    <pre className="pre pre-compact">{JSON.stringify(webStack.fromToolkitYaml, null, 2)}</pre>
+                  </details>
+                ) : webStack.toolkitYamlExists ? (
+                  <p className="field-hint" style={{ marginTop: '0.35rem' }}>
+                    YAML file exists but has no <code className="inline-code">api</code> /{' '}
+                    <code className="inline-code">cors_origins</code> / <code className="inline-code">vite</code> sections we
+                    surface here.
+                  </p>
+                ) : null}
               </div>
             )}
 

@@ -19,6 +19,7 @@ from .env_service import apply_masks_for_client, mask_values, merge_env_file, pa
 from .python_envs import discover_python_envs
 from .rma_runner import doctor_json, run_rma, tools_manifest
 from .settings import get_settings, parse_cors_list
+from .web_yaml import read_web_yaml_stack_meta
 
 app = FastAPI(title="ROADMAP-AGENT Web", version="1.0.0")
 _settings = get_settings()
@@ -105,6 +106,41 @@ def api_project_info(project: str) -> dict:
         "root": str(root),
         "has_rma_dir": rma.is_dir(),
         "has_env": (root / ".env").is_file(),
+    }
+
+
+_WEB_STACK_KEYS = frozenset(
+    {
+        "RMA_WEB_HOST",
+        "RMA_WEB_PORT",
+        "RMA_WEB_VITE_PORT",
+        "RMA_WEB_FREE_PORT_ASK",
+        "RMA_WEB_VITE_PROXY_TARGET",
+    },
+)
+
+
+@app.get("/api/web-stack")
+def api_web_stack(project: str) -> dict:
+    """Hub VII/VIII-related settings: project .env subset + running API effective bind + YAML paths."""
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    s = get_settings()
+    app_root = s.app_root.resolve()
+    raw = parse_env_file(root / ".env")
+    from_env = {k: raw[k] for k in _WEB_STACK_KEYS if k in raw}
+    y_tool = app_root / "web" / "rma-web.yaml"
+    y_ex = app_root / "web" / "rma-web.config.example.yaml"
+    return {
+        "projectRoot": str(root),
+        "effectiveApi": {"host": s.host, "port": s.port},
+        "fromProjectDotEnv": from_env,
+        "fromToolkitYaml": read_web_yaml_stack_meta(app_root),
+        "toolkitYamlPath": str(y_tool),
+        "toolkitYamlExists": y_tool.is_file(),
+        "yamlExamplePath": str(y_ex),
+        "yamlExampleExists": y_ex.is_file(),
     }
 
 

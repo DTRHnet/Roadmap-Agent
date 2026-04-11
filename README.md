@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="img/main.svg" alt="ROADMAP-AGENT — Local AI Memory Palace CLI" width="100%" />
+  <img src="img/rma.jpg" alt="ROADMAP-AGENT — Local AI Memory Palace CLI" width="100%" />
 </p>
 
 <h1 align="center">ROADMAP-AGENT</h1>
