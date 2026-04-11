@@ -90,7 +90,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|RMA_WEB_HOST|RMA_WEB_PORT|RMA_WEB_VITE_PORT|RMA_WEB_FREE_PORT_ASK|RMA_WEB_VITE_PROXY_TARGET|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -114,6 +114,10 @@ load_rma_env_file() {
   RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
   RMA_PLAN_INTERACTIVE="${RMA_PLAN_INTERACTIVE:-1}"
   RMA_PLAN_INTERACTIVE_MAX="${RMA_PLAN_INTERACTIVE_MAX:-15}"
+  RMA_WEB_HOST="${RMA_WEB_HOST:-127.0.0.1}"
+  RMA_WEB_PORT="${RMA_WEB_PORT:-8765}"
+  RMA_WEB_VITE_PORT="${RMA_WEB_VITE_PORT:-5173}"
+  RMA_WEB_FREE_PORT_ASK="${RMA_WEB_FREE_PORT_ASK:-1}"
 }
 
 configure_python_runtime() {
@@ -1555,6 +1559,77 @@ cmd_setup_python_venv() {
   mempalace_setup_local_models
 }
 
+# Paths passed as CLI args to Windows python.exe from WSL must be Windows paths or pip/open fail.
+rma_path_for_windows_python() {
+  local p="$1"
+  if [[ -z "${RMA_PYTHON_BIN:-}" ]]; then
+    printf '%s' "$p"
+    return 0
+  fi
+  case "$RMA_PYTHON_BIN" in
+    *.exe)
+      if command -v wslpath >/dev/null 2>&1; then
+        wslpath -w "$p" 2>/dev/null || printf '%s' "$p"
+      else
+        printf '%s' "$p"
+      fi
+      ;;
+    *)
+      printf '%s' "$p"
+      ;;
+  esac
+}
+
+# Returns 0 if TCP port is free on host (bind test), 1 if something is listening.
+rma_tcp_port_free() {
+  local host="$1"
+  local port="$2"
+  local py
+  py="$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)"
+  [[ -n "$py" ]] || return 1
+  if ! "$py" -c "import socket;s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);s.bind(('$host',int('$port')));s.close()" 2>/dev/null; then
+    return 1
+  fi
+  return 0
+}
+
+# If port busy, optionally kill listeners (best-effort; WSL may not see Windows listeners).
+rma_try_free_tcp_port() {
+  local host="${1:-127.0.0.1}"
+  local port="$2"
+  local check_host="$host"
+  [[ "$check_host" == "0.0.0.0" ]] && check_host="127.0.0.1"
+  if rma_tcp_port_free "$check_host" "$port"; then
+    return 0
+  fi
+  warn "TCP $host:$port appears in use (bind test failed)."
+  if [[ "${RMA_WEB_FREE_PORT_ASK:-1}" != "1" ]]; then
+    warn "Set RMA_WEB_FREE_PORT_ASK=1 to be prompted, or free the port manually."
+    return 1
+  fi
+  local ans="n"
+  printf "Stop process(es) listening on port %s? (y/N): " "$port"
+  read -r ans || true
+  if [[ ! "$ans" =~ ^[Yy]$ ]]; then
+    info "Aborted. Change RMA_WEB_PORT / RMA_WEB_VITE_PORT in .env or stop the other service."
+    return 1
+  fi
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${port}/tcp" 2>/dev/null || true
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | while read -r pid; do
+      [[ -n "${pid:-}" ]] && kill "$pid" 2>/dev/null || true
+    done
+  fi
+  sleep 1
+  if rma_tcp_port_free "$check_host" "$port"; then
+    info "Port $port is now free."
+    return 0
+  fi
+  warn "Port $port still busy (another OS user, Windows-only listener, or needs sudo). Try a different port in .env."
+  return 1
+}
+
 # Web UI: toolkit paths (APP_DIR) must contain FastAPI app + requirements-web.txt.
 web_toolkit_ok() {
   local req="$APP_DIR/requirements-web.txt"
@@ -1640,8 +1715,11 @@ cmd_web_install_backend_deps() {
     return 1
   }
   export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
+  local req_unix="$APP_DIR/requirements-web.txt"
+  local req_for_pip="$req_unix"
+  req_for_pip="$(rma_path_for_windows_python "$req_unix")"
   info "pip install -r requirements-web.txt (web backend; timeout ${PIP_DEFAULT_TIMEOUT}s)..."
-  if ! "$RMA_PYTHON_BIN" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" -r "$APP_DIR/requirements-web.txt"; then
+  if ! "$RMA_PYTHON_BIN" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" -r "$req_for_pip"; then
     warn "pip install failed (network or PyPI). Retry, set PIP_INDEX_URL, or use a faster network."
     return 1
   fi
@@ -1649,16 +1727,25 @@ cmd_web_install_backend_deps() {
 }
 
 cmd_web_start_api() {
+  load_rma_env_file
+  configure_python_runtime
   web_toolkit_ok || return 1
   cmd_web_install_backend_deps || return 1
   export RMA_WEB_APP_ROOT="$APP_DIR"
-  info "Web API: http://127.0.0.1:8765  (OpenAPI: /docs)"
-  info "Frontend: run in another terminal — roadmap-agent web-frontend  (hub: VIII)"
+  local wh="${RMA_WEB_HOST:-127.0.0.1}"
+  local wp="${RMA_WEB_PORT:-8765}"
+  rma_try_free_tcp_port "$wh" "$wp" || return 1
+  export RMA_WEB_HOST="$wh"
+  export RMA_WEB_PORT="$wp"
+  info "Web API: http://${wh}:${wp}  (OpenAPI: /docs)"
+  info "Frontend: roadmap-agent web-frontend (hub: VIII) — set RMA_WEB_VITE_PROXY_TARGET if API port differs."
   cd "$APP_DIR/web/backend" || return 1
-  "$RMA_PYTHON_BIN" -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+  "$RMA_PYTHON_BIN" -m uvicorn app.main:app --host "$wh" --port "$wp" --reload
 }
 
 cmd_web_start_frontend() {
+  load_rma_env_file
+  configure_python_runtime
   web_toolkit_ok || return 1
   [[ -f "$APP_DIR/web/frontend/package.json" ]] || {
     warn "Missing web/frontend/package.json"
@@ -1668,11 +1755,17 @@ cmd_web_start_frontend() {
     warn "npm not on PATH. Install Node.js 18+."
     return 1
   fi
+  local wh="${RMA_WEB_HOST:-127.0.0.1}"
+  local wp="${RMA_WEB_PORT:-8765}"
+  local vp="${RMA_WEB_VITE_PORT:-5173}"
+  rma_try_free_tcp_port "127.0.0.1" "$vp" || return 1
+  local proxy="${RMA_WEB_VITE_PROXY_TARGET:-http://${wh}:${wp}}"
+  export RMA_WEB_VITE_PROXY_TARGET="$proxy"
   info "npm install (web frontend)..."
   (cd "$APP_DIR/web/frontend" && npm install) || return 1
-  info "Vite: http://127.0.0.1:5173  (proxies /api → 127.0.0.1:8765)"
+  info "Vite: http://127.0.0.1:${vp}  (proxy /api → ${proxy})"
   cd "$APP_DIR/web/frontend" || return 1
-  npm run dev
+  npm run dev -- --port "$vp" --host 127.0.0.1
 }
 
 # Hub / CLI: copy a selected project-root .env* file to .env (backup existing .env).
@@ -3237,7 +3330,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","web-api","web-backend","web-frontend","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","web-api","web-backend","web-frontend","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","RMA_WEB_HOST","RMA_WEB_PORT","RMA_WEB_VITE_PORT","RMA_WEB_FREE_PORT_ASK","RMA_WEB_VITE_PROXY_TARGET","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
       ;;
     *)
       cat <<'EOF'

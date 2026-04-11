@@ -6,9 +6,14 @@ export const TOGGLE_KEYS = new Set([
   'RMA_REQUIRE_MEMPALACE',
   'RMA_ALLOW_PLAN_FALLBACK',
   'RMA_PLAN_INTERACTIVE',
+  'RMA_WEB_FREE_PORT_ASK',
 ])
 
-export const NUMBER_KEYS = new Set(['RMA_PLAN_INTERACTIVE_MAX'])
+export const NUMBER_KEYS = new Set([
+  'RMA_PLAN_INTERACTIVE_MAX',
+  'RMA_WEB_PORT',
+  'RMA_WEB_VITE_PORT',
+])
 
 export type EnvGroup = { id: string; title: string; blurb: string; keys: string[] }
 
@@ -66,6 +71,19 @@ export const ENV_GROUPS: EnvGroup[] = [
     blurb: 'Optional tokens for tooling (never commit real values).',
     keys: ['GITHUB_TOKEN'],
   },
+  {
+    id: 'web-stack',
+    title: 'Web UI (hub VII / VIII)',
+    blurb:
+      'Ports and prompts for roadmap-agent web-api / web-frontend. Also set RMA_WEB_* on the API process (uvicorn). Optional toolkit file web/rma-web.yaml — see web/rma-web.config.example.yaml.',
+    keys: [
+      'RMA_WEB_HOST',
+      'RMA_WEB_PORT',
+      'RMA_WEB_VITE_PORT',
+      'RMA_WEB_FREE_PORT_ASK',
+      'RMA_WEB_VITE_PROXY_TARGET',
+    ],
+  },
 ]
 
 export const ENV_HINTS: Record<string, string> = {
@@ -88,6 +106,13 @@ export const ENV_HINTS: Record<string, string> = {
   RMA_MEMPALACE_BIN: 'Optional absolute path to mempalace executable.',
   RMA_MEMPALACE_MINE_DIR: 'Directory passed to mempalace mine <dir>; default project root.',
   GITHUB_TOKEN: 'Optional; for authenticated GitHub API from rma tooling.',
+  RMA_WEB_HOST: 'FastAPI bind address (default 127.0.0.1). Use 0.0.0.0 only on trusted networks.',
+  RMA_WEB_PORT: 'FastAPI port (default 8765). Must match Vite proxy unless you set RMA_WEB_VITE_PROXY_TARGET.',
+  RMA_WEB_VITE_PORT: 'Vite dev server port (default 5173). Hub VIII passes this to npm run dev.',
+  RMA_WEB_FREE_PORT_ASK:
+    '1 = if the API or Vite port is busy, prompt (y/N) to run fuser/lsof kill on that TCP port before starting. 0 = fail immediately.',
+  RMA_WEB_VITE_PROXY_TARGET:
+    'Full base URL for the API from the browser (e.g. http://127.0.0.1:8765). Exported when starting Vite so /api proxies correctly.',
 }
 
 export function parseBulkEnv(text: string, allowedKeys: Set<string>): Record<string, string> {

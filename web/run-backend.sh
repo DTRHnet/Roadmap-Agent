@@ -27,4 +27,6 @@ fi
 
 cd "$here/backend"
 "$py" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" -r "$repo/requirements-web.txt"
-exec "$py" -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+listen_host="${RMA_WEB_HOST:-127.0.0.1}"
+listen_port="${RMA_WEB_PORT:-8765}"
+exec "$py" -m uvicorn app.main:app --host "$listen_host" --port "$listen_port" --reload

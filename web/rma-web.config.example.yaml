@@ -1,0 +1,34 @@
+# ROADMAP-AGENT — optional web stack defaults (YAML)
+# -----------------------------------------------------------------------------
+# Copy to "rma-web.yaml" beside this file (i.e. web/rma-web.yaml in the toolkit)
+# to set defaults that apply before environment variables. Pydantic still reads
+# RMA_WEB_* from the process environment; env wins over this file.
+#
+# Project .env can also set RMA_WEB_HOST, RMA_WEB_PORT, RMA_WEB_VITE_PORT,
+# RMA_WEB_FREE_PORT_ASK, RMA_WEB_VITE_PROXY_TARGET — those are loaded by
+# load_rma_env_file() when you start web-api / web-frontend from the hub or CLI.
+#
+# api.host — bind address for uvicorn (use 127.0.0.1 unless you trust the network).
+# api.port — FastAPI listen port; match Vite proxy and vite.proxy_target below.
+# cors_origins — list of browser origins allowed to call the API (CORS).
+#
+# vite.* — documented defaults for hub/Vite only; the CLI loads hub env from the
+#   project .env (RMA_WEB_VITE_PORT, etc.). Copy values into .env or duplicate here
+#   as a reference. Environment variables always override web/rma-web.yaml for the API.
+
+api:
+  host: 127.0.0.1
+  port: 8765
+
+cors_origins:
+  - http://127.0.0.1:5173
+  - http://localhost:5173
+
+# Optional: token for mutating API routes (same as RMA_WEB_ADMIN_TOKEN env).
+# admin_token: change-me
+
+# Optional reference for Vite / port-free prompts (mirror into project .env for CLI).
+# vite:
+#   port: 5173
+#   free_port_ask: true
+#   proxy_target: http://127.0.0.1:8765

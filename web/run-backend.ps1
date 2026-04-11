@@ -68,11 +68,13 @@ $env:RMA_WEB_APP_ROOT = $repo.Path
 if (-not $env:PIP_DEFAULT_TIMEOUT) { $env:PIP_DEFAULT_TIMEOUT = "120" }
 
 Set-Location $backend
+$listenHost = if ($env:RMA_WEB_HOST) { $env:RMA_WEB_HOST } else { "127.0.0.1" }
+$listenPort = if ($env:RMA_WEB_PORT) { $env:RMA_WEB_PORT } else { "8765" }
 if ($py -eq "py") {
   & py @("-3", "-m", "pip", "install", "--retries", "8", "--default-timeout=$($env:PIP_DEFAULT_TIMEOUT)", "-r", $req)
-  & py @("-3", "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8765", "--reload")
+  & py @("-3", "-m", "uvicorn", "app.main:app", "--host", $listenHost, "--port", $listenPort, "--reload")
 }
 else {
   & $py -m pip install --retries 8 "--default-timeout=$($env:PIP_DEFAULT_TIMEOUT)" -r $req
-  & $py -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+  & $py -m uvicorn app.main:app --host $listenHost --port $listenPort --reload
 }
