@@ -65,6 +65,7 @@ TOOLKIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(pwd -P)"
 export ROADMAP_AGENT_APP_ROOT="$TOOLKIT_ROOT"
 export ROADMAP_AGENT_PROJECT_ROOT="$PROJECT_ROOT"
+export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
 
 ESC=$'\033'
 if [[ -t 1 ]] && [[ "${NO_COLOR:-}" != "1" ]] && [[ "${TERM:-}" != "dumb" ]]; then

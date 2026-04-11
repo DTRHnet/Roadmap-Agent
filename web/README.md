@@ -10,7 +10,7 @@ Local **FastAPI** backend + **Vite/React** SPA to edit a project **`.env`** (key
 
 | Piece | Notes |
 |--------|--------|
-| **Python 3** | Backend: `pip install -r requirements-web.txt` from repo root. |
+| **Python 3** | Backend: `pip install -r requirements-web.txt` from repo root. Use **one** venv style per clone: WSL/Linux (`bin/python`) **or** Windows (`Scripts\python.exe`); mixing causes broken `pip` (see **docs/TROUBLESHOOTING.md** §9). |
 | **Node.js 18+** | Only for **frontend dev** (`npm run dev`). Not required if you only use the API or a pre-built `web/frontend/dist`. |
 | **Windows** | `pwsh` or `powershell` on `PATH`; `scripts/windows/roadmap-agent.ps1` must exist under **`RMA_WEB_APP_ROOT`**. |
 | **Linux / macOS** | `bash` on `PATH`; `scripts/unix/roadmap-agent.sh` under **`RMA_WEB_APP_ROOT`**. |

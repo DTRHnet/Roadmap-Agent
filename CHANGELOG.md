@@ -11,9 +11,14 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 - **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`docs/RELEASING.md`**.
 - **Hub VII / VIII** and CLI **`web-api`** (**`web-backend`**) / **`web-frontend`**: start the optional web stack from the same entrypoint as the rest of ROADMAP-AGENT — ensure **`.rma/venv`** (create with **`python3 -m venv`** if missing), **`pip install -r requirements-web.txt`** before **uvicorn**, and **`npm install`** before **Vite** (`scripts/unix/roadmap-agent.sh`).
 
+### Fixed
+
+- **Web UI / `.rma/venv`**: `configure_python_runtime` honors **Windows** `Scripts\python.exe`; **`rma_project_venv_must_recreate`** drops Linux/WSL-only venvs when running under **Git Bash/MSYS**; **`pip install`** for the web stack uses **`PIP_DEFAULT_TIMEOUT`** (default 120) and retries; **`web/run-backend.ps1`** resolves **`ROADMAP_AGENT_PROJECT_ROOT`**, detects WSL-style venv from PowerShell, and uses the Windows interpreter explicitly.
+- **PyPI timeouts during bootstrap**: **`RUN.ps1`**, **`RUN.sh`**, and **`scripts/*/setup-local-models-mempalace.*`** now export **`PIP_DEFAULT_TIMEOUT`** (default **120**) and pass **`--retries 8 --default-timeout=…`** to **`pip install`** so slow links do not fail at the default **15s** read timeout.
+
 ### Documentation
 
-- **Companion web UI**: expanded **[`web/README.md`](web/README.md)** (prerequisites, `RMA_WEB_*`, dev vs single-port vs Docker, security); linked and summarized from **[`README.md`](README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**, **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)**, **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**, **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)**; **`.env.example`** comments for **`RMA_WEB_*`**.
+- **Companion web UI**: expanded **[`web/README.md`](web/README.md)** (prerequisites, `RMA_WEB_*`, dev vs single-port vs Docker, security); linked and summarized from **[`README.md`](README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**, **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)**, **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**, **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** (including **§9** WSL vs Windows venv); **`.env.example`** comments for **`RMA_WEB_*`**.
 
 ## [1.0.0] - 2026-04-10
 

@@ -124,6 +124,21 @@ configure_python_runtime() {
   export RMA_PYTHON_VENV_DIR="$vdir"
   export RMA_PYTHON_BIN=""
 
+  # Windows Git Bash / MSYS: stdlib venv uses Scripts\python.exe (no bin/python).
+  case "${OSTYPE:-}" in
+    msys*|cygwin*)
+      if [[ -x "$vdir/Scripts/python.exe" ]]; then
+        export VIRTUAL_ENV="$vdir"
+        case ":$PATH:" in
+          *":$vdir/Scripts:"*) ;;
+          *) export PATH="$vdir/Scripts:$PATH" ;;
+        esac
+        export RMA_PYTHON_BIN="$vdir/Scripts/python.exe"
+        return 0
+      fi
+      ;;
+  esac
+
   if [[ -x "$vdir/bin/python" ]]; then
     export VIRTUAL_ENV="$vdir"
     case ":$PATH:" in
@@ -134,11 +149,67 @@ configure_python_runtime() {
     return 0
   fi
 
+  if [[ -x "$vdir/Scripts/python.exe" ]]; then
+    export VIRTUAL_ENV="$vdir"
+    case ":$PATH:" in
+      *":$vdir/Scripts:"*) ;;
+      *) export PATH="$vdir/Scripts:$PATH" ;;
+    esac
+    export RMA_PYTHON_BIN="$vdir/Scripts/python.exe"
+    return 0
+  fi
+
   if command -v python >/dev/null 2>&1; then
     export RMA_PYTHON_BIN="$(command -v python)"
   elif command -v python3 >/dev/null 2>&1; then
     export RMA_PYTHON_BIN="$(command -v python3)"
   fi
+}
+
+# Return 0 if .rma/venv should be removed (wrong OS family vs shell, or broken python).
+rma_project_venv_must_recreate() {
+  local vdir="$1"
+  [[ -d "$vdir" ]] || return 1
+  [[ -n "$(ls -A "$vdir" 2>/dev/null)" ]] || return 1
+
+  local is_msys=0
+  case "${OSTYPE:-}" in
+    msys*|cygwin*) is_msys=1 ;;
+  esac
+
+  local has_unix=0 has_win=0
+  [[ -x "$vdir/bin/python" ]] && has_unix=1
+  [[ -x "$vdir/Scripts/python.exe" ]] && has_win=1
+
+  if [[ "$is_msys" -eq 1 ]]; then
+    if [[ "$has_win" -eq 1 ]]; then
+      if "$vdir/Scripts/python.exe" -c "import sys" 2>/dev/null; then
+        return 1
+      fi
+      warn "Windows venv exists but python.exe failed; will recreate."
+      return 0
+    fi
+    if [[ "$has_unix" -eq 1 ]]; then
+      warn "This .rma/venv is Linux/WSL-style (bin/python) but Git Bash/MSYS needs Scripts\\python.exe."
+      warn "Removing it; re-run web-api to create a Windows venv. (Use WSL bash for a Linux venv, or keep one environment per clone.)"
+      return 0
+    fi
+    return 1
+  fi
+
+  if [[ "$has_unix" -eq 1 ]]; then
+    if "$vdir/bin/python" -c "import sys" 2>/dev/null; then
+      return 1
+    fi
+    warn "Unix venv python failed; will recreate."
+    return 0
+  fi
+  if [[ "$has_win" -eq 1 ]]; then
+    warn "This .rma/venv is Windows-only (Scripts) but current shell is Unix/WSL."
+    warn "Use Windows + Git Bash or PowerShell for this tree, or remove: rm -rf \"$vdir\""
+    return 0
+  fi
+  return 1
 }
 
 ensure_core_dirs() {
@@ -1451,12 +1522,50 @@ web_toolkit_ok() {
 
 # Ensure ROOT_DIR/.rma/venv (or RMA_PYTHON_VENV_DIR) exists for pip + uvicorn.
 cmd_web_ensure_project_venv() {
-  configure_python_runtime
-  if [[ -x "${RMA_PYTHON_VENV_DIR}/bin/python" ]]; then
-    return 0
+  local vdir="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
+  if [[ "$vdir" != /* ]]; then
+    vdir="$ROOT_DIR/$vdir"
   fi
+  export RMA_PYTHON_VENV_DIR="$vdir"
+  mkdir -p "$(dirname "$vdir")" || return 1
+
+  if rma_project_venv_must_recreate "$vdir"; then
+    info "Removing incompatible or broken venv at ${vdir}"
+    rm -rf "$vdir"
+  fi
+
+  configure_python_runtime
+
+  if [[ -n "${RMA_PYTHON_BIN:-}" ]]; then
+    case "$RMA_PYTHON_BIN" in
+      "$vdir"/*)
+        if "$RMA_PYTHON_BIN" -c "import sys; sys.exit(0)" 2>/dev/null; then
+          return 0
+        fi
+        warn "Existing venv python failed; recreating."
+        rm -rf "$vdir"
+        configure_python_runtime
+        ;;
+    esac
+  fi
+
+  if [[ -d "$vdir" ]] && [[ -n "$(ls -A "$vdir" 2>/dev/null)" ]]; then
+    configure_python_runtime
+    if [[ -n "${RMA_PYTHON_BIN:-}" ]]; then
+      case "$RMA_PYTHON_BIN" in
+        "$vdir"/*)
+          if "$RMA_PYTHON_BIN" -c "import sys; sys.exit(0)" 2>/dev/null; then
+            return 0
+          fi
+          ;;
+      esac
+    fi
+    warn "Clearing partial venv at ${vdir}"
+    rm -rf "$vdir"
+    configure_python_runtime
+  fi
+
   info "Creating Python venv at ${RMA_PYTHON_VENV_DIR}..."
-  mkdir -p "$(dirname "$RMA_PYTHON_VENV_DIR")" || return 1
   local py=""
   if command -v python3 >/dev/null 2>&1; then
     py="$(command -v python3)"
@@ -1472,7 +1581,8 @@ cmd_web_ensure_project_venv() {
   fi
   configure_python_runtime
   if [[ -n "${RMA_PYTHON_BIN:-}" ]]; then
-    "$RMA_PYTHON_BIN" -m pip install -q --upgrade pip setuptools wheel 2>/dev/null || true
+    export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
+    "$RMA_PYTHON_BIN" -m pip install -q --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" --upgrade pip setuptools wheel 2>/dev/null || true
   fi
 }
 
@@ -1483,9 +1593,10 @@ cmd_web_install_backend_deps() {
     warn "No Python interpreter resolved."
     return 1
   }
-  info "pip install -r requirements-web.txt (web backend)..."
-  if ! "$RMA_PYTHON_BIN" -m pip install -r "$APP_DIR/requirements-web.txt"; then
-    warn "pip install failed."
+  export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
+  info "pip install -r requirements-web.txt (web backend; timeout ${PIP_DEFAULT_TIMEOUT}s)..."
+  if ! "$RMA_PYTHON_BIN" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" -r "$APP_DIR/requirements-web.txt"; then
+    warn "pip install failed (network or PyPI). Retry, set PIP_INDEX_URL, or use a faster network."
     return 1
   fi
   info "Web backend Python dependencies ready."

@@ -107,7 +107,20 @@ Fix:
 docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 ```
 
-## 9) Web UI: API errors, 401, or blank UI
+## 9) pip / `.rma/venv` broken: `/usr/bin\python.exe`, or mixed WSL vs Windows
+
+**Cause:** **`.rma/venv`** was created with one Python family (e.g. **WSL/Linux** → `bin/python` and `home = /usr/...` in `pyvenv.cfg`) but **PowerShell** or **Git Bash + Windows Python** then used the same folder. Windows `pip` can error with `did not find executable at '/usr/bin\python.exe'`. The opposite (only **`Scripts\python.exe`**) is unusable from **Linux/WSL** bash alone.
+
+**Fix:**
+
+- Use **one** environment per clone for the venv (always WSL, always Git Bash, or always PowerShell + Windows Python).
+- Delete the broken venv and recreate from that shell:
+  - **PowerShell:** `Remove-Item -Recurse -Force .\.rma\venv`
+  - **Bash (Unix/WSL):** `rm -rf .rma/venv`
+- Then run **`rma web-api`** / hub **VII** or **`web/run-backend.ps1`**. The Unix runtime removes a **Git Bash** vs **Linux-bin** mismatch automatically; **`pip install`** uses **`PIP_DEFAULT_TIMEOUT`** (default **120** seconds) and **`--retries 8`** on the MemPalace setup path (**`RUN.ps1`**, **`RUN.sh`**, **`setup-local-models-mempalace.*`**, web stack). Override before bootstrap: `$env:PIP_DEFAULT_TIMEOUT = "180"` (PowerShell) or `export PIP_DEFAULT_TIMEOUT=180` (bash); optional mirror: **`PIP_INDEX_URL`**.
+- **`web/run-backend.ps1`** exits with a clear message if it sees only a Linux-style **`bin\python`** while you are in PowerShell.
+
+## 10) Web UI: API errors, 401, or blank UI
 
 **Symptoms:** browser shows **Unauthorized** /401 on save, **Doctor** or **Env** fails, Vite shows proxy errors, or Docker shows only JSON/OpenAPI.
 
@@ -120,7 +133,7 @@ docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 - **CORS:** if you use a non-default dev URL, set **`RMA_WEB_CORS_ORIGINS`** (comma-separated) to include that origin.
 - **Docker:** without **`web/frontend/dist`** in the build context, open **http://127.0.0.1:8765/docs** or run **`npm run dev`** on the host against the mapped port. See **[`web/README.md`](../web/README.md)**.
 
-## 10) What to collect before filing an issue
+## 11) What to collect before filing an issue
 
 - command used
 - exact output/error
