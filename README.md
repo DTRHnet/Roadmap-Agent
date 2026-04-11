@@ -116,7 +116,7 @@ RoadmapAgent/
   VERSION                     # Semver release (read by CLI banner; keep in sync with CHANGELOG / git tags)
   RUN.sh / RUN.ps1 / RUN.cmd  # Only files at repo root besides docs/config: bootstrap venv + .env, then CLI
 
-  img/                        # README / marketing images (banner, diagram, placeholders)
+  img/                        # README / marketing images (banner, ui.png, tui.png, diagram, placeholders)
   launchers/                  # roadmap-agent, rma, *.cmd, setup-rma.*, refresh-rma-path.ps1 (thin wrappers)
 
   scripts/
@@ -203,7 +203,21 @@ Generated files/directories include:
 - Uses `fzf` for all interactive selections.
 - Includes roadmap and persistence-check entries in the same UI.
 
+<figure align="center">
+  <img src="img/tui.png" alt="ROADMAP-AGENT terminal hub menu" width="100%" />
+  <figcaption>
+    <p align="center">
+      <i>Local terminal UI (TUI) hub for configuration and roadmap work — use root <code>RUN.ps1</code>, <code>RUN.sh</code>, or <code>RUN.cmd</code>, or <code>launchers/rma</code> / <code>launchers/roadmap-agent</code> with no arguments to open this menu.</i>
+    </p>
+  </figcaption>
+</figure>
+
 ### 4) Optional companion web UI
+
+<figure align="center">
+  <img src="img/ui.png" alt="ROADMAP-AGENT local web UI" width="100%" />
+  <figcaption><p align="center"><i>Local web UI for easy configuration and management.</i></p></figcaption>
+</figure>
 
 A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelisted keys as `load_rma_env_file()` in `.env`, run **`rma doctor --json`**, read **`rma tools --json`**, probe Ollama / OpenAI-compatible endpoints, and stream **`ollama pull`**. The backend invokes **`scripts/windows/roadmap-agent.ps1`** or **`scripts/unix/roadmap-agent.sh`** under **`RMA_WEB_APP_ROOT`** (the toolkit checkout), with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the app directory you pick in the UI — same bridge behavior as the CLI, not a separate SaaS.
 
