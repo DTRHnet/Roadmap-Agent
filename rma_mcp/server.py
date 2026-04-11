@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -14,14 +16,68 @@ from rma_mcp.config import allow_shell, app_root, mcp_name, project_root, roadma
 from rma_mcp.context import build_context_markdown
 from rma_mcp.logging_util import log_tool
 
+
+def _mcp_listen_host_port() -> tuple[str, int]:
+    h = (os.environ.get("RMA_MCP_HOST") or "127.0.0.1").strip() or "127.0.0.1"
+    try:
+        p = int(os.environ.get("RMA_MCP_PORT") or "8767")
+    except (TypeError, ValueError):
+        p = 8767
+    return h, p
+
+
+_MCP_HOST, _MCP_PORT = _mcp_listen_host_port()
+
 mcp = FastMCP(
     mcp_name(),
     instructions=(
-        "ROADMAP-AGENT MCP: use get_roadmap_context for product contract and tasks; "
-        "rma_* tools run the real CLI in the managed project. "
+        "ROADMAP-AGENT MCP: use get_roadmap_context or roadmap://context for .rma Markdown; "
+        "rma_sysinfo for OS/stack audit; rma_* tools run the real bash CLI. "
         "Respect RMA_MCP_ALLOW_SHELL for run_shell."
     ),
+    host=_MCP_HOST,
+    port=_MCP_PORT,
 )
+
+
+def _mcp_runtime_path() -> Path:
+    return project_root() / ".rma" / "mcp" / "runtime.json"
+
+
+def _write_mcp_runtime(transport: str) -> None:
+    """Record PID / bind info for HTTP transports (hub + doctor can show status)."""
+    if transport in ("stdio", ""):
+        return
+    d = project_root() / ".rma" / "mcp"
+    d.mkdir(parents=True, exist_ok=True)
+    h, p = _mcp_listen_host_port()
+    payload = {
+        "pid": os.getpid(),
+        "transport": transport,
+        "host": h,
+        "port": p,
+        "package_version": __version__,
+    }
+    _mcp_runtime_path().write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _unlink_quiet(path: Path) -> None:
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
+def _remove_mcp_runtime_if_mine() -> None:
+    path = _mcp_runtime_path()
+    if not path.is_file():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if int(data.get("pid", -1)) == os.getpid():
+            _unlink_quiet(path)
+    except (OSError, ValueError, json.JSONDecodeError, TypeError):
+        pass
 
 
 def _run_roadmap_agent(*cli_args: str, timeout: int = 600) -> str:
@@ -92,6 +148,37 @@ def rma_analyze() -> str:
 
 
 @mcp.tool()
+def rma_sysinfo() -> str:
+    """Run bundled sysinfo audit for the managed project (writes `.sysinfo/` and returns full-report.md)."""
+    script = app_root() / "sysinfo" / "sysinfo.py"
+    if not script.is_file():
+        return f"error: sysinfo not found at {script} (is ROADMAP_AGENT_APP_ROOT set to the toolkit root?)"
+    root = project_root()
+    env = os.environ.copy()
+    env["ROADMAP_AGENT_PROJECT_ROOT"] = str(root)
+    try:
+        r = subprocess.run(
+            [sys.executable, str(script), "--workspace", str(root)],
+            capture_output=True,
+            text=True,
+            timeout=180,
+            cwd=str(root),
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        return "error: rma_sysinfo timed out after 180s"
+    report = root / ".sysinfo" / "full-report.md"
+    if report.is_file():
+        body = report.read_text(encoding="utf-8", errors="replace")
+        log_tool("rma_sysinfo", {"chars": len(body), "exit_code": r.returncode})
+        return body
+    tail = ""
+    if r.stdout or r.stderr:
+        tail = f"\n--- subprocess ---\nexit_code={r.returncode}\n{r.stdout}\n{r.stderr}"
+    return f"error: sysinfo did not write {report}{tail}"
+
+
+@mcp.tool()
 def read_project_file(relative_path: str) -> str:
     """Read a UTF-8 text file relative to the managed project root (no ..)."""
     p = safe_relative_path(relative_path)
@@ -142,14 +229,25 @@ def main() -> None:
     os.environ.setdefault("ROADMAP_AGENT_PROJECT_ROOT", str(project_root()))
     os.environ.setdefault("ROADMAP_AGENT_APP_ROOT", str(app_root()))
     # Help hosts show version in logs
+    h, p = _mcp_listen_host_port()
     log_tool(
         "mcp_server_start",
-        {"transport": transport, "package_version": __version__, "app_root": str(app_root())},
+        {
+            "transport": transport,
+            "package_version": __version__,
+            "app_root": str(app_root()),
+            "listen_host": h,
+            "listen_port": p,
+        },
     )
     if transport in ("stdio", ""):
         mcp.run()
         return
     if transport in ("streamable-http", "sse"):
-        mcp.run(transport=transport)
+        _write_mcp_runtime(transport)
+        try:
+            mcp.run(transport=transport)
+        finally:
+            _remove_mcp_runtime_if_mine()
         return
     mcp.run()

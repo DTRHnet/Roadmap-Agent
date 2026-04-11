@@ -33,6 +33,8 @@ ENV_FILE_KEYS: frozenset[str] = frozenset(
         "RMA_MCP_ALLOW_SHELL",
         "RMA_MCP_PROJECT_ROOT",
         "RMA_MCP_LOG",
+        "RMA_MCP_DETACH",
+        "RMA_MCP_FORCE",
     }
 )
 

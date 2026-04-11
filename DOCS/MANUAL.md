@@ -215,11 +215,11 @@ Checks whether global install exists, version/sync status, and may prompt to upg
 
 ### `web-api` / `web-backend` (alias)
 
-Ensures **`RMA_PYTHON_VENV_DIR`** exists (creates **`python3 -m venv`** if needed), runs **`pip install -r requirements-web.txt`** from the toolkit (**`ROADMAP_AGENT_APP_ROOT`**), sets **`RMA_WEB_APP_ROOT`**, and starts **uvicorn** on **127.0.0.1:8765** with reload. Same action as hub **VII**.
+Ensures **`RMA_PYTHON_VENV_DIR`** exists (creates **`python3 -m venv`** if needed), runs **`pip install -r requirements-web.txt`** from the toolkit (**`ROADMAP_AGENT_APP_ROOT`**), sets **`RMA_WEB_APP_ROOT`**, and starts **uvicorn** on **127.0.0.1:8765** with reload. Same action as hub **Web & MCP → Start API**.
 
 ### `web-frontend`
 
-Runs **`npm install`** in **`web/frontend`**, then **`npm run dev`** (Vite on **:5173**). Same action as hub **VIII**. Requires **Node.js** / **npm** on `PATH`.
+Runs **`npm install`** in **`web/frontend`**, then **`npm run dev`** (Vite on **:5173**). Same action as hub **Web & MCP → Start frontend**. Requires **Node.js** / **npm** on `PATH`.
 
 ### `help`, `-h`, `--help`
 
@@ -239,7 +239,7 @@ With no arguments, the CLI opens a **hub** menu. From there you can reach:
 
 - **AI / MemPalace-oriented** actions (depending on build and dependencies).
 - **Roadmap** actions (status, plan, execute-one, etc.).
-- **Persistence-check**, **venv / .env** helpers, **release** maintainer flow, **optional web UI** starters (**VII** = FastAPI + deps, **VIII** = Vite; see also **`web-api`** / **`web-frontend`**), and **optional MCP server** (**IX**; **`mcp-start`**).
+- **Categorized hub**: **Roadmap**, **MemPalace**, **Environment** (venv, `.env`, persistence), **Web & MCP** (API, Vite, **`mcp-start`**), and **Maintainer** (release). See **`docs/MENU-REFERENCE.md`**.
 
 Exact labels use **Roman numerals** (`I`, `II`, `III`, …) for readability.
 
@@ -488,8 +488,8 @@ with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the directory you choose in the UI 
 
 ### Run it (development)
 
-1. **Hub:** **`roadmap-agent`** (no args) → **VII** (API) and **VIII** (frontend) — VII ensures **`.rma/venv`**, runs **`pip install -r requirements-web.txt`**, then **uvicorn**; VIII runs **`npm install`** and **`npm run dev`**.
-2. **CLI:** **`roadmap-agent web-api`** (or **`web-backend`**) and **`roadmap-agent web-frontend`** — same as VII / VIII.
+1. **Hub:** **`roadmap-agent`** (no args) → category **Web & MCP** → **Start API** / **Start frontend** — API ensures **`.rma/venv`**, runs **`pip install -r requirements-web.txt`**, then **uvicorn**; frontend runs **`npm install`** and **`npm run dev`**.
+2. **CLI:** **`roadmap-agent web-api`** (or **`web-backend`**) and **`roadmap-agent web-frontend`** — same as those hub actions.
 3. **Scripts:** **`web/run-backend.ps1`** or **`web/run-backend.sh`** if you prefer not to use the menu (uses whatever **`python`** those scripts put on `PATH`).
 4. Open **http://127.0.0.1:5173** when using Vite, set **Project root** to the repository that contains `.rma/` and `.env`.
 
@@ -521,12 +521,12 @@ Optional commented examples live in **`.env.example`** under *Optional companion
 
 **Model Context Protocol** lets MCP-capable clients (Cursor, Claude Desktop, and others) call a small local server that exposes **tools** and **resources** instead of ad-hoc integrations.
 
-ROADMAP-AGENT ships **`rma_mcp`**: a **FastMCP** server that reads your **`.rma/`** Markdown (same bundle as the **`roadmap://context`** resource), runs **`rma`** subprocesses for **`doctor`**, **`status`**, **`plan --no-interactive`**, and **`analyze`**, and offers **`read_project_file`** / **`write_project_file`** scoped to the project root. **`run_shell`** is **off** unless **`RMA_MCP_ALLOW_SHELL=1`**.
+ROADMAP-AGENT ships **`rma_mcp`**: a **FastMCP** server that reads your **`.rma/`** Markdown (same bundle as the **`roadmap://context`** resource), runs **`rma`** subprocesses for **`doctor`**, **`status`**, **`plan --no-interactive`**, and **`analyze`**, runs **`rma_sysinfo`** (bundled **`sysinfo`** audit → **`.sysinfo/full-report.md`**), and offers **`read_project_file`** / **`write_project_file`** scoped to the project root. **`run_shell`** is **off** unless **`RMA_MCP_ALLOW_SHELL=1`**.
 
 ### How to start it
 
 - **CLI:** **`roadmap-agent mcp-start`** (or **`rma mcp-start`**).
-- **Hub:** run **`roadmap-agent`** with no args → **IX** — *MCP server (stdio)*.
+- **Hub:** run **`roadmap-agent`** with no args → **Web & MCP** → **MCP server (stdio)**.
 
 The shell entry installs **`requirements-mcp.txt`** into **`.rma/venv`** on first use if the **`mcp`** import fails, sets **`ROADMAP_AGENT_PROJECT_ROOT`** / **`ROADMAP_AGENT_APP_ROOT`**, **`PYTHONPATH`** to the toolkit root, and runs **`python -m rma_mcp`**. Default transport is **stdio** (what most hosts expect). Optional **`RMA_MCP_TRANSPORT`** values include **`streamable-http`** and **`sse`** per the SDK.
 
@@ -567,7 +567,7 @@ Setup scripts create a venv under **`RMA_PYTHON_VENV_DIR`** (default `.rma/venv`
 
 **`roadmap-agent plan`** uses your **LLM** (see [LLM providers](#llm-providers)), not a `mempalace plan` command (upstream does not implement one). Optional **`mempalace wake-up`** output is added to the plan prompt when **`.rma/mempalace`** exists.
 
-**Safe mine** (AI submenu) invokes the real **`mempalace mine`** CLI — there is **no simulated mining**.
+**Safe mine** (hub → **MemPalace & vectors**) invokes the real **`mempalace mine`** CLI — there is **no simulated mining**.
 
 **Requirements (mine / wake-up):**
 

@@ -9,6 +9,8 @@ export const TOGGLE_KEYS = new Set([
   'RMA_WEB_FREE_PORT_ASK',
   'RMA_MCP_ALLOW_SHELL',
   'RMA_MCP_LOG',
+  'RMA_MCP_DETACH',
+  'RMA_MCP_FORCE',
 ])
 
 export const NUMBER_KEYS = new Set([
@@ -77,7 +79,7 @@ export const ENV_GROUPS: EnvGroup[] = [
   },
   {
     id: 'web-stack',
-    title: 'Web UI (hub VII / VIII)',
+    title: 'Web UI (hub: Web & MCP)',
     blurb:
       'Ports and prompts for roadmap-agent web-api / web-frontend. Also set RMA_WEB_* on the API process (uvicorn). Optional toolkit file web/rma-web.yaml — see web/rma-web.config.example.yaml.',
     keys: [
@@ -90,7 +92,7 @@ export const ENV_GROUPS: EnvGroup[] = [
   },
   {
     id: 'mcp',
-    title: 'MCP server (hub IX)',
+    title: 'MCP server (hub: Web & MCP)',
     blurb:
       'Model Context Protocol for Cursor / Claude Desktop. See docs/MCP-SERVER.md and rma_mcp/client-config.example.json.',
     keys: [
@@ -102,6 +104,8 @@ export const ENV_GROUPS: EnvGroup[] = [
       'RMA_MCP_LOG',
       'RMA_MCP_HOST',
       'RMA_MCP_PORT',
+      'RMA_MCP_DETACH',
+      'RMA_MCP_FORCE',
     ],
   },
 ]
@@ -139,8 +143,12 @@ export const ENV_HINTS: Record<string, string> = {
   RMA_MCP_PROJECT_ROOT: 'Optional project path override for MCP (relative or absolute).',
   RMA_MCP_MAX_STEPS: 'Hint for MCP clients; not enforced by the server.',
   RMA_MCP_LOG: '1 = log tool calls under .rma/mcp/logs/toolcalls.jsonl.',
-  RMA_MCP_HOST: 'Reserved for HTTP-style MCP transports.',
-  RMA_MCP_PORT: 'Reserved for HTTP-style MCP transports.',
+  RMA_MCP_HOST: 'Bind address for streamable-http / sse (default 127.0.0.1).',
+  RMA_MCP_PORT: 'TCP port for streamable-http / sse (default 8767).',
+  RMA_MCP_DETACH:
+    '1 = mcp-start runs the HTTP MCP server in the background (nohup); log under .rma/mcp/nohup.log. stdio cannot detach.',
+  RMA_MCP_FORCE:
+    '1 = before starting, stop the MCP PID from .rma/mcp/runtime.json (best-effort). Use when replacing a stuck server.',
 }
 
 export function parseBulkEnv(text: string, allowedKeys: Set<string>): Record<string, string> {

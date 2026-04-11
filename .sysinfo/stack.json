@@ -1,0 +1,145 @@
+{
+  "audit": {
+    "output_dir": "C:\\Users\\kbsbr\\RoadmapAgent\\.sysinfo",
+    "resolution": "marker-.git",
+    "workspace_root": "C:\\Users\\kbsbr\\RoadmapAgent"
+  },
+  "cargo_toml": null,
+  "collected_at": "2026-04-11T21:14:06.182752+00:00",
+  "go_mod": null,
+  "lockfiles": {
+    "package-lock.json": "C:\\Users\\kbsbr\\RoadmapAgent\\package-lock.json"
+  },
+  "node_project": null,
+  "path_extras": {
+    "clang": null,
+    "cmake": null,
+    "curl": "C:\\WINDOWS\\system32\\curl.EXE",
+    "gcc": null,
+    "gh": null,
+    "kubectl": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\kubectl.EXE",
+    "make": null,
+    "terraform": null,
+    "wget": null
+  },
+  "pyproject": null,
+  "requirements_txt": {
+    "notable_lines": {
+      "pytest": "pytest>=7.4.0"
+    },
+    "path": "C:\\Users\\kbsbr\\RoadmapAgent\\requirements-dev.txt",
+    "scan_note": "substring match on lines"
+  },
+  "scan_roots": [
+    "C:\\Users\\kbsbr\\RoadmapAgent",
+    "C:\\Users\\kbsbr",
+    "C:\\Users",
+    "C:\\"
+  ],
+  "tools": {
+    "bun": {
+      "present": false,
+      "version": null
+    },
+    "cargo": {
+      "present": false,
+      "version": null
+    },
+    "docker": {
+      "present": true,
+      "version": "Docker version 29.3.1, build c2be9cc"
+    },
+    "docker_compose_plugin": {
+      "present": true,
+      "version": "Docker Compose version v5.1.1"
+    },
+    "dotnet": {
+      "present": true,
+      "version": "8.0.419"
+    },
+    "git": {
+      "present": true,
+      "version": "git version 2.53.0.windows.1"
+    },
+    "go": {
+      "present": false,
+      "version": null
+    },
+    "gradle": {
+      "present": false,
+      "version": null
+    },
+    "java": {
+      "present": true,
+      "version": "java version \"25.0.1\" 2025-10-21 LTS"
+    },
+    "javac": {
+      "present": true,
+      "version": "javac 25.0.1"
+    },
+    "mongod": {
+      "present": false,
+      "version": null
+    },
+    "mvn": {
+      "present": false,
+      "version": null
+    },
+    "mysql": {
+      "present": false,
+      "version": null
+    },
+    "node": {
+      "present": true,
+      "version": "v25.9.0"
+    },
+    "npm": {
+      "present": false,
+      "version": null
+    },
+    "php": {
+      "present": false,
+      "version": null
+    },
+    "pip": {
+      "present": true,
+      "version": "pip 26.0.1 from C:\\Python313\\Lib\\site-packages\\pip (python 3.13)"
+    },
+    "pnpm": {
+      "present": false,
+      "version": null
+    },
+    "podman": {
+      "present": false,
+      "version": null
+    },
+    "psql": {
+      "present": true,
+      "version": "psql (PostgreSQL) 17.0"
+    },
+    "python": {
+      "present": true,
+      "version": "Python 3.13.7"
+    },
+    "redis-cli": {
+      "present": false,
+      "version": null
+    },
+    "ruby": {
+      "present": false,
+      "version": null
+    },
+    "rustc": {
+      "present": false,
+      "version": null
+    },
+    "sqlite3": {
+      "present": false,
+      "version": null
+    },
+    "yarn": {
+      "present": false,
+      "version": null
+    }
+  }
+}

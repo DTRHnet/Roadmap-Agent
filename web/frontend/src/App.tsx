@@ -1,4 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+
+const WEB_SECTIONS = [
+  { id: 'web-section-project', label: 'Project' },
+  { id: 'web-section-diagnostics', label: 'Doctor' },
+  { id: 'web-section-env', label: 'Env' },
+  { id: 'web-section-cli', label: 'CLI' },
+  { id: 'web-section-docs', label: 'Docs' },
+] as const
+
+function scrollToWebSection(id: string) {
+  const el = document.getElementById(id)
+  if (!el) return
+  const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
+}
 import './App.css'
 import {
   ENV_GROUPS,
@@ -491,7 +506,7 @@ export default function App() {
     )
   }
 
-   const renderGroup = (group: (typeof ENV_GROUPS)[number]) => {
+  const renderGroup = (group: (typeof ENV_GROUPS)[number]) => {
     const keys = group.keys.filter((k) => managedKeys.includes(k))
     if (!keys.length) return null
     if (group.id === 'ollama' && provider !== 'ollama') return null
@@ -607,8 +622,21 @@ export default function App() {
           <span className="pill">127.0.0.1 · set RMA_WEB_ADMIN_TOKEN for writes</span>
         </header>
 
+        <nav className="section-jump" aria-label="Jump to section">
+          {WEB_SECTIONS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="section-jump-btn"
+              onClick={() => scrollToWebSection(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </nav>
+
         <div className="grid grid-2">
-          <div className="card card-sharp">
+          <div className="card card-sharp web-section" id="web-section-project">
             <h2>Project</h2>
             <div className="field">
               <label htmlFor="proj">Project root (absolute path)</label>
@@ -737,7 +765,7 @@ export default function App() {
               <code className="inline-code">web/rma-web.config.example.yaml</code>). When you start{' '}
               <code className="inline-code">web-api</code> / <code className="inline-code">web-frontend</code> from the
               hub, the <strong>project</strong> <code className="inline-code">.env</code> is loaded first — edit the
-              &quot;Web UI (hub VII / VIII)&quot; group above to set ports, proxy URL, and whether to prompt (y/N) before
+              &quot;Web UI (hub: Web &amp; MCP)&quot; group above to set ports, proxy URL, and whether to prompt (y/N) before
               killing processes on busy ports. Values in <code className="inline-code">.env</code> override YAML for those
               CLI flows; YAML plus <code className="inline-code">RMA_WEB_*</code> on the API process control this server.
             </p>
@@ -810,7 +838,7 @@ export default function App() {
             {err && <p className="msg err">{err}</p>}
           </div>
 
-          <div className="card card-sharp">
+          <div className="card card-sharp web-section" id="web-section-diagnostics">
             <h2>Diagnostics</h2>
             <p className="field-hint" style={{ marginTop: 0 }}>
               Structured checks from <code className="inline-code">rma doctor --json</code> (tools, LLM, MemPalace).
@@ -843,7 +871,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="card card-sharp env-card">
+        <div className="card card-sharp env-card web-section" id="web-section-env">
           <div className="env-card-head">
             <h2>Environment (.env)</h2>
             <div className="mode-toggle" role="tablist" aria-label="Editor mode">
@@ -954,7 +982,7 @@ export default function App() {
           {testResult && <p className="msg">{testResult}</p>}
         </div>
 
-        <div className="card card-sharp">
+        <div className="card card-sharp web-section" id="web-section-cli">
           <h2>CLI (advanced)</h2>
           <p className="field-hint" style={{ marginTop: 0 }}>
             Runs <code className="inline-code">rma</code> with the project root above. Examples:{' '}
@@ -977,7 +1005,7 @@ export default function App() {
         </div>
       </div>
 
-      <footer className="docs-footer">
+      <footer className="docs-footer web-section" id="web-section-docs">
         <div className="docs-footer-inner">
           <span className="docs-footer-label">Documentation</span>
           <nav className="docs-footer-links" aria-label="ROADMAP-AGENT documentation">
