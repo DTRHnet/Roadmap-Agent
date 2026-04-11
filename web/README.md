@@ -111,6 +111,8 @@ docker compose up --build
 
 **Windows:** Prefer **`web/run-backend.ps1`** + local **`npm run dev`** so `rma` can reach **Git Bash / WSL** the same way your normal CLI does. Compose on Windows is best for Linux-backed Docker when you accept API-only or pre-built `dist`.
 
+If **`npm ci`** fails with **EPERM** on a file under **`node_modules`**, or **`docker build`** says *buildx requires 1 argument*, see **[`docs/TROUBLESHOOTING.md`](../docs/TROUBLESHOOTING.md) §11** (clean **`node_modules`**, run **`docker build`** from the **repo root** with a space after the **`.`** context).
+
 ---
 
 ## Security defaults

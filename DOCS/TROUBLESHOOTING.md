@@ -133,7 +133,42 @@ docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 - **CORS:** if you use a non-default dev URL, set **`RMA_WEB_CORS_ORIGINS`** (comma-separated) to include that origin.
 - **Docker:** without **`web/frontend/dist`** in the build context, open **http://127.0.0.1:8765/docs** or run **`npm run dev`** on the host against the mapped port. See **[`web/README.md`](../web/README.md)**.
 
-## 11) What to collect before filing an issue
+## 11) Windows: `npm ci` / `npm install` **EPERM** on `node_modules` (`.node` native addon)
+
+**Symptoms:** `npm error syscall unlink`, `EPERM`, path under `web/frontend/node_modules/...` (often `@rolldown/...` or similar). After that, **`npm run build`** may fail with **TS2688** (*Cannot find type definition file for 'vite/client' or 'node'*) because packages never finished installing.
+
+**Cause:** Another process has the file open—common on Windows: **Vite dev server** (`npm run dev`), **antivirus** real-time scan, **IDE** indexing, or a **stuck Node** process.
+
+**Fix:**
+
+1. Stop **`npm run dev`**, close any **preview** processes, and exit other terminals using that folder.
+2. Optional: add the repo (or `web/frontend/node_modules`) to AV **exclusions** for dev machines.
+3. From **`web/frontend`**, remove the broken tree and reinstall (PowerShell):
+
+   ```powershell
+   cd web\frontend
+   Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue
+   npm cache verify
+   npm install
+   npm run build
+   ```
+
+4. If **`Remove-Item`** still fails, close **Cursor/VS Code** for that workspace (or reboot), then delete **`node_modules`** in **File Explorer** and run **`npm install`** again.
+
+**Docker `Dockerfile.web`:** run **`docker build`** from the **repository root** (where **`docker/`** and **`requirements-web.txt`** live), not from `web/frontend`:
+
+```powershell
+cd C:\path\to\RoadmapAgent
+docker build -f docker/Dockerfile.web -t rma-web:1.0.1 .
+```
+
+A line like `...1.0.1 .cd web/frontend` is two commands accidentally joined; there must be a **space** after the **`.`** build context, and the **`cd`** is a separate step **before** `docker build` if you need it.
+
+**`COPY requirements-web.txt` / not found:** the build context directory (the **`.`** at the end of `docker build`) must be the **repository root**, where **`requirements-web.txt`** lives. If you run from **`web/frontend`**, that file is outside the context—`cd` to the repo root first.
+
+**`error from sender: open .rma\venv\lib64: The file cannot be accessed by the system`:** Docker Desktop is uploading the whole repo; **`.rma/venv`** often contains **symlinks** (e.g. `lib64`) that Windows cannot read for the context tarball. The repo’s **`.dockerignore`** excludes **`.rma/`** so local venvs are not sent. Re-run **`docker build -f docker/Dockerfile.web -t … .`** from the root after pulling the latest tree (or ensure **`.dockerignore`** is present).
+
+## 12) What to collect before filing an issue
 
 - command used
 - exact output/error

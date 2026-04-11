@@ -1,0 +1,43 @@
+# Build context for `docker build -f docker/Dockerfile.web` (and root Dockerfile).
+# Always run docker build from the repository root (where this file lives).
+#
+# Excluding .rma/ avoids Windows errors like:
+#   error from sender: open .rma\venv\lib64: The file cannot be accessed by the system
+# (WSL/Linux-style venv symlinks under NTFS confuse Docker Desktop’s context upload.)
+
+.rma/
+**/.rma/
+
+.git
+.github/
+
+# Secrets and local env (image gets deps from requirements-web.txt, not .env)
+.env
+.env.*
+
+# Python / tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+htmlcov/
+coverage.xml
+*.log
+
+# Node — keep web/frontend/dist/ if you pre-built the SPA; drop heavy trees
+node_modules/
+**/node_modules/
+
+# Editor / OS
+.idea/
+.vscode/
+.cursor/
+.DS_Store
+Thumbs.db
+desktop.ini
