@@ -10,6 +10,10 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 - **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`docs/RELEASING.md`**.
 
+### Documentation
+
+- **Companion web UI**: expanded **[`web/README.md`](web/README.md)** (prerequisites, `RMA_WEB_*`, dev vs single-port vs Docker, security); linked and summarized from **[`README.md`](README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**, **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)**, **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**, **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)**; **`.env.example`** comments for **`RMA_WEB_*`**.
+
 ## [1.0.0] - 2026-04-10
 
 First **stable** semver release: project bootstrap, multi-provider agent, documented env, and layout polish.

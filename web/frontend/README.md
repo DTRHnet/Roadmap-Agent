@@ -1,3 +1,9 @@
+# ROADMAP-AGENT web frontend (Vite + React)
+
+**Run the stack:** from the repo root, start the FastAPI backend (**`web/run-backend.ps1`** or **`web/run-backend.sh`**), then here run **`npm install`** and **`npm run dev`**. Open **http://127.0.0.1:5173** (proxies **`/api`** to **127.0.0.1:8765**). Full setup, **`RMA_WEB_*`**, Docker, and single-port builds: **[`../README.md`](../README.md)**.
+
+---
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

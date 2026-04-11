@@ -31,6 +31,7 @@
 | **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
 | **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v1.0.0`, …). |
 | **[`docs/RELEASING.md`](docs/RELEASING.md)** | **Shipping a release** — tags, GitHub releases, source archives, Docker image; why there is no required compiled “binary”. |
+| **[`web/README.md`](web/README.md)** | **Optional web UI** — FastAPI + React: `.env` editor, `doctor --json`, model probes; dev, single-port, and Docker workflows. |
 
 **ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
 
@@ -117,7 +118,17 @@ RoadmapAgent/
 
   docker/
     entrypoint.sh               # Docker runtime entrypoint
+    Dockerfile.web              # Optional FastAPI image for the companion web UI
   Dockerfile
+  docker-compose.yml            # Optional: rma-web service (localhost:8765)
+
+  web/
+    README.md                   # Web UI setup (dev, production-style, Docker)
+    run-backend.ps1 / run-backend.sh
+    backend/                    # FastAPI app
+    frontend/                   # Vite + React SPA
+
+  requirements-web.txt          # Python deps for web/backend (pip -r from repo root)
 
   docs/
     QUICKSTART.md            # Per-OS quick start (Windows, Linux, macOS, Docker)
@@ -180,7 +191,18 @@ Generated files/directories include:
 
 ### 4) Optional companion web UI
 
-A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelisted keys as `load_rma_env_file()` in `.env`, run **`rma doctor --json`**, probe Ollama / OpenAI-compatible endpoints, and stream **`ollama pull`**. It shells out to the existing `rma` launchers; it is not a hosted SaaS. Defaults bind to **127.0.0.1**; set **`RMA_WEB_ADMIN_TOKEN`** for mutating API calls. See **[`web/README.md`](web/README.md)**, **`requirements-web.txt`**, and **`docker-compose.yml`** (optional container).
+A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelisted keys as `load_rma_env_file()` in `.env`, run **`rma doctor --json`**, read **`rma tools --json`**, probe Ollama / OpenAI-compatible endpoints, and stream **`ollama pull`**. The backend invokes **`scripts/windows/roadmap-agent.ps1`** or **`scripts/unix/roadmap-agent.sh`** under **`RMA_WEB_APP_ROOT`** (the toolkit checkout), with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the app directory you pick in the UI — same bridge behavior as the CLI, not a separate SaaS.
+
+**Fast path**
+
+1. `pip install -r requirements-web.txt`
+2. **API:** `web/run-backend.ps1` (Windows) or `web/run-backend.sh` (Unix) — listens on **127.0.0.1:8765** by default.
+3. **UI (dev):** `cd web/frontend && npm install && npm run dev` — open **http://127.0.0.1:5173**, set **Project root** to your repo.
+4. **Optional:** set **`RMA_WEB_ADMIN_TOKEN`** in the shell environment before starting the API so mutating routes require **`X-RMA-Web-Token`**.
+
+**Other modes:** build the SPA (`npm run build` in `web/frontend`) and serve it from the same port as the API; or use **`docker compose up --build`** (see [`web/README.md`](web/README.md) for pre-building `dist/` and Windows vs Compose notes).
+
+Full reference: **[`web/README.md`](web/README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **`docker-compose.yml`**, **`docker/Dockerfile.web`**.
 
 ---
 
@@ -204,6 +226,7 @@ A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelist
 ## Optional Tools
 
 - **`mempalace` CLI** and Python packages **`mempalace`** + **`chromadb`** in the project venv — required for **mine** (and for **`mempalace wake-up`** when generating **`plan`**). **`plan`** also needs a working **LLM** (e.g. Ollama). Run the setup script under `scripts/` to install MemPalace. See **`RMA_REQUIRE_MEMPALACE`**, **`RMA_MEMPALACE_BIN`**, and **`RMA_ALLOW_PLAN_FALLBACK`** in `.env.example`.
+- **Companion web UI** — Python **`requirements-web.txt`** for the API; **Node.js 18+** and **`npm`** only if you run the Vite dev server or build `web/frontend/dist`. See **[`web/README.md`](web/README.md)**.
 
 ---
 
@@ -222,7 +245,7 @@ Windows PowerShell:
 .\launchers\rma.ps1
 ```
 
-**More detail:** **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (by OS), **[`docs/MANUAL.md`](docs/MANUAL.md)** (full reference), **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg)** (mining vs roadmap diagram), **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** (sample `.rma` Markdown), **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** (full product example), **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
+**More detail:** **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (by OS), **[`web/README.md`](web/README.md)** (optional web UI), **[`docs/MANUAL.md`](docs/MANUAL.md)** (full reference), **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg)** (mining vs roadmap diagram), **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** (sample `.rma` Markdown), **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** (full product example), **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
 
 ---
 
@@ -535,7 +558,8 @@ This project is **script-first** (bash + PowerShell). There is no official singl
 
 **Reference**
 
-- [`docs/MANUAL.md`](docs/MANUAL.md) — full operator manual (commands, `.rma` files, env, persistence)
+- [`web/README.md`](web/README.md) — optional local web UI (FastAPI + React): install, `RMA_WEB_*`, Docker
+- [`docs/MANUAL.md`](docs/MANUAL.md) — full operator manual (commands, `.rma` files, env, persistence, web UI summary)
 - [`docs/MENU-REFERENCE.md`](docs/MENU-REFERENCE.md) — hub / submenu labels and actions
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the runtime pieces fit together
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — common failures and fixes

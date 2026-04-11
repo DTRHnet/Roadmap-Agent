@@ -88,3 +88,13 @@ Installers mirror the full app tree and deduplicate PATH entries where applicabl
 ## 10) Shipping / versioning
 
 To tag a release, publish GitHub Release archives, or build the Docker image, see **[RELEASING.md](RELEASING.md)**.
+
+## 11) Optional web UI (browser)
+
+For a **local** FastAPI + React companion that edits project **`.env`**, runs **`rma doctor --json`**, and probes LLM endpoints:
+
+1. From the Roadmap-Agent checkout: `pip install -r requirements-web.txt`
+2. API: **`web/run-backend.ps1`** (Windows) or **`web/run-backend.sh`** (Unix)
+3. UI (dev): `cd web/frontend && npm install && npm run dev` → **http://127.0.0.1:5173** (set **Project root** to your app repo)
+
+See **[`web/README.md`](../web/README.md)** for **`RMA_WEB_*`** variables, **`RMA_WEB_ADMIN_TOKEN`**, single-port production-style serving, **`docker compose`**, and Windows vs Docker notes. Operator-oriented summary: **[MANUAL.md](MANUAL.md)** (*Companion web UI*).

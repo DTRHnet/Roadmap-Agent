@@ -28,10 +28,13 @@ ROADMAP-AGENT is a script-first architecture with mirrored PowerShell and bash r
 
 ## Companion web service (optional)
 
-- **`web/backend`**: FastAPI app that reads/writes project `.env` (keys whitelisted in `load_rma_env_file()`), calls **`rma tools --json`** for the env manifest, runs **`rma doctor --json`**, and probes LLM HTTP endpoints without reimplementing the shell runtime.
-- **`web/frontend`**: Vite + React SPA; dev server proxies `/api` to the backend.
+- **`web/backend`**: FastAPI app that reads/writes project `.env` (keys whitelisted in `load_rma_env_file()`), calls **`rma tools --json`** for the env manifest, runs **`rma doctor --json`**, and probes LLM HTTP endpoints without reimplementing the shell runtime. Mutating routes can require **`X-RMA-Web-Token`** when **`RMA_WEB_ADMIN_TOKEN`** is set.
+- **Process bridge**: `web/backend/app/rma_runner.py` runs **`scripts/windows/roadmap-agent.ps1`** (Windows, `cwd` = project root) or **`scripts/unix/roadmap-agent.sh`** via **`bash`** (Unix), with **`ROADMAP_AGENT_APP_ROOT`** = toolkit (`RMA_WEB_APP_ROOT`) and **`ROADMAP_AGENT_PROJECT_ROOT`** = the path chosen in the UI.
+- **`web/frontend`**: Vite + React SPA; dev server listens on **5173** and proxies **`/api`** to **127.0.0.1:8765**. If **`web/frontend/dist`** exists, the backend can mount the built assets at **`/`** alongside **`/api`** (single-port deployment).
 - **`doctor --json`**: `scripts/unix/roadmap-agent.sh` invokes **`scripts/unix/doctor-json.py`**, which prints one JSON document (schema `roadmap-agent-doctor-json/1`) for structured diagnostics.
-- **Container**: `docker/Dockerfile.web` and root **`docker-compose.yml`** run the API (bind `0.0.0.0` in the container; still treat as trusted-network only).
+- **Container**: **`docker/Dockerfile.web`** and root **`docker-compose.yml`** expose **127.0.0.1:8765** on the host; in-container bind is **`0.0.0.0`**. Pre-build **`web/frontend/dist`** before **`docker compose build`** if you want the SPA inside the image; otherwise use **`/docs`** or a host Vite dev server.
+
+Setup and security notes: **[`web/README.md`](../web/README.md)**.
 
 ## Data Model (`.rma/`)
 

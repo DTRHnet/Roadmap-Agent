@@ -147,6 +147,25 @@ Inside the container, use `./launchers/roadmap-agent` from `/workspace` as docum
 
 ---
 
+## Optional web UI (local)
+
+Browser UI for editing project **`.env`** (whitelisted keys), **`rma doctor --json`**, model listing, and light LLM checks. It is **not** a replacement for the CLI.
+
+**Cross-cutting steps** (from the Roadmap-Agent repo root):
+
+1. `pip install -r requirements-web.txt`
+2. Start the API: **`web/run-backend.ps1`** (Windows) or **`./web/run-backend.sh`** (Unix).
+3. Frontend dev: `cd web/frontend && npm install && npm run dev` → open **http://127.0.0.1:5173** and set **Project root** to your app repo (the directory with `.rma/` / `.env`).
+4. Optional: set **`RMA_WEB_ADMIN_TOKEN`** in the environment before step 2 so saves and mutating API calls require the same token in the UI.
+
+**Single port:** after `npm run build` in `web/frontend`, the backend can serve the static SPA from **`/`** on **8765** (see **[`web/README.md`](../web/README.md)**).
+
+**Docker:** `docker compose up --build` exposes **http://127.0.0.1:8765**. Build `web/frontend/dist` *before* `docker compose build` if you want the bundled UI in the image; otherwise use **http://127.0.0.1:8765/docs** (OpenAPI) or run Vite on the host. On **Windows**, native `web/run-backend.ps1` is usually easier than Compose so `rma` reaches Git Bash / WSL like your normal CLI.
+
+Full detail: **[`web/README.md`](../web/README.md)**, **[`docs/MANUAL.md`](MANUAL.md)** (*Companion web UI*).
+
+---
+
 ## What to do next
 
 | Goal | Where to read |
@@ -156,3 +175,4 @@ Inside the container, use `./launchers/roadmap-agent` from `/workspace` as docum
 | Menus, FZF, fallback | [MANUAL.md](MANUAL.md) — *Interactive mode* |
 | Troubleshooting | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Architecture | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Optional web UI | [web/README.md](../web/README.md), [MANUAL.md](MANUAL.md) (*Companion web UI*) |

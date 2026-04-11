@@ -51,6 +51,8 @@ docker build -t roadmap-agent:1.0.0 -f Dockerfile .
 
 Tag and push to your registry as needed. The Dockerfile copies the tree and sets the entrypoint; version inside the image follows **`VERSION`** at build time.
 
+**Optional web UI image:** **`docker/Dockerfile.web`** builds the FastAPI companion only. To ship a single-port image with the React SPA, run **`npm ci && npm run build`** in **`web/frontend`** before **`docker build -f docker/Dockerfile.web`** so **`web/frontend/dist`** exists in the context. **`docker-compose.yml`** is for local use (**127.0.0.1:8765**); see **[`web/README.md`](../web/README.md)**.
+
 ## 5. Windows persistence / “local install”
 
 The **installer** (`scripts/windows/install-persistence.ps1`, or `launchers/setup-rma.ps1`) **mirrors** the repo into `%LOCALAPPDATA%\Roadmap-Agent` (or Program Files for machine scope) and adds `bin` to PATH. That is a **deployment** of the same scripts, not a separate build pipeline.

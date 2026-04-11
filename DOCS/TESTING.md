@@ -9,7 +9,7 @@ pip install -r requirements-dev.txt
 python -m pytest tests/ -q
 ```
 
-That suite checks **repository layout invariants** (only `RUN.*` wrappers at root, `launchers/` present, `docs/` not `DOCS/`, manpage path expectations, etc.).
+That suite checks **repository layout invariants** (only `RUN.*` wrappers at root, `launchers/` present, `docs/` not `DOCS/`, manpage path expectations, etc.). To **run** the optional web stack locally (API + Vite) for manual QA, follow **[`web/README.md`](../web/README.md)**.
 
 Backend **`.env` merge** tests live under `web/backend/tests/`:
 

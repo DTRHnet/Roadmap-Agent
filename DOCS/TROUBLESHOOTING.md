@@ -107,7 +107,20 @@ Fix:
 docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 ```
 
-## 9) What to collect before filing an issue
+## 9) Web UI: API errors, 401, or blank UI
+
+**Symptoms:** browser shows **Unauthorized** /401 on save, **Doctor** or **Env** fails, Vite shows proxy errors, or Docker shows only JSON/OpenAPI.
+
+**Checks:**
+
+- **`RMA_WEB_ADMIN_TOKEN`**: if the backend was started with a token, open the UI field **Admin token** and paste the same value (sent as **`X-RMA-Web-Token`** on mutating requests).
+- **Project root** in the UI must be an existing directory (your app repo with `.rma/` / `.env`).
+- **Backend reachability:** dev mode expects API at **http://127.0.0.1:8765**; ensure **`web/run-backend.ps1`** or **`web/run-backend.sh`** is running.
+- **Windows + `rma`:** the backend shells out to **`scripts/windows/roadmap-agent.ps1`** and still needs **Git Bash / WSL** behavior consistent with the CLI. Prefer **`web/run-backend.ps1`** over Docker on Windows when bridge tools are hard to reach from a container.
+- **CORS:** if you use a non-default dev URL, set **`RMA_WEB_CORS_ORIGINS`** (comma-separated) to include that origin.
+- **Docker:** without **`web/frontend/dist`** in the build context, open **http://127.0.0.1:8765/docs** or run **`npm run dev`** on the host against the mapped port. See **[`web/README.md`](../web/README.md)**.
+
+## 10) What to collect before filing an issue
 
 - command used
 - exact output/error
