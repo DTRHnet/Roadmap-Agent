@@ -13,7 +13,7 @@
 
 <br/>
 
-**[Overview](#what-it-does)** · **[MemPalace & loop](#mempalace-mining-and-the-roadmap-loop)** · **[Layout](#repository-layout)** · **[Runtime](#runtime-model)** · **[Requirements](#requirements)** · **[Quick start](#quick-start)** · **[Setup](#full-setup-workflow)** · **[Commands](#command-reference)** · **[Deploy](#deployment-guide)** · **[Environment](#environment-variables)** · **[`.rma/` best practices](#best-practices-for-the-rma-directory)** · **[Troubleshooting](#troubleshooting)** · **[Security](#security-and-operational-notes)** · **[All docs](#documentation-index)**
+**[Overview](#what-it-does)** · **[MemPalace & loop](#mempalace-mining-and-the-roadmap-loop)** · **[Layout](#repository-layout)** · **[Runtime](#runtime-model)** · **[Contributors](#for-contributors)** · **[Requirements](#requirements)** · **[Quick start](#quick-start)** · **[Setup](#full-setup-workflow)** · **[Commands](#command-reference)** · **[Deploy](#deployment-guide)** · **[Environment](#environment-variables)** · **[`.rma/` best practices](#best-practices-for-the-rma-directory)** · **[Troubleshooting](#troubleshooting)** · **[Security](#security-and-operational-notes)** · **[All docs](#documentation-index)**
 
 </div>
 
@@ -122,7 +122,7 @@ RoadmapAgent/
   VERSION                     # Semver release (read by CLI banner; keep in sync with CHANGELOG / git tags)
   RUN.sh / RUN.ps1 / RUN.cmd  # Only files at repo root besides docs/config: bootstrap venv + .env, then CLI
 
-  img/                        # README / marketing images (banner, ui.png, tui.png, diagram, placeholders)
+  img/                        # README / marketing images (banner, ui.png, tui.png, doctor.png, diagram, …)
   launchers/                  # roadmap-agent, rma, *.cmd, setup-rma.*, refresh-rma-path.ps1 (thin wrappers)
 
   scripts/
@@ -205,16 +205,27 @@ Generated files/directories include:
 
 ### 3) Interactive menu
 
-- Uses Roman numerals (`I`, `II`, `III`, ...).
-- Uses `fzf` for all interactive selections.
+- Uses `fzf` for all interactive selections but gracefully handles scenarios in which fzf cant be downloaded or is not installed
 - Includes roadmap and persistence-check entries in the same UI.
+- **Easily manage everything from the TUI**
 
 <figure align="center">
   <img src="img/tui.png" alt="ROADMAP-AGENT terminal hub menu" width="92%" style="max-width: 920px;" />
   <figcaption align="center"><sub><i>Terminal hub — run <code>RUN.ps1</code>, <code>RUN.sh</code>, or <code>RUN.cmd</code> at the repo root, or <code>launchers/rma</code> / <code>launchers/roadmap-agent</code> with no arguments.</i></sub></figcaption>
 </figure>
 
-### 4) Optional companion web UI
+### 4) Doctor (diagnostics)
+
+**`roadmap-agent doctor`** (or **`rma doctor`**) prints a structured health report for the **current project and shell**: core tools (**`bash`**, **`git`**, **`python`**, **`fzf`**, **Ollama**, …), **environment variables** that affect LLM and MemPalace behavior, **Python venv / MemPalace** import checks, and **persistence** / install sync hints. It is the fastest way to see whether a failure is a **missing binary**, a **wrong venv layout** (Windows vs WSL vs Git Bash), an **unreachable model**, or a **stale global install**.
+
+On Windows, when the **PowerShell bridge** hands off to **`bash`**, the banner can note that **OS/shell lines refer to the runtime session**, not necessarily the IDE host—so you interpret **PATH**, **Python**, and **MemPalace** lines in context. **`doctor --json`** emits the same picture as **JSON** for scripts and the **companion web UI**.
+
+<figure align="center">
+  <img src="img/doctor.png" alt="ROADMAP-AGENT doctor diagnostics output" width="92%" style="max-width: 920px;" />
+  <figcaption align="center"><sub><i>Example <code>doctor</code> output — use it after setup or when something breaks to narrow down environment and tooling issues.</i></sub></figcaption>
+</figure>
+
+### 5) Optional companion web UI
 
 <figure align="center">
   <img src="img/ui.png" alt="ROADMAP-AGENT local web UI" width="92%" style="max-width: 920px;" />
@@ -222,6 +233,8 @@ Generated files/directories include:
 </figure>
 
 A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelisted keys as `load_rma_env_file()` in `.env`, run **`rma doctor --json`**, read **`rma tools --json`**, probe Ollama / OpenAI-compatible endpoints, and stream **`ollama pull`**. The backend invokes **`scripts/windows/roadmap-agent.ps1`** or **`scripts/unix/roadmap-agent.sh`** under **`RMA_WEB_APP_ROOT`** (the toolkit checkout), with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the app directory you pick in the UI — same bridge behavior as the CLI, not a separate SaaS.
+
+I intend on expanding on the webui a lot. But at the moment, it's functional.
 
 **SPA behavior**
 
@@ -231,7 +244,7 @@ A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelist
 
 **Fast path**
 
-1. **From the hub (menu):** open **`roadmap-agent`** / **`rma`** with no args → **VII** starts the API (creates **`.rma/venv`** if missing, **`pip install -r requirements-web.txt`**, then **uvicorn** on **:8765**); **VIII** runs **`npm install`** and **Vite** on **:5173**. Use two terminals if you want both.
+1. **From the hub (menu):** open **`roadmap-agent`** / **`rma`** with no args → **VII** starts the API (creates **`.rma/venv`** if missing, **`pip install -r requirements-web.txt`**, then **uvicorn** on **:8765**); **VIII** runs **`npm install`** and **Vite** on **:5173**. Use two terminals if you want both. **NOTE** : I plan on enhancing this such *screen* or *tmux* are used effectively here. Or possibly given no errors, push process to background to free terminal up. 
 2. **CLI:** **`roadmap-agent web-api`** (alias **`web-backend`**) and **`roadmap-agent web-frontend`** — same behavior as VII / VIII.
 3. **Scripts:** `web/run-backend.ps1` (Windows) or `web/run-backend.sh` (Unix) — same API port; they install **`requirements-web.txt`** with the current **`python`** on `PATH` (hub/CLI prefer the **project venv** under **`RMA_PYTHON_VENV_DIR`**).
 4. **UI (dev) without hub:** `cd web/frontend && npm install && npm run dev` — open **http://127.0.0.1:5173**, set **Project root** to your repo.
@@ -240,6 +253,33 @@ A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelist
 **Other modes:** build the SPA (`npm run build` in `web/frontend`) and serve it from the same port as the API; or use **`docker compose up --build`** (see [`web/README.md`](web/README.md) for pre-building `dist/` and Windows vs Compose notes).
 
 Full reference: **[`web/README.md`](web/README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **`docker-compose.yml`**, **`docker/Dockerfile.web`**.
+
+---
+
+## For contributors
+
+If you are extending ROADMAP-AGENT or debugging installs, it helps to know how the repo is structured today and how runtimes are detected.
+
+### Scripts and product code live together (for now)
+
+Most operator-facing behavior is implemented in **`scripts/unix/roadmap-agent.sh`**, with **`scripts/windows/roadmap-agent.ps1`** acting as a thin Windows entry that forwards into **`bash`** (WSL or Git Bash). That same tree also carries **maintenance-oriented** logic: venv creation, web stack bootstrap, **`doctor --json`**, release helpers, and environment normalization. **Those concerns are intentionally co-located today** so one codebase ships end-to-end; **we plan to separate internal tooling from the core CLI surface** in a future refactor so contributors can navigate “product” vs “maintainer” paths more clearly. Until then, search within **`scripts/unix/roadmap-agent.sh`** and **`scripts/windows/`** for both user commands and setup plumbing.
+
+### How environments are handled
+
+**Project vs toolkit roots** — **`ROADMAP_AGENT_PROJECT_ROOT`** is the repo you are driving (where **`.rma/`** and **`.env`** live). **`ROADMAP_AGENT_APP_ROOT`** (or the script location) is the ROADMAP-AGENT checkout. The runtime keeps those distinct so a global or embedded toolkit can manage any project tree.
+
+**Python virtual environments** — The default venv is **`RMA_PYTHON_VENV_DIR`** (usually **`.rma/venv`**). **`configure_python_runtime`** resolves that path (including **Windows-style paths under WSL**), then picks the right interpreter:
+
+- **Git Bash / MSYS** expect **`Scripts\python.exe`** (stdlib venv layout).
+- **Linux, macOS, and WSL** normally use **`bin/python`**, but a folder on **NTFS** may only expose a **Windows** venv; the scripts test **which interpreter actually runs** and which can **`import mempalace`** / **`chromadb`** instead of assuming layout alone.
+
+**When the venv does not match the shell** — **`rma_project_venv_must_recreate`** detects mismatches (for example a **Linux-style** **`bin/python`** while you are in **Git Bash**, or a broken **`python.exe`**). The runtime **warns**, **removes** the incompatible tree, and **recreates** a venv appropriate to the current environment so the next **`web-api`**, **`setup-venv`**, or **`doctor`** run recovers without manual surgery.
+
+**Windows bridge and “where am I running?”** — From **PowerShell** (including **VS Code’s integrated terminal**), **`roadmap-agent.ps1`** may hand off to **`bash`**. **`doctor`** can print a note that the **OS/shell lines describe the runtime** (the **`bash`** session), **not** necessarily the IDE host. That avoids false alarms when PowerShell launched the tool but MemPalace checks run against a **Windows** venv selected by the Unix script.
+
+**pip, paths, and timeouts** — Web stack and bootstrap paths use **`PIP_DEFAULT_TIMEOUT`** (default **120s**) and retries for slow networks. When **`python.exe`** is on Windows but **`pip`** is invoked from a Unix shell, path rewriting (**e.g. `wslpath`**) keeps **`-r requirements.txt`** pointing at real files. The goal is to **fail with a clear message** (or auto-recreate the venv) instead of opaque “file not found” errors.
+
+**If something still looks wrong** — Run **`doctor`** from the **same** shell you use day to day, then compare with **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** (WSL vs Windows venv, PATH, Ollama). **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** describes how the pieces fit at a higher level.
 
 ---
 
