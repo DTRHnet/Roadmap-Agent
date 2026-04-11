@@ -7,10 +7,9 @@
 **Terminal-first roadmap workflow** — plain Markdown in `.rma/`, local and remote LLMs, optional MemPalace, optional web UI.
 
 [![Version](https://img.shields.io/badge/release-v1.0.1-5b4cdb?style=flat-square)](CHANGELOG.md)
-[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-495057?style=flat-square)](#requirements)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-495057?style=flat-square&logo=docker&logoColor=white)](#deployment-guide)
 [![Runtime](https://img.shields.io/badge/runtime-Bash%20%2B%20PowerShell-2f9e44?style=flat-square)](#runtime-model)
 [![Quick start](https://img.shields.io/badge/read-quick%20start-228be6?style=flat-square)](docs/QUICKSTART.md)
-[![Docker](https://img.shields.io/badge/docker-optional%20web%20image-2496ed?style=flat-square&logo=docker&logoColor=white)](docker-compose.yml)
 
 <br/>
 
