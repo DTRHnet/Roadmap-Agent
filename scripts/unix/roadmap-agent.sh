@@ -1484,6 +1484,15 @@ cmd_release() {
     warn "Release helper missing: $rel"
     return 1
   fi
+  if grep -q $'\r' "$rel" 2>/dev/null; then
+    local tmp ec
+    tmp="$(mktemp "${TMPDIR:-/tmp}/rma-release-rma.XXXXXX")" || return 1
+    sed 's/\r$//' "$rel" > "$tmp"
+    RMA_RELEASE_REPO_ROOT="$APP_DIR" bash "$tmp" "$@"
+    ec=$?
+    rm -f "$tmp"
+    return "$ec"
+  fi
   bash "$rel" "$@"
 }
 
