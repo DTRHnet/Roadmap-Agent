@@ -20,6 +20,11 @@ id_ed25519
 id_ed25519.pub
 credentials.json
 secrets*.json
+.envrc
+.direnv/
+
+# Optional FastAPI overrides (may include admin_token); use rma-web.config.example.yaml as template
+web/rma-web.yaml
 
 ############################################
 # ROADMAP-AGENT local runtime state
@@ -70,5 +75,12 @@ desktop.ini
 dist/
 build/
 coverage/
+htmlcov/
+coverage.xml
 *.coverage
 *.lcov
+.tox/
+.nox/
+
+# Local editor / agent state (paths, history)
+.cursor/

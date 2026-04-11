@@ -39,12 +39,26 @@
 
 ## What It Does
 
-- **Menus that do not get in the way** — `fzf` when it is there; honest text prompts when it is not.
-- **Project memory that stays in the repo** — Markdown under `.rma/`, not a black-box database.
-- **Roadmap lifecycle** — `init`, `status`, `plan`, `execute-one`, `unlock` for small, reviewable steps.
-- **Repo-aware analysis** — `analyze` keeps `tasks.md` / `run.md` honest; `analyze-init` drafts context files with preview (and LLM help when configured).
-- **MemPalace + LLM workflows** — **`plan`** writes **`plan.md`** using your **LLM** (Ollama by default) and the `.rma` context bundle; optional **`mempalace wake-up`** text enriches the prompt when **`.rma/mempalace`** exists. Safe **mine** uses the real **`mempalace`** CLI (after `setup-local-models-mempalace`). Set **`RMA_ALLOW_PLAN_FALLBACK=1`** for a static template if the LLM is unavailable (dev-only).
-- **Run from anywhere (if you want)** — persistence installers for Windows, Linux, and macOS so `rma` can live on your PATH.
+ROADMAP-AGENT is a **terminal-first workflow** for turning a codebase—**brand new or years old**—into something you can plan and ship in **small, reviewable steps**. It does not replace your editor, Git, or issue tracker. It gives you a **single place in the repo** (the **`.rma/`** folder) where product intent, UX rules, stack facts, and “everything else” live as **plain Markdown**, plus generated **roadmaps** (`plan.md`, `tasks.md`, `run.md`) that stay aligned with reality through **`analyze`** and **`execute-one`**.
+
+**How it fits a project**
+
+- **Fresh repo:** run **`init`** once. You get templates for `description.md`, `ui.md`, `stack.md`, and `other.md`. Fill them in (or use **`analyze-init`** so an LLM proposes drafts you accept or edit). Then **`plan`** produces a structured **`plan.md`** grounded in that context.
+- **Existing repo:** point the tool at the project root (or **`init`** / **`analyze-init`** there). The same `.rma/` layout applies: the CLI **`analyze`**es the tree and docs to refresh task lists; **`plan`** re-synthesizes the roadmap when scope changes. You are not forced to migrate to a new app structure—ROADMAP-AGENT **wraps** what you already have.
+
+**How MemPalace fits**
+
+**MemPalace** (the **`mempalace`** CLI and Python package, with **ChromaDB** in the project venv) is **optional but powerful**: it **indexes** a directory you choose (often the repo or a subtree) into a **local vector store** so retrieval and “what does this codebase say?” workflows stay **on your machine**. In this toolkit, **mining** is exposed as safe **`mempalace mine … --dry-run`** previews from the menu; a full ingest is a deliberate **`mempalace mine`** you run when ready. Separately, when **`.rma/mempalace`** metadata exists, **`plan`** can fold in **`mempalace wake-up`** context so the LLM sees **retrieval-aware** snippets alongside your `.rma` Markdown. So: **`.rma/`** is the **human-readable contract**; **MemPalace** is **searchable memory** over files—complementary, not redundant.
+
+**LLMs: local-first, not local-only**
+
+- **Default posture** is **local**: **Ollama** (or any server speaking the same HTTP API) drives **`plan`**, **`analyze-init`**, and agent-style flows—no vendor account required.
+- The same code paths support **OpenAI-compatible** endpoints (**LM Studio**, **vLLM**, hosted APIs, etc.) via **`RMA_LLM_PROVIDER=openllama`** and **`RMA_OPENAI_*`**, and **Anthropic Claude** via **`RMA_LLM_PROVIDER=claude`**. You choose per project in **`.env`**.
+- If no model is available, some flows can **fall back** to heuristics; for **`plan`** you can set **`RMA_ALLOW_PLAN_FALLBACK=1`** in development to emit a static scaffold (not a substitute for a real plan in production).
+
+**Everything else in one line**
+
+Interactive **`fzf`** menus (with plain-text fallback), optional **companion web UI** to edit whitelisted **`.env`** keys and run **`doctor`**, and **persistence** installers so **`rma`** can sit on your **PATH**—all of it is **local**, script-driven, and **under your repo’s version control** except secrets (see **Security and operational notes** below).
 
 ---
 
@@ -531,12 +545,15 @@ The runtime works without custom environment variables, but supports useful over
 
 ---
 
-## Security and Operational Notes
+## Security and operational notes
 
-- ROADMAP-AGENT is script-first and executes local commands; review scripts before broad rollout.
-- Persistence mode modifies PATH and may require elevated privileges.
-- Validate generated plans before executing tasks in production repositories.
-- Keep backups/version control for `.rma/` when used as long-lived project memory.
+- **Secrets:** Never commit **`.env`**, **`web/rma-web.yaml`** (if you create it), API keys, or tokens. The repository **`.gitignore`** excludes `.env`, env variants, optional web YAML, keys/certs, and **`.rma/`** runtime state. Use **`.env.example`** and **`web/rma-web.config.example.yaml`** only as templates with placeholders.
+- **Web UI:** The FastAPI app defaults to binding **`127.0.0.1`**. For mutating routes (`PUT /api/env`, init, pull, etc.), set **`RMA_WEB_ADMIN_TOKEN`** on the API process and send **`X-RMA-Web-Token`** from the browser—otherwise anyone who can reach the port could change project **`.env`**.
+- **Execution:** The CLI and web backend **spawn shell commands** (`rma`, `git`, `mempalace`, `pip`, …) from paths you configure. Treat the toolkit like any dev tool: review scripts for your environment, and do not point it at untrusted project roots with elevated privileges.
+- **Persistence mode** modifies **PATH** and may require elevated privileges on Windows (**Machine** scope).
+- **Generated output:** Validate **`plan.md`** and automated edits before trusting them in production repos; keep **`.rma/`** in version control when it is your source of truth.
+
+**Before a public release (maintainers):** Confirm no real keys in the tree (`git grep -i api_key`, search for `sk-`, `ghp_`, private key blocks), keep **`.env`** out of history, and prefer **example** configs over real URLs that leak internal infrastructure.
 
 ---
 
