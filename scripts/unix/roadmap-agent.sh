@@ -347,7 +347,7 @@ RELEASE OPTIONS (roadmap-agent release ...)
   --skip-github-release  Skip gh release create
   -y, --yes              Non-interactive (no prompts)
   Uses APP_DIR (toolkit root), not the managed project root. Requires git; optional docker, gh.
-  See DOCS/RELEASING.md and scripts/unix/release-rma.sh.
+  See docs/RELEASING.md and scripts/unix/release-rma.sh.
 
 PERSISTENCE MODE
   Linux/macOS:
@@ -362,13 +362,13 @@ PERSISTENCE MODE
     - Uses Program Files install root and machine PATH updates
     - See `roadmap-agent.ps1 persistence --help` behavior
 
-MORE DOCS
+MORE DOCUMENTATION
   README.md
-  DOCS/GETTING-STARTED.md
-  DOCS/MENU-REFERENCE.md
-  DOCS/ROADMAP-WORKFLOW.md
-  DOCS/ARCHITECTURE.md
-  DOCS/TROUBLESHOOTING.md
+  docs/GETTING-STARTED.md
+  docs/MENU-REFERENCE.md
+  docs/ROADMAP-WORKFLOW.md
+  docs/ARCHITECTURE.md
+  docs/TROUBLESHOOTING.md
 EOF
 }
 
@@ -391,14 +391,15 @@ persistence_scripts_in_sync() {
     "scripts/windows/install-persistence.ps1"
     "scripts/windows/setup-rma.ps1"
     "scripts/windows/setup-local-models-mempalace.ps1"
-    "roadmap-agent"
-    "roadmap-agent.cmd"
-    "rma"
-    "rma.cmd"
-    "rma.ps1"
-    "rma.sh"
-    "setup-rma.ps1"
-    "setup-rma.cmd"
+    "launchers/roadmap-agent"
+    "launchers/roadmap-agent.cmd"
+    "launchers/rma"
+    "launchers/rma.cmd"
+    "launchers/rma.ps1"
+    "launchers/rma.sh"
+    "launchers/setup-rma.ps1"
+    "launchers/setup-rma.cmd"
+    "launchers/refresh-rma-path.ps1"
     "RUN.sh"
     "RUN.ps1"
     "RUN.cmd"
@@ -1265,7 +1266,7 @@ EOF
 }
 
 show_manpage() {
-  local manfile="$APP_DIR/DOCS/man/roadmap-agent.1"
+  local manfile="$APP_DIR/docs/man/roadmap-agent.1"
   local fallback="/usr/local/share/man/man1/roadmap-agent.1"
   if [[ -f "$manfile" ]]; then
     sed 's/^\.\\".*$//g' "$manfile"
@@ -1310,7 +1311,7 @@ cmd_persistence_unix() {
   local man_dir="/usr/local/share/man/man1"
   local source_app_dir="$APP_DIR"
   local this_sh="$source_app_dir/scripts/unix/roadmap-agent.sh"
-  local man_src="$source_app_dir/DOCS/man/roadmap-agent.1"
+  local man_src="$source_app_dir/docs/man/roadmap-agent.1"
 
   shell_name="$(basename "${SHELL:-unknown}")"
   rc_file="$(detect_shell_rc_file)"

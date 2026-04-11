@@ -53,7 +53,7 @@ Tag and push to your registry as needed. The Dockerfile copies the tree and sets
 
 ## 5. Windows persistence / “local install”
 
-The **installer** (`scripts/windows/install-persistence.ps1`, or `setup-rma.ps1`) **mirrors** the repo into `%LOCALAPPDATA%\Roadmap-Agent` (or Program Files for machine scope) and adds `bin` to PATH. That is a **deployment** of the same scripts, not a separate build pipeline.
+The **installer** (`scripts/windows/install-persistence.ps1`, or `launchers/setup-rma.ps1`) **mirrors** the repo into `%LOCALAPPDATA%\Roadmap-Agent` (or Program Files for machine scope) and adds `bin` to PATH. That is a **deployment** of the same scripts, not a separate build pipeline.
 
 After changing release layout, run **`install-persistence.ps1`** from the new tag on a test machine and confirm `rma doctor` and `RUN.ps1` behave as expected.
 

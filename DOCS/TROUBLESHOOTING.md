@@ -11,7 +11,7 @@ Cause:
 Fix:
 
 ```bash
-roadmap-agent init
+./launchers/roadmap-agent init
 ```
 
 Then populate:
@@ -92,8 +92,8 @@ Cause:
 
 Fix:
 
-- use `roadmap-agent.cmd` or `rma.ps1` on Windows
-- use `roadmap-agent`/`.sh` in bash-compatible environments
+- use `launchers/roadmap-agent.cmd` or `launchers/rma.ps1` on Windows
+- use `launchers/roadmap-agent` / `launchers/rma.sh` in bash-compatible environments
 
 ## 8) Docker run cannot access project files
 

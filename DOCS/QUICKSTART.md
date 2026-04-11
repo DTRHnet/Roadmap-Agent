@@ -40,15 +40,15 @@ copy .env.example .env
 From the **project root** (your app repo or this repo):
 
 ```powershell
-.\rma.ps1 init
+.\launchers\rma.ps1 init
 ```
 
 ### 5. Run the menu or a command
 
 ```powershell
-.\rma.ps1
-.\rma.ps1 status
-.\rma.ps1 doctor
+.\launchers\rma.ps1
+.\launchers\rma.ps1 status
+.\launchers\rma.ps1 doctor
 ```
 
 ### 6. (Optional) Install `rma` globally (persistence)
@@ -56,7 +56,7 @@ From the **project root** (your app repo or this repo):
 From the Roadmap-Agent repo root:
 
 ```powershell
-.\setup-rma.ps1 -Scope User
+.\launchers\setup-rma.ps1 -Scope User
 ```
 
 - **User** scope: no Administrator; installs under `%LOCALAPPDATA%\Roadmap-Agent` and updates User PATH.
@@ -65,7 +65,7 @@ From the Roadmap-Agent repo root:
 After install, the script refreshes PATH in the current session. If `rma` is still not found:
 
 ```powershell
-.\refresh-rma-path.ps1
+.\launchers\refresh-rma-path.ps1
 ```
 
 Then:
@@ -89,7 +89,7 @@ rma --help
 ```bash
 git clone https://github.com/DTRHnet/Roadmap-Agent.git
 cd RoadmapAgent
-chmod +x roadmap-agent rma scripts/unix/roadmap-agent.sh
+chmod +x launchers/roadmap-agent launchers/rma scripts/unix/roadmap-agent.sh
 ```
 
 ### 2. Python / MemPalace stack (required for `plan` and safe mine)
@@ -108,17 +108,17 @@ cp .env.example .env
 ### 4. Initialize and run
 
 ```bash
-./roadmap-agent init
-./roadmap-agent
-./roadmap-agent doctor
+./launchers/roadmap-agent init
+./launchers/roadmap-agent
+./launchers/roadmap-agent doctor
 ```
 
 ### 5. (Optional) Global install
 
 ```bash
-./roadmap-agent persistence-check
+./launchers/roadmap-agent persistence-check
 # or
-./roadmap-agent persistence
+./launchers/roadmap-agent persistence
 ```
 
 Follow prompts; you may need `sudo`. Open a **new** terminal after install so PATH and shell RC changes apply.
@@ -127,7 +127,7 @@ Follow prompts; you may need `sudo`. Open a **new** terminal after install so PA
 
 ## macOS
 
-Same flow as **Linux** (bash, `chmod +x` launchers, `./roadmap-agent`, optional `setup-local-models` script).
+Same flow as **Linux** (bash, `chmod +x` launchers, `./launchers/roadmap-agent`, optional `setup-local-models` script).
 
 - Install **bash** and **git** via Xcode Command Line Tools or Homebrew if needed.
 - **fzf**: install with Homebrew (`brew install fzf`) or rely on runtime auto-install / fallback.
@@ -143,7 +143,7 @@ docker build -t roadmap-agent .
 docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 ```
 
-Inside the container, use `./roadmap-agent` from `/workspace` as documented in the image entrypoint.
+Inside the container, use `./launchers/roadmap-agent` from `/workspace` as documented in the image entrypoint.
 
 ---
 

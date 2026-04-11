@@ -113,7 +113,7 @@ Pass the same subcommands and flags to any of them, for example:
 ```text
 roadmap-agent status
 rma doctor
-./rma.ps1 analyze-init --dry-run
+./launchers/rma.ps1 analyze-init --dry-run
 ```
 
 ### No subcommand = interactive menu
@@ -518,7 +518,7 @@ Install once; run `rma` / `roadmap-agent` from any directory without typing full
 
 ### Windows
 
-- **`setup-rma.ps1`** (repo root forwards to **`scripts/windows/setup-rma.ps1`**): preferred wrapper (`-Scope User` or `-Scope Machine`).
+- **`launchers/setup-rma.ps1`** (forwards to **`scripts/windows/setup-rma.ps1`**): preferred wrapper (`-Scope User` or `-Scope Machine`).
 - **`install-persistence.ps1`**: lower-level installer; mirrors full tree into `%LOCALAPPDATA%\Roadmap-Agent` or `%ProgramFiles%\Roadmap-Agent`.
 - **`refresh-rma-path.ps1`**: reload PATH in the **current** PowerShell after install.
 
@@ -591,4 +591,4 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 | [examples/rma-context-samples/README.md](examples/rma-context-samples/README.md) | Sample `.rma` context files by project type; MCP (Model Context Protocol) notes |
 | [examples/END-TO-END-LIST-SHARING-APP.md](examples/END-TO-END-LIST-SHARING-APP.md) | End-to-end workflow example with mock transcripts |
 
-Unix manpage source: `DOCS/man/roadmap-agent.1`.
+Unix manpage source: `docs/man/roadmap-agent.1`.

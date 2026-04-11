@@ -19,7 +19,7 @@ Use ROADMAP-AGENT from the same directory where your source code lives.
 ## 3) Initialize `.rma/`
 
 ```bash
-roadmap-agent init
+./launchers/roadmap-agent init
 ```
 
 This initializes required structure and templates.
@@ -81,7 +81,7 @@ Inside container, entrypoint routes into the same menu flow.
 If you want global command access:
 
 - **Linux/macOS:** `roadmap-agent persistence` or `roadmap-agent persistence-check` (follow prompts; may use `sudo`).
-- **Windows:** from the cloned repo run `.\setup-rma.ps1 -Scope User` (no Administrator) or `-Scope Machine` from an elevated shell. See **QUICKSTART.md** for PATH refresh (`refresh-rma-path.ps1`) if `rma` is not found in the current window.
+- **Windows:** from the cloned repo run `.\launchers\setup-rma.ps1 -Scope User` (no Administrator) or `-Scope Machine` from an elevated shell. See **QUICKSTART.md** for PATH refresh (`refresh-rma-path.ps1`) if `rma` is not found in the current window.
 
 Installers mirror the full app tree and deduplicate PATH entries where applicable.
 

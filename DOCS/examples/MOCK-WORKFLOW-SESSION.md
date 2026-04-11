@@ -13,7 +13,7 @@ remote: Enumerating objects: 842, done.
 
 PS C:\Users\dev\src> cd Roadmap-Agent
 
-PS C:\Users\dev\src\Roadmap-Agent> .\setup-rma.ps1 -Scope User
+PS C:\Users\dev\src\Roadmap-Agent> .\launchers\setup-rma.ps1 -Scope User
 ROADMAP-AGENT Setup
 Repo root: C:\Users\dev\src\Roadmap-Agent
 Scope: User

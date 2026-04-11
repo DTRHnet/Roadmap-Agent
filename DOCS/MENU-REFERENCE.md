@@ -36,7 +36,7 @@ ROADMAP-AGENT uses a two-level fzf navigation pattern.
 - `roadmap-agent persistence-check` -> option `HUB::3`
 - `roadmap-agent setup-venv` -> option `HUB::4`
 - `roadmap-agent pick-env` -> option `HUB::5`
-- `roadmap-agent release` -> option `HUB::6` (maintainer: see `release --help` / `DOCS/RELEASING.md`)
+- `roadmap-agent release` -> option `HUB::6` (maintainer: see `release --help` / `docs/RELEASING.md`)
 - `roadmap-agent --help` -> detailed CLI help
 - `roadmap-agent man` -> built-in manual/manpage text
 
