@@ -21,7 +21,7 @@ The UI **Project root** field is the managed repo (where `.rma/` and `.env` live
 
 ## Quick start (development)
 
-**Integrated (recommended):** run **`roadmap-agent`** / **`rma`** with no args → hub **VII** (API: ensure **`.rma/venv`**, **`pip install -r requirements-web.txt`**, **uvicorn :8765**) and **VIII** ( **`npm install`**, **Vite :5173**). CLI equivalents: **`roadmap-agent web-api`** / **`web-backend`** and **`roadmap-agent web-frontend`**.
+**Integrated (recommended):** run **`roadmap-agent`** / **`rma`** with no args → **Web & MCP** → **Start API** (ensure **`.rma/venv`**, **`pip install -r requirements-web.txt`**, **uvicorn :8765**) and **Start frontend** (**`npm install`**, **Vite :5173**). CLI equivalents: **`roadmap-agent web-api`** / **`web-backend`** and **`roadmap-agent web-frontend`**.
 
 **Manual** from the **repository root**:
 
@@ -110,6 +110,8 @@ docker compose up --build
 - If you skip the frontend build, you still get the **API** and FastAPI **OpenAPI** at **http://127.0.0.1:8765/docs**; use **`npm run dev`** on the host pointed at that API, or build `dist` and rebuild the image.
 
 **Windows:** Prefer **`web/run-backend.ps1`** + local **`npm run dev`** so `rma` can reach **Git Bash / WSL** the same way your normal CLI does. Compose on Windows is best for Linux-backed Docker when you accept API-only or pre-built `dist`.
+
+If **`npm ci`** fails with **EPERM** on a file under **`node_modules`**, or **`docker build`** says *buildx requires 1 argument*, see **[`docs/TROUBLESHOOTING.md`](../docs/TROUBLESHOOTING.md) §11** (clean **`node_modules`**, run **`docker build`** from the **repo root** with a space after the **`.`** context).
 
 ---
 

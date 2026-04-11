@@ -1,5 +1,6 @@
-# Optional companion web UI (FastAPI). Build from repository root:
+# Optional companion web UI (FastAPI). Build from repository root only:
 #   docker build -f docker/Dockerfile.web -t rma-web .
+# (.dockerignore excludes .rma/venv so Windows Docker context upload does not fail on lib64 symlinks.)
 FROM python:3.12-slim-bookworm
 WORKDIR /workspace
 COPY requirements-web.txt .

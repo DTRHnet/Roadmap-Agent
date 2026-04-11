@@ -25,6 +25,16 @@ ENV_FILE_KEYS: frozenset[str] = frozenset(
         "RMA_WEB_VITE_PORT",
         "RMA_WEB_FREE_PORT_ASK",
         "RMA_WEB_VITE_PROXY_TARGET",
+        "RMA_MCP_TRANSPORT",
+        "RMA_MCP_HOST",
+        "RMA_MCP_PORT",
+        "RMA_MCP_NAME",
+        "RMA_MCP_MAX_STEPS",
+        "RMA_MCP_ALLOW_SHELL",
+        "RMA_MCP_PROJECT_ROOT",
+        "RMA_MCP_LOG",
+        "RMA_MCP_DETACH",
+        "RMA_MCP_FORCE",
     }
 )
 

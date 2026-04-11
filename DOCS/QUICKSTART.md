@@ -185,7 +185,7 @@ Browser UI for editing project **`.env`** (whitelisted keys), **`rma doctor --js
 
 **Fast path — hub / CLI** (from a project directory with **`rma` / `roadmap-agent`** on `PATH`, or **`./launchers/roadmap-agent`**):
 
-1. **`roadmap-agent`** (no args) → hub **VII** (API: venv + **`pip install -r requirements-web.txt`** + uvicorn) and **VIII** ( **`npm install`** + Vite). Or: **`roadmap-agent web-api`** and **`roadmap-agent web-frontend`**.
+1. **`roadmap-agent`** (no args) → **Web & MCP** → **Start API** (venv + **`pip install -r requirements-web.txt`** + uvicorn) and/or **Start frontend** (**`npm install`** + Vite). Or: **`roadmap-agent web-api`** and **`roadmap-agent web-frontend`**.
 2. Optional: set **`RMA_WEB_ADMIN_TOKEN`** before starting the API if you want mutating routes to require the token in the UI.
 
 **Manual scripts** (Roadmap-Agent repo root):

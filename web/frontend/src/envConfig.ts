@@ -7,12 +7,18 @@ export const TOGGLE_KEYS = new Set([
   'RMA_ALLOW_PLAN_FALLBACK',
   'RMA_PLAN_INTERACTIVE',
   'RMA_WEB_FREE_PORT_ASK',
+  'RMA_MCP_ALLOW_SHELL',
+  'RMA_MCP_LOG',
+  'RMA_MCP_DETACH',
+  'RMA_MCP_FORCE',
 ])
 
 export const NUMBER_KEYS = new Set([
   'RMA_PLAN_INTERACTIVE_MAX',
   'RMA_WEB_PORT',
   'RMA_WEB_VITE_PORT',
+  'RMA_MCP_PORT',
+  'RMA_MCP_MAX_STEPS',
 ])
 
 export type EnvGroup = { id: string; title: string; blurb: string; keys: string[] }
@@ -73,7 +79,7 @@ export const ENV_GROUPS: EnvGroup[] = [
   },
   {
     id: 'web-stack',
-    title: 'Web UI (hub VII / VIII)',
+    title: 'Web UI (hub: Web & MCP)',
     blurb:
       'Ports and prompts for roadmap-agent web-api / web-frontend. Also set RMA_WEB_* on the API process (uvicorn). Optional toolkit file web/rma-web.yaml — see web/rma-web.config.example.yaml.',
     keys: [
@@ -82,6 +88,24 @@ export const ENV_GROUPS: EnvGroup[] = [
       'RMA_WEB_VITE_PORT',
       'RMA_WEB_FREE_PORT_ASK',
       'RMA_WEB_VITE_PROXY_TARGET',
+    ],
+  },
+  {
+    id: 'mcp',
+    title: 'MCP server (hub: Web & MCP)',
+    blurb:
+      'Model Context Protocol for Cursor / Claude Desktop. See docs/MCP-SERVER.md and rma_mcp/client-config.example.json.',
+    keys: [
+      'RMA_MCP_TRANSPORT',
+      'RMA_MCP_NAME',
+      'RMA_MCP_ALLOW_SHELL',
+      'RMA_MCP_PROJECT_ROOT',
+      'RMA_MCP_MAX_STEPS',
+      'RMA_MCP_LOG',
+      'RMA_MCP_HOST',
+      'RMA_MCP_PORT',
+      'RMA_MCP_DETACH',
+      'RMA_MCP_FORCE',
     ],
   },
 ]
@@ -113,6 +137,19 @@ export const ENV_HINTS: Record<string, string> = {
     '1 = if the API or Vite port is busy, prompt (y/N) to run fuser/lsof kill on that TCP port before starting. 0 = fail immediately.',
   RMA_WEB_VITE_PROXY_TARGET:
     'Full base URL for the API from the browser (e.g. http://127.0.0.1:8765). Exported when starting Vite so /api proxies correctly.',
+  RMA_MCP_TRANSPORT:
+    'CLI default when unset: streamable-http (background). Use stdio for Cursor/Claude command MCP. See docs/MCP-SERVER.md.',
+  RMA_MCP_NAME: 'Display name of the MCP server for hosts.',
+  RMA_MCP_ALLOW_SHELL: '1 = allow run_shell tool (use only on trusted projects).',
+  RMA_MCP_PROJECT_ROOT: 'Optional project path override for MCP (relative or absolute).',
+  RMA_MCP_MAX_STEPS: 'Hint for MCP clients; not enforced by the server.',
+  RMA_MCP_LOG: '1 = log tool calls under .rma/mcp/logs/toolcalls.jsonl.',
+  RMA_MCP_HOST: 'Bind address for streamable-http / sse (default 127.0.0.1).',
+  RMA_MCP_PORT: 'TCP port for streamable-http / sse (default 8767).',
+  RMA_MCP_DETACH:
+    'CLI default when unset: 1 (HTTP MCP via nohup; .rma/mcp/nohup.log). 0 or mcp-start --foreground keeps the shell. Ignored for stdio.',
+  RMA_MCP_FORCE:
+    '1 = before starting, stop the MCP PID from .rma/mcp/runtime.json (best-effort). Use when replacing a stuck server.',
 }
 
 export function parseBulkEnv(text: string, allowedKeys: Set<string>): Record<string, string> {

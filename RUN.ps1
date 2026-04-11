@@ -51,6 +51,8 @@ Examples:
   .\RUN.ps1
   .\RUN.ps1 plan
   .\RUN.ps1 doctor
+  .\RUN.ps1 mcp-start
+  .\RUN.ps1 mcp-start --detach
   .\RUN.ps1 -y menu
 "@
     exit 0

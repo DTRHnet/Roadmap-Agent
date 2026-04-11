@@ -33,6 +33,7 @@
 | **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (`v1.0.0`, …). |
 | **[`docs/RELEASING.md`](docs/RELEASING.md)** | Shipping — tags, GitHub releases, archives, Docker; no required binary artifact. |
 | **[`web/README.md`](web/README.md)** | Optional web UI — FastAPI + React, guided/advanced `.env` editor, `doctor --json`, model probes, Docker, **`VITE_DOCS_BASE`**. |
+| **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** | **MCP** — default **streamable-http** (background) from the CLI; **stdio** for Cursor/Claude command config. `.rma/` context, `rma plan`/`analyze`, scoped file tools, optional shell. |
 
 Project memory lives in **`.rma/`**; plans and execution run from the **terminal** with **local LLMs** (Ollama by default) when you want repo-aware help — **no** hosted dashboard or vendor lock-in for the core workflow.
                                                                                                                                                                   
@@ -64,7 +65,27 @@ ROADMAP-AGENT is a **terminal-first workflow** for turning a codebase—**new or
 
 ### Interfaces
 
-**`fzf`** menus (text fallback when needed), optional **local web UI** for `.env` + **`doctor`**, and **persistence** so **`rma`** is on your **PATH** — all **local** and git-friendly except secrets ([Security](#security-and-operational-notes)).
+**`fzf`** menus (text fallback when needed), optional **local web UI** for `.env` + **`doctor`**, optional **MCP server** (**`mcp-start`** / hub **Web & MCP**) for external coding agents, and **persistence** so **`rma`** is on your **PATH** — all **local** and git-friendly except secrets ([Security](#security-and-operational-notes)).
+
+### MCP server, local LLM, and IDE agents (how they fit together)
+
+This stack is **local-first**: a **desktop MCP host** (Claude Desktop, Cursor, Windsurf, …) runs the **orchestration loop** and the **LLM** (often a **local** model via Ollama, LM Studio, or vLLM). The **ROADMAP-AGENT MCP server** does **not** replace the LLM — it exposes **tools** and a **resource** so the host model can read your **`.rma/`** contract, run **`rma`** commands, edit files under the project root, and optionally run shell (if you enable it).
+
+| Piece | Role |
+|--------|------|
+| **MCP host + LLM** | Decides next step, emits tool calls; the model may be entirely on your machine (Ollama, etc.) or a remote API depending on how you configure the host. |
+| **`rma_mcp` (FastMCP)** | Serves **`roadmap://context`** (same Markdown as **`get_roadmap_context`**: `.rma/*.md` + `.rma/roadmaps/*.md`) and tools such as **`rma_plan`**, **`rma_analyze`**, **`rma_doctor`**, **`rma_sysinfo`**, **`read_project_file`**, **`write_project_file`**, and gated **`run_shell`**. |
+| **Your repo + `.rma/`** | Source of truth; **`rma analyze`** keeps **`tasks.md` / `run.md`** aligned with the tree. |
+
+**Data flow (simplified):** the user prompt and retrieved context go to the **LLM inside the MCP client**. The client sends **MCP tool** requests to **`mcp-start`**. The server executes tools (subprocess to **`roadmap-agent.sh`** where applicable, or **`sysinfo.py`**, or filesystem I/O) and returns text results to the client, which feeds them back into the model until the task stops.
+
+**Important distinctions (so expectations match the implementation):**
+
+- **Resource URI** is **`roadmap://context`**, not a separate `context://` scheme. The bundle is **Markdown from `.rma/`** — it does **not** auto-inject MemPalace vector hits. For retrieval-aware **plan** generation inside the CLI, use **`plan`** with an indexed **`.rma/mempalace`** (wake-up) as documented elsewhere; from MCP you can run **`rma_doctor`**, **`read_project_file`**, or **`run_shell`** (if enabled) toward the same goals.
+- **There is no `RMA_MCP_APPROVAL_MODE` env var** in this repo. Risk is mitigated by **keeping `RMA_MCP_ALLOW_SHELL=0`**, relying on your **host’s tool-approval UI**, and reading **`docs/MCP-SERVER.md`** for transport and logging (**`.rma/mcp/logs/`**).
+- **Defaults:** `RMA_MCP_TRANSPORT=streamable-http` and **`RMA_MCP_DETACH=1`** (hub/`mcp-start` release the terminal; URL in **`.rma/mcp/runtime.json`**). For **stdio** hosts, set **`RMA_MCP_TRANSPORT=stdio`** and **`RMA_MCP_DETACH=0`**. Optional **`RMA_MCP_ALLOW_SHELL=1`** only on trusted trees; **`RMA_MCP_MAX_STEPS`** is a client hint (see **`docs/MCP-SERVER.md`**).
+
+**Bootstrap:** from the project root, `./RUN.sh mcp-start` or `.\RUN.ps1 mcp-start` (after your usual venv bootstrap) or configure the host to run `python -m rma_mcp` with **`PYTHONPATH`** and **`ROADMAP_AGENT_*_ROOT`** set — see **`rma_mcp/client-config.example.json`**.
 
 ---
 
@@ -148,7 +169,9 @@ RoadmapAgent/
     backend/                    # FastAPI app
     frontend/                   # Vite + React SPA
 
+  rma_mcp/                      # Optional MCP server (python -m rma_mcp; hub Web & MCP or rma mcp-start)
   requirements-web.txt          # Python deps for web/backend (pip -r from repo root)
+  requirements-mcp.txt          # MCP SDK only (installed on demand by mcp-start)
 
   docs/
     QUICKSTART.md            # Per-OS quick start (Windows, Linux, macOS, Docker)
@@ -157,6 +180,7 @@ RoadmapAgent/
     ROADMAP-WORKFLOW.md
     ARCHITECTURE.md
     TROUBLESHOOTING.md
+    MCP-SERVER.md            # MCP host setup, tools, safety (default HTTP+detach; stdio opt-in)
     MANUAL.md                # Detailed operator manual (usage, .rma editing, commands)
     man/
       roadmap-agent.1
@@ -244,7 +268,7 @@ I intend on expanding on the webui a lot. But at the moment, it's functional.
 
 **Fast path**
 
-1. **From the hub (menu):** open **`roadmap-agent`** / **`rma`** with no args → **VII** starts the API (creates **`.rma/venv`** if missing, **`pip install -r requirements-web.txt`**, then **uvicorn** on **:8765**); **VIII** runs **`npm install`** and **Vite** on **:5173**. Use two terminals if you want both. **NOTE** : I plan on enhancing this such *screen* or *tmux* are used effectively here. Or possibly given no errors, push process to background to free terminal up. 
+1. **From the hub (menu):** open **`roadmap-agent`** / **`rma`** with no args → choose **Web & MCP** → **Start API** (creates **`.rma/venv`** if missing, **`pip install -r requirements-web.txt`**, then **uvicorn** on **:8765**) or **Start frontend** (**`npm install`** and **Vite** on **:5173**). Use two terminals if you want both. See **`docs/MENU-REFERENCE.md`** for the full category map. 
 2. **CLI:** **`roadmap-agent web-api`** (alias **`web-backend`**) and **`roadmap-agent web-frontend`** — same behavior as VII / VIII.
 3. **Scripts:** `web/run-backend.ps1` (Windows) or `web/run-backend.sh` (Unix) — same API port; they install **`requirements-web.txt`** with the current **`python`** on `PATH` (hub/CLI prefer the **project venv** under **`RMA_PYTHON_VENV_DIR`**).
 4. **UI (dev) without hub:** `cd web/frontend && npm install && npm run dev` — open **http://127.0.0.1:5173**, set **Project root** to your repo.
@@ -368,6 +392,7 @@ That script rebuilds `$env:Path` from the Machine + User registry values (the sa
 - `unlock` - remove locked state.
 - `persistence` / `persistance` - check/install persistence mode.
 - `persistence-check` - check if persistence/global command wiring exists.
+- `mcp-start` - run the **MCP** server (defaults: **streamable-http** + background; **`--foreground`** / **`RMA_MCP_DETACH=0`** to block the shell; **`--force`**; **stdio** via `.env`). Hub: **Web & MCP**. See **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** and [MCP + local LLM + IDE agents](#mcp-server-local-llm-and-ide-agents-how-they-fit-together) above.
 - `help`, `-h`, `--help` - command help.
 - default (no command): open interactive menu.
 

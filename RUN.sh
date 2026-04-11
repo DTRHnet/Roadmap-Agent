@@ -40,6 +40,8 @@ Examples:
   RUN.sh
   RUN.sh plan
   RUN.sh doctor
+  RUN.sh mcp-start
+  RUN.sh mcp-start --detach
   RUN.sh -y menu
   RUN.sh agent "stabilize the roadmap loop"
 EOF

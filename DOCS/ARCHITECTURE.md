@@ -19,7 +19,7 @@ ROADMAP-AGENT is a script-first architecture with mirrored PowerShell and bash r
 2. CLI command layer
    - handles `init`, `status`, `plan`, `execute-one`, `unlock`, menu.
 3. Interactive UI layer
-   - `fzf` hub + AI submenu.
+   - `fzf` category hub + submenus (Roadmap, MemPalace, Environment, Web/MCP, Maintainer).
 4. State and context layer
    - `.rma/` metadata, state, logs, roadmap files.
 5. External integration layer
@@ -35,6 +35,14 @@ ROADMAP-AGENT is a script-first architecture with mirrored PowerShell and bash r
 - **Container**: **`docker/Dockerfile.web`** and root **`docker-compose.yml`** expose **127.0.0.1:8765** on the host; in-container bind is **`0.0.0.0`**. Pre-build **`web/frontend/dist`** before **`docker compose build`** if you want the SPA inside the image; otherwise use **`/docs`** or a host Vite dev server.
 
 Setup and security notes: **[`web/README.md`](../web/README.md)**.
+
+## MCP server (optional)
+
+- **`rma_mcp/`**: Python package **`rma_mcp`** (avoids shadowing the PyPI **`mcp`** module name). Entry: **`python -m rma_mcp`** or **`roadmap-agent mcp-start`** / hub **Web & MCP → MCP server**.
+- **FastMCP**: exposes resource **`roadmap://context`** (Markdown from **`.rma/`** and **`roadmaps/`**) and tools that wrap **`scripts/unix/roadmap-agent.sh`** via **`bash`** (plus **`rma_sysinfo`** invoking **`sysinfo/sysinfo.py`**) with **`ROADMAP_AGENT_PROJECT_ROOT`** and **`ROADMAP_AGENT_APP_ROOT`** set to the managed project and toolkit checkout.
+- **Dependencies**: root **`requirements-mcp.txt`**; the CLI installs it into **`.rma/venv`** when **`mcp-start`** runs if imports fail.
+- **Safety**: paths are normalized under the project root; **`run_shell`** requires **`RMA_MCP_ALLOW_SHELL=1`**. Tool calls can be logged as JSONL under **`.rma/mcp/logs/`** when **`RMA_MCP_LOG`** is enabled.
+- **Docs / client template**: **[`docs/MCP-SERVER.md`](../docs/MCP-SERVER.md)**, **`rma_mcp/client-config.example.json`**.
 
 ## Data Model (`.rma/`)
 
