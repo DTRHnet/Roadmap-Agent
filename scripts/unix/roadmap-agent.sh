@@ -90,7 +90,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|RMA_WEB_HOST|RMA_WEB_PORT|RMA_WEB_VITE_PORT|RMA_WEB_FREE_PORT_ASK|RMA_WEB_VITE_PROXY_TARGET|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|RMA_WEB_HOST|RMA_WEB_PORT|RMA_WEB_VITE_PORT|RMA_WEB_FREE_PORT_ASK|RMA_WEB_VITE_PROXY_TARGET|RMA_MCP_TRANSPORT|RMA_MCP_HOST|RMA_MCP_PORT|RMA_MCP_NAME|RMA_MCP_MAX_STEPS|RMA_MCP_ALLOW_SHELL|RMA_MCP_PROJECT_ROOT|RMA_MCP_LOG|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -118,6 +118,10 @@ load_rma_env_file() {
   RMA_WEB_PORT="${RMA_WEB_PORT:-8765}"
   RMA_WEB_VITE_PORT="${RMA_WEB_VITE_PORT:-5173}"
   RMA_WEB_FREE_PORT_ASK="${RMA_WEB_FREE_PORT_ASK:-1}"
+  RMA_MCP_TRANSPORT="${RMA_MCP_TRANSPORT:-stdio}"
+  RMA_MCP_ALLOW_SHELL="${RMA_MCP_ALLOW_SHELL:-0}"
+  RMA_MCP_NAME="${RMA_MCP_NAME:-roadmap-agent}"
+  RMA_MCP_LOG="${RMA_MCP_LOG:-1}"
 }
 
 configure_python_runtime() {
@@ -406,6 +410,7 @@ COMMANDS
   web-api          Web UI: ensure project venv, pip install requirements-web.txt, start FastAPI (:8765)
   web-backend      Alias of web-api
   web-frontend     Web UI: npm install, start Vite dev server (:5173; proxies /api to :8765)
+  mcp-start        MCP: Model Context Protocol server (stdio) for Cursor / Claude Desktop / etc.
   release          Maintainer: tag + Docker + GitHub Release from VERSION & CHANGELOG (see --help)
   man              Show built-in manual/manpage text
   help, --help,-h  Show this detailed help
@@ -1639,6 +1644,60 @@ web_toolkit_ok() {
     return 1
   fi
   return 0
+}
+
+# MCP: toolkit must ship requirements-mcp.txt and rma_mcp package.
+mcp_toolkit_ok() {
+  local req="$APP_DIR/requirements-mcp.txt"
+  local pkg="$APP_DIR/rma_mcp/__main__.py"
+  if [[ ! -f "$req" ]] || [[ ! -f "$pkg" ]]; then
+    warn "MCP server files missing under toolkit (APP_DIR=$APP_DIR). Expected requirements-mcp.txt and rma_mcp/."
+    return 1
+  fi
+  return 0
+}
+
+cmd_mcp_start() {
+  mcp_toolkit_ok || return 1
+  load_rma_env_file
+  configure_python_runtime
+  ensure_core_dirs
+  local req="$APP_DIR/requirements-mcp.txt"
+  local py="${RMA_PYTHON_BIN:-}"
+  if [[ -z "$py" ]]; then
+    if command -v python3 >/dev/null 2>&1; then
+      py="$(command -v python3)"
+    elif command -v python >/dev/null 2>&1; then
+      py="$(command -v python)"
+    fi
+  fi
+  [[ -n "$py" ]] || {
+    warn "Python not found; run: roadmap-agent setup-venv"
+    return 1
+  }
+  if ! "$py" -c "from mcp.server import fastmcp" >/dev/null 2>&1; then
+    info "Installing MCP SDK (requirements-mcp.txt)…"
+    PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
+    if ! "$py" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" -r "$req"; then
+      warn "pip install -r requirements-mcp.txt failed."
+      return 1
+    fi
+  fi
+  if [[ -n "${RMA_MCP_PROJECT_ROOT:-}" ]]; then
+    local mcp_pr="$RMA_MCP_PROJECT_ROOT"
+    if [[ "$mcp_pr" != /* ]]; then
+      export ROADMAP_AGENT_PROJECT_ROOT="$ROOT_DIR/$mcp_pr"
+    else
+      export ROADMAP_AGENT_PROJECT_ROOT="$mcp_pr"
+    fi
+  else
+    export ROADMAP_AGENT_PROJECT_ROOT="${ROADMAP_AGENT_PROJECT_ROOT:-$ROOT_DIR}"
+  fi
+  export ROADMAP_AGENT_APP_ROOT="${ROADMAP_AGENT_APP_ROOT:-$APP_DIR}"
+  export PYTHONPATH="${APP_DIR}${PYTHONPATH:+:$PYTHONPATH}"
+  info "MCP server (${RMA_MCP_NAME:-roadmap-agent}) transport=${RMA_MCP_TRANSPORT:-stdio} — connect from Cursor / Claude Desktop / any MCP host."
+  info "Project root: $ROADMAP_AGENT_PROJECT_ROOT  |  Toolkit: $ROADMAP_AGENT_APP_ROOT"
+  exec "$py" -m rma_mcp
 }
 
 # Ensure ROOT_DIR/.rma/venv (or RMA_PYTHON_VENV_DIR) exists for pip + uvicorn.
@@ -2996,6 +3055,7 @@ render_hub_menu() {
     "VI  Create release (tag, Docker, GitHub from VERSION)"
     "VII Web UI: start API (venv, deps, uvicorn)"
     "VIII Web UI: start frontend (npm, Vite)"
+    "IX  MCP server (Model Context Protocol, stdio)"
     "0   Exit roadmap-agent"
   )
   if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
@@ -3052,6 +3112,11 @@ render_hub_menu() {
     VIII\ *)
       ensure_core_dirs
       cmd_web_start_frontend
+      return 0
+      ;;
+    IX\ \ *)
+      ensure_core_dirs
+      cmd_mcp_start
       return 0
       ;;
     *) return 1 ;;
@@ -3330,7 +3395,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","web-api","web-backend","web-frontend","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","RMA_WEB_HOST","RMA_WEB_PORT","RMA_WEB_VITE_PORT","RMA_WEB_FREE_PORT_ASK","RMA_WEB_VITE_PROXY_TARGET","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","web-api","web-backend","web-frontend","mcp-start","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","RMA_WEB_HOST","RMA_WEB_PORT","RMA_WEB_VITE_PORT","RMA_WEB_FREE_PORT_ASK","RMA_WEB_VITE_PROXY_TARGET","RMA_MCP_TRANSPORT","RMA_MCP_HOST","RMA_MCP_PORT","RMA_MCP_NAME","RMA_MCP_MAX_STEPS","RMA_MCP_ALLOW_SHELL","RMA_MCP_PROJECT_ROOT","RMA_MCP_LOG","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -3339,7 +3404,7 @@ ROADMAP-AGENT tool manifest (for humans and external agents)
 CLI commands:
   init, status, doctor, plan, analyze, analyze-init, execute-one, agent, run-agent,
   tools [--json], unlock, menu, persistence, persistence-check, setup-venv, pick-env,
-  web-api | web-backend, web-frontend, release, man, help
+  web-api | web-backend, web-frontend, mcp-start, release, man, help
 
 Agent loop (roadmap-agent agent "goal"):
   Internally dispatches: plan, analyze, execute-one (optional), status, unlock,
@@ -3627,6 +3692,10 @@ main() {
     web-frontend)
       ensure_core_dirs
       cmd_web_start_frontend
+      ;;
+    mcp-start)
+      ensure_core_dirs
+      cmd_mcp_start
       ;;
     release)
       cmd_release "$@"

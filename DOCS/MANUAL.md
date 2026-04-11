@@ -20,14 +20,15 @@ This document describes how to **use**, **configure**, **edit project metadata**
 12. [Codebase analysis: `analyze` and `analyze-init`](#codebase-analysis-analyze-and-analyze-init)
 13. [Environment variables and `.env`](#environment-variables-and-env)
 14. [Companion web UI (optional)](#companion-web-ui-optional)
-15. [LLM providers](#llm-providers)
-16. [Python virtual environment](#python-virtual-environment)
-17. [MemPalace-related features](#mempalace-related-features)
-18. [Persistence (global commands)](#persistence-global-commands)
-19. [Diagnostics: `doctor`](#diagnostics-doctor)
-20. [Modifying or extending the project](#modifying-or-extending-the-project)
-21. [Security, secrets, and safety](#security-secrets-and-safety)
-22. [Related documentation](#related-documentation)
+15. [MCP server (optional)](#mcp-server-optional)
+16. [LLM providers](#llm-providers)
+17. [Python virtual environment](#python-virtual-environment)
+18. [MemPalace-related features](#mempalace-related-features)
+19. [Persistence (global commands)](#persistence-global-commands)
+20. [Diagnostics: `doctor`](#diagnostics-doctor)
+21. [Modifying or extending the project](#modifying-or-extending-the-project)
+22. [Security, secrets, and safety](#security-secrets-and-safety)
+23. [Related documentation](#related-documentation)
 
 ---
 
@@ -238,7 +239,7 @@ With no arguments, the CLI opens a **hub** menu. From there you can reach:
 
 - **AI / MemPalace-oriented** actions (depending on build and dependencies).
 - **Roadmap** actions (status, plan, execute-one, etc.).
-- **Persistence-check**, **venv / .env** helpers, **release** maintainer flow, and **optional web UI** starters (**VII** = FastAPI + deps, **VIII** = Vite; see also **`web-api`** / **`web-frontend`**).
+- **Persistence-check**, **venv / .env** helpers, **release** maintainer flow, **optional web UI** starters (**VII** = FastAPI + deps, **VIII** = Vite; see also **`web-api`** / **`web-frontend`**), and **optional MCP server** (**IX**; **`mcp-start`**).
 
 Exact labels use **Roman numerals** (`I`, `II`, `III`, …) for readability.
 
@@ -516,6 +517,25 @@ Optional commented examples live in **`.env.example`** under *Optional companion
 
 ---
 
+## MCP server (optional)
+
+**Model Context Protocol** lets MCP-capable clients (Cursor, Claude Desktop, and others) call a small local server that exposes **tools** and **resources** instead of ad-hoc integrations.
+
+ROADMAP-AGENT ships **`rma_mcp`**: a **FastMCP** server that reads your **`.rma/`** Markdown (same bundle as the **`roadmap://context`** resource), runs **`rma`** subprocesses for **`doctor`**, **`status`**, **`plan --no-interactive`**, and **`analyze`**, and offers **`read_project_file`** / **`write_project_file`** scoped to the project root. **`run_shell`** is **off** unless **`RMA_MCP_ALLOW_SHELL=1`**.
+
+### How to start it
+
+- **CLI:** **`roadmap-agent mcp-start`** (or **`rma mcp-start`**).
+- **Hub:** run **`roadmap-agent`** with no args → **IX** — *MCP server (stdio)*.
+
+The shell entry installs **`requirements-mcp.txt`** into **`.rma/venv`** on first use if the **`mcp`** import fails, sets **`ROADMAP_AGENT_PROJECT_ROOT`** / **`ROADMAP_AGENT_APP_ROOT`**, **`PYTHONPATH`** to the toolkit root, and runs **`python -m rma_mcp`**. Default transport is **stdio** (what most hosts expect). Optional **`RMA_MCP_TRANSPORT`** values include **`streamable-http`** and **`sse`** per the SDK.
+
+### Configure your MCP host
+
+Copy or adapt **`rma_mcp/client-config.example.json`** into the client’s MCP settings. Full tool table, logging under **`.rma/mcp/logs/`**, and safety notes: **[`MCP-SERVER.md`](MCP-SERVER.md)**.
+
+---
+
 ## LLM providers
 
 ### Ollama (default path)
@@ -628,6 +648,7 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 - **`execute-one`** can run shell commands depending on task content — treat tasks like code review inputs.
 - **LLM output** is not guaranteed correct; always review generated `.rma` proposals before mass acceptance.
 - **Web UI** (`web/`): default bind is loopback; set **`RMA_WEB_ADMIN_TOKEN`** for mutating API routes; do not expose the service on untrusted networks without TLS and stronger auth. See **[`web/README.md`](../web/README.md)**.
+- **MCP server**: tools can **read and write** files under the project root and optionally run **shell** commands when **`RMA_MCP_ALLOW_SHELL=1`**. Use client-side approval, keep **`run_shell`** off until you trust the setup, and review **[`MCP-SERVER.md`](MCP-SERVER.md)**.
 
 ---
 
@@ -641,6 +662,7 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 | [ROADMAP-WORKFLOW.md](ROADMAP-WORKFLOW.md) | Roadmap process |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical layout |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures |
+| [MCP-SERVER.md](MCP-SERVER.md) | Model Context Protocol server: `mcp-start`, tools, host config |
 | [web/README.md](../web/README.md) | Optional local web UI: setup, `RMA_WEB_*`, Docker |
 | [README.md](../README.md) | Overview, env table, deployment |
 | [CHANGELOG.md](../CHANGELOG.md) | Release notes |

@@ -6,6 +6,10 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP server** (**`rma_mcp`**, **`roadmap-agent mcp-start`**, hub **IX**): FastMCP stdio (optional **`streamable-http`** / **`sse`**) with **`roadmap://context`**, **`rma_*`** CLI wrappers, scoped file tools, and gated **`run_shell`**. Docs: **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)**; deps: **`requirements-mcp.txt`**.
+
 ## [1.0.1] - 2026-04-11
 
 ### Added

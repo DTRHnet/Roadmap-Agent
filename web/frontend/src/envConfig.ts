@@ -7,12 +7,16 @@ export const TOGGLE_KEYS = new Set([
   'RMA_ALLOW_PLAN_FALLBACK',
   'RMA_PLAN_INTERACTIVE',
   'RMA_WEB_FREE_PORT_ASK',
+  'RMA_MCP_ALLOW_SHELL',
+  'RMA_MCP_LOG',
 ])
 
 export const NUMBER_KEYS = new Set([
   'RMA_PLAN_INTERACTIVE_MAX',
   'RMA_WEB_PORT',
   'RMA_WEB_VITE_PORT',
+  'RMA_MCP_PORT',
+  'RMA_MCP_MAX_STEPS',
 ])
 
 export type EnvGroup = { id: string; title: string; blurb: string; keys: string[] }
@@ -84,6 +88,22 @@ export const ENV_GROUPS: EnvGroup[] = [
       'RMA_WEB_VITE_PROXY_TARGET',
     ],
   },
+  {
+    id: 'mcp',
+    title: 'MCP server (hub IX)',
+    blurb:
+      'Model Context Protocol for Cursor / Claude Desktop. See docs/MCP-SERVER.md and rma_mcp/client-config.example.json.',
+    keys: [
+      'RMA_MCP_TRANSPORT',
+      'RMA_MCP_NAME',
+      'RMA_MCP_ALLOW_SHELL',
+      'RMA_MCP_PROJECT_ROOT',
+      'RMA_MCP_MAX_STEPS',
+      'RMA_MCP_LOG',
+      'RMA_MCP_HOST',
+      'RMA_MCP_PORT',
+    ],
+  },
 ]
 
 export const ENV_HINTS: Record<string, string> = {
@@ -113,6 +133,14 @@ export const ENV_HINTS: Record<string, string> = {
     '1 = if the API or Vite port is busy, prompt (y/N) to run fuser/lsof kill on that TCP port before starting. 0 = fail immediately.',
   RMA_WEB_VITE_PROXY_TARGET:
     'Full base URL for the API from the browser (e.g. http://127.0.0.1:8765). Exported when starting Vite so /api proxies correctly.',
+  RMA_MCP_TRANSPORT: 'MCP transport (default stdio). See docs/MCP-SERVER.md.',
+  RMA_MCP_NAME: 'Display name of the MCP server for hosts.',
+  RMA_MCP_ALLOW_SHELL: '1 = allow run_shell tool (use only on trusted projects).',
+  RMA_MCP_PROJECT_ROOT: 'Optional project path override for MCP (relative or absolute).',
+  RMA_MCP_MAX_STEPS: 'Hint for MCP clients; not enforced by the server.',
+  RMA_MCP_LOG: '1 = log tool calls under .rma/mcp/logs/toolcalls.jsonl.',
+  RMA_MCP_HOST: 'Reserved for HTTP-style MCP transports.',
+  RMA_MCP_PORT: 'Reserved for HTTP-style MCP transports.',
 }
 
 export function parseBulkEnv(text: string, allowedKeys: Set<string>): Record<string, string> {

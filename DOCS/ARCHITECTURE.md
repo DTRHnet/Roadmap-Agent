@@ -36,6 +36,14 @@ ROADMAP-AGENT is a script-first architecture with mirrored PowerShell and bash r
 
 Setup and security notes: **[`web/README.md`](../web/README.md)**.
 
+## MCP server (optional)
+
+- **`rma_mcp/`**: Python package **`rma_mcp`** (avoids shadowing the PyPI **`mcp`** module name). Entry: **`python -m rma_mcp`** or **`roadmap-agent mcp-start`** / hub **IX**.
+- **FastMCP**: exposes resource **`roadmap://context`** (Markdown from **`.rma/`** and **`roadmaps/`**) and tools that wrap **`scripts/unix/roadmap-agent.sh`** via **`bash`** with **`ROADMAP_AGENT_PROJECT_ROOT`** and **`ROADMAP_AGENT_APP_ROOT`** set to the managed project and toolkit checkout.
+- **Dependencies**: root **`requirements-mcp.txt`**; the CLI installs it into **`.rma/venv`** when **`mcp-start`** runs if imports fail.
+- **Safety**: paths are normalized under the project root; **`run_shell`** requires **`RMA_MCP_ALLOW_SHELL=1`**. Tool calls can be logged as JSONL under **`.rma/mcp/logs/`** when **`RMA_MCP_LOG`** is enabled.
+- **Docs / client template**: **[`docs/MCP-SERVER.md`](../docs/MCP-SERVER.md)**, **`rma_mcp/client-config.example.json`**.
+
 ## Data Model (`.rma/`)
 
 - **Context input**

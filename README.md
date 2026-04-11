@@ -33,6 +33,7 @@
 | **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (`v1.0.0`, …). |
 | **[`docs/RELEASING.md`](docs/RELEASING.md)** | Shipping — tags, GitHub releases, archives, Docker; no required binary artifact. |
 | **[`web/README.md`](web/README.md)** | Optional web UI — FastAPI + React, guided/advanced `.env` editor, `doctor --json`, model probes, Docker, **`VITE_DOCS_BASE`**. |
+| **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** | **MCP** (Model Context Protocol) — stdio server for Cursor/Claude/etc.: `.rma/` context, `rma plan`/`analyze`, scoped file tools, optional shell. |
 
 Project memory lives in **`.rma/`**; plans and execution run from the **terminal** with **local LLMs** (Ollama by default) when you want repo-aware help — **no** hosted dashboard or vendor lock-in for the core workflow.
                                                                                                                                                                   
@@ -64,7 +65,7 @@ ROADMAP-AGENT is a **terminal-first workflow** for turning a codebase—**new or
 
 ### Interfaces
 
-**`fzf`** menus (text fallback when needed), optional **local web UI** for `.env` + **`doctor`**, and **persistence** so **`rma`** is on your **PATH** — all **local** and git-friendly except secrets ([Security](#security-and-operational-notes)).
+**`fzf`** menus (text fallback when needed), optional **local web UI** for `.env` + **`doctor`**, optional **MCP server** (**`mcp-start`** / hub **IX**) for external coding agents, and **persistence** so **`rma`** is on your **PATH** — all **local** and git-friendly except secrets ([Security](#security-and-operational-notes)).
 
 ---
 
@@ -148,7 +149,9 @@ RoadmapAgent/
     backend/                    # FastAPI app
     frontend/                   # Vite + React SPA
 
+  rma_mcp/                      # Optional MCP server (python -m rma_mcp; hub IX or rma mcp-start)
   requirements-web.txt          # Python deps for web/backend (pip -r from repo root)
+  requirements-mcp.txt          # MCP SDK only (installed on demand by mcp-start)
 
   docs/
     QUICKSTART.md            # Per-OS quick start (Windows, Linux, macOS, Docker)
@@ -157,6 +160,7 @@ RoadmapAgent/
     ROADMAP-WORKFLOW.md
     ARCHITECTURE.md
     TROUBLESHOOTING.md
+    MCP-SERVER.md            # MCP host setup, tools, safety (stdio / streamable-http)
     MANUAL.md                # Detailed operator manual (usage, .rma editing, commands)
     man/
       roadmap-agent.1
@@ -368,6 +372,7 @@ That script rebuilds `$env:Path` from the Machine + User registry values (the sa
 - `unlock` - remove locked state.
 - `persistence` / `persistance` - check/install persistence mode.
 - `persistence-check` - check if persistence/global command wiring exists.
+- `mcp-start` - run the optional **Model Context Protocol** server (stdio by default); see **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)**.
 - `help`, `-h`, `--help` - command help.
 - default (no command): open interactive menu.
 

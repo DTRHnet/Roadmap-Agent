@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy the 'mcpServers.roadmap-agent' block into your host config (e.g. Cursor MCP settings). Adjust paths for your machine.",
+  "mcpServers": {
+    "roadmap-agent": {
+      "command": "python",
+      "args": ["-m", "rma_mcp"],
+      "env": {
+        "PYTHONPATH": "C:/path/to/RoadmapAgent",
+        "ROADMAP_AGENT_APP_ROOT": "C:/path/to/RoadmapAgent",
+        "ROADMAP_AGENT_PROJECT_ROOT": "C:/path/to/your-app-repo",
+        "RMA_MCP_TRANSPORT": "stdio",
+        "RMA_MCP_ALLOW_SHELL": "0"
+      }
+    }
+  }
+}
