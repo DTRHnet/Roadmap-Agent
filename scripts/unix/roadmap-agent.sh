@@ -292,6 +292,9 @@ COMMANDS
   persistence-check Check persistence status and offer install
   setup-venv       Create/refresh .rma Python venv + mempalace/chromadb (OS setup script)
   pick-env         Choose a project .env* file and copy it to .env (backs up existing)
+  web-api          Web UI: ensure project venv, pip install requirements-web.txt, start FastAPI (:8765)
+  web-backend      Alias of web-api
+  web-frontend     Web UI: npm install, start Vite dev server (:5173; proxies /api to :8765)
   release          Maintainer: tag + Docker + GitHub Release from VERSION & CHANGELOG (see --help)
   man              Show built-in manual/manpage text
   help, --help,-h  Show this detailed help
@@ -1435,6 +1438,86 @@ cmd_setup_python_venv() {
   mempalace_setup_local_models
 }
 
+# Web UI: toolkit paths (APP_DIR) must contain FastAPI app + requirements-web.txt.
+web_toolkit_ok() {
+  local req="$APP_DIR/requirements-web.txt"
+  local be="$APP_DIR/web/backend"
+  if [[ ! -f "$req" ]] || [[ ! -d "$be" ]]; then
+    warn "Web UI files missing under toolkit (APP_DIR=$APP_DIR). Expected requirements-web.txt and web/backend/."
+    return 1
+  fi
+  return 0
+}
+
+# Ensure ROOT_DIR/.rma/venv (or RMA_PYTHON_VENV_DIR) exists for pip + uvicorn.
+cmd_web_ensure_project_venv() {
+  configure_python_runtime
+  if [[ -x "${RMA_PYTHON_VENV_DIR}/bin/python" ]]; then
+    return 0
+  fi
+  info "Creating Python venv at ${RMA_PYTHON_VENV_DIR}..."
+  mkdir -p "$(dirname "$RMA_PYTHON_VENV_DIR")" || return 1
+  local py=""
+  if command -v python3 >/dev/null 2>&1; then
+    py="$(command -v python3)"
+  elif command -v python >/dev/null 2>&1; then
+    py="$(command -v python)"
+  else
+    warn "python3 not found. Install Python or run: roadmap-agent setup-venv"
+    return 1
+  fi
+  if ! "$py" -m venv "$RMA_PYTHON_VENV_DIR"; then
+    warn "python -m venv failed."
+    return 1
+  fi
+  configure_python_runtime
+  if [[ -n "${RMA_PYTHON_BIN:-}" ]]; then
+    "$RMA_PYTHON_BIN" -m pip install -q --upgrade pip setuptools wheel 2>/dev/null || true
+  fi
+}
+
+cmd_web_install_backend_deps() {
+  web_toolkit_ok || return 1
+  cmd_web_ensure_project_venv || return 1
+  [[ -n "${RMA_PYTHON_BIN:-}" ]] || {
+    warn "No Python interpreter resolved."
+    return 1
+  }
+  info "pip install -r requirements-web.txt (web backend)..."
+  if ! "$RMA_PYTHON_BIN" -m pip install -r "$APP_DIR/requirements-web.txt"; then
+    warn "pip install failed."
+    return 1
+  fi
+  info "Web backend Python dependencies ready."
+}
+
+cmd_web_start_api() {
+  web_toolkit_ok || return 1
+  cmd_web_install_backend_deps || return 1
+  export RMA_WEB_APP_ROOT="$APP_DIR"
+  info "Web API: http://127.0.0.1:8765  (OpenAPI: /docs)"
+  info "Frontend: run in another terminal — roadmap-agent web-frontend  (hub: VIII)"
+  cd "$APP_DIR/web/backend" || return 1
+  "$RMA_PYTHON_BIN" -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+}
+
+cmd_web_start_frontend() {
+  web_toolkit_ok || return 1
+  [[ -f "$APP_DIR/web/frontend/package.json" ]] || {
+    warn "Missing web/frontend/package.json"
+    return 1
+  }
+  if ! command -v npm >/dev/null 2>&1; then
+    warn "npm not on PATH. Install Node.js 18+."
+    return 1
+  fi
+  info "npm install (web frontend)..."
+  (cd "$APP_DIR/web/frontend" && npm install) || return 1
+  info "Vite: http://127.0.0.1:5173  (proxies /api → 127.0.0.1:8765)"
+  cd "$APP_DIR/web/frontend" || return 1
+  npm run dev
+}
+
 # Hub / CLI: copy a selected project-root .env* file to .env (backup existing .env).
 cmd_pick_env_file() {
   ensure_core_dirs
@@ -2512,13 +2595,15 @@ render_hub_menu() {
     "IV  Create / refresh Python venv (MemPalace)"
     "V   Choose active .env (copy to .env)"
     "VI  Create release (tag, Docker, GitHub from VERSION)"
+    "VII Web UI: start API (venv, deps, uvicorn)"
+    "VIII Web UI: start frontend (npm, Vite)"
     "0   Exit roadmap-agent"
   )
   if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
     selected="$(printf "%b\n" "${hub_options[@]}" | fzf \
         --ansi \
         --layout=reverse \
-        --height=65% \
+        --height=72% \
         --border=rounded \
         --prompt="Hub > " \
         --header="${BOLD}${UNDERLINE}ROADMAP-AGENT HUB${RESET}"$'\n'"App Version: $(app_version)"$'\n'"Last Release: $(last_release_version)"$'\n'"Release Date: $(last_release_date)"$'\n'"Press Enter to continue:" \
@@ -2558,6 +2643,16 @@ render_hub_menu() {
       ;;
     VI\ \ *)
       cmd_release
+      return 0
+      ;;
+    VII\ *)
+      ensure_core_dirs
+      cmd_web_start_api
+      return 0
+      ;;
+    VIII\ *)
+      ensure_core_dirs
+      cmd_web_start_frontend
       return 0
       ;;
     *) return 1 ;;
@@ -2836,7 +2931,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","web-api","web-backend","web-frontend","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -2845,7 +2940,7 @@ ROADMAP-AGENT tool manifest (for humans and external agents)
 CLI commands:
   init, status, doctor, plan, analyze, analyze-init, execute-one, agent, run-agent,
   tools [--json], unlock, menu, persistence, persistence-check, setup-venv, pick-env,
-  release, man, help
+  web-api | web-backend, web-frontend, release, man, help
 
 Agent loop (roadmap-agent agent "goal"):
   Internally dispatches: plan, analyze, execute-one (optional), status, unlock,
@@ -3125,6 +3220,14 @@ main() {
     pick-env)
       ensure_core_dirs
       cmd_pick_env_file
+      ;;
+    web-api|web-backend)
+      ensure_core_dirs
+      cmd_web_start_api
+      ;;
+    web-frontend)
+      ensure_core_dirs
+      cmd_web_start_frontend
       ;;
     release)
       cmd_release "$@"

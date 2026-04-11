@@ -9,6 +9,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ### Added
 
 - **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`docs/RELEASING.md`**.
+- **Hub VII / VIII** and CLI **`web-api`** (**`web-backend`**) / **`web-frontend`**: start the optional web stack from the same entrypoint as the rest of ROADMAP-AGENT — ensure **`.rma/venv`** (create with **`python3 -m venv`** if missing), **`pip install -r requirements-web.txt`** before **uvicorn**, and **`npm install`** before **Vite** (`scripts/unix/roadmap-agent.sh`).
 
 ### Documentation
 

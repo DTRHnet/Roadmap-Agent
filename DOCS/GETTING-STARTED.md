@@ -93,8 +93,7 @@ To tag a release, publish GitHub Release archives, or build the Docker image, se
 
 For a **local** FastAPI + React companion that edits project **`.env`**, runs **`rma doctor --json`**, and probes LLM endpoints:
 
-1. From the Roadmap-Agent checkout: `pip install -r requirements-web.txt`
-2. API: **`web/run-backend.ps1`** (Windows) or **`web/run-backend.sh`** (Unix)
-3. UI (dev): `cd web/frontend && npm install && npm run dev` → **http://127.0.0.1:5173** (set **Project root** to your app repo)
+1. **Hub:** **`roadmap-agent`** → **VII** (API) and **VIII** (Vite), or **`roadmap-agent web-api`** / **`roadmap-agent web-frontend`**.
+2. **Scripts:** **`web/run-backend.ps1`** (Windows) or **`web/run-backend.sh`** (Unix), plus **`npm run dev`** in **`web/frontend`** if you do not use VIII.
 
 See **[`web/README.md`](../web/README.md)** for **`RMA_WEB_*`** variables, **`RMA_WEB_ADMIN_TOKEN`**, single-port production-style serving, **`docker compose`**, and Windows vs Docker notes. Operator-oriented summary: **[MANUAL.md](MANUAL.md)** (*Companion web UI*).

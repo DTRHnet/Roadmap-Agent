@@ -195,10 +195,11 @@ A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelist
 
 **Fast path**
 
-1. `pip install -r requirements-web.txt`
-2. **API:** `web/run-backend.ps1` (Windows) or `web/run-backend.sh` (Unix) — listens on **127.0.0.1:8765** by default.
-3. **UI (dev):** `cd web/frontend && npm install && npm run dev` — open **http://127.0.0.1:5173**, set **Project root** to your repo.
-4. **Optional:** set **`RMA_WEB_ADMIN_TOKEN`** in the shell environment before starting the API so mutating routes require **`X-RMA-Web-Token`**.
+1. **From the hub (menu):** open **`roadmap-agent`** / **`rma`** with no args → **VII** starts the API (creates **`.rma/venv`** if missing, **`pip install -r requirements-web.txt`**, then **uvicorn** on **:8765**); **VIII** runs **`npm install`** and **Vite** on **:5173**. Use two terminals if you want both.
+2. **CLI:** **`roadmap-agent web-api`** (alias **`web-backend`**) and **`roadmap-agent web-frontend`** — same behavior as VII / VIII.
+3. **Scripts:** `web/run-backend.ps1` (Windows) or `web/run-backend.sh` (Unix) — same API port; they install **`requirements-web.txt`** with the current **`python`** on `PATH` (hub/CLI prefer the **project venv** under **`RMA_PYTHON_VENV_DIR`**).
+4. **UI (dev) without hub:** `cd web/frontend && npm install && npm run dev` — open **http://127.0.0.1:5173**, set **Project root** to your repo.
+5. **Optional:** set **`RMA_WEB_ADMIN_TOKEN`** in the shell environment before starting the API so mutating routes require **`X-RMA-Web-Token`**.
 
 **Other modes:** build the SPA (`npm run build` in `web/frontend`) and serve it from the same port as the API; or use **`docker compose up --build`** (see [`web/README.md`](web/README.md) for pre-building `dist/` and Windows vs Compose notes).
 

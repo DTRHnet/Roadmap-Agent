@@ -212,6 +212,14 @@ Installs or repairs **global** launchers and PATH integration. On Unix this may 
 
 Checks whether global install exists, version/sync status, and may prompt to upgrade or install.
 
+### `web-api` / `web-backend` (alias)
+
+Ensures **`RMA_PYTHON_VENV_DIR`** exists (creates **`python3 -m venv`** if needed), runs **`pip install -r requirements-web.txt`** from the toolkit (**`ROADMAP_AGENT_APP_ROOT`**), sets **`RMA_WEB_APP_ROOT`**, and starts **uvicorn** on **127.0.0.1:8765** with reload. Same action as hub **VII**.
+
+### `web-frontend`
+
+Runs **`npm install`** in **`web/frontend`**, then **`npm run dev`** (Vite on **:5173**). Same action as hub **VIII**. Requires **Node.js** / **npm** on `PATH`.
+
 ### `help`, `-h`, `--help`
 
 Prints CLI help (wording may differ slightly on Windows vs Unix).
@@ -230,7 +238,7 @@ With no arguments, the CLI opens a **hub** menu. From there you can reach:
 
 - **AI / MemPalace-oriented** actions (depending on build and dependencies).
 - **Roadmap** actions (status, plan, execute-one, etc.).
-- **Persistence-check** and related maintenance entries.
+- **Persistence-check**, **venv / .env** helpers, **release** maintainer flow, and **optional web UI** starters (**VII** = FastAPI + deps, **VIII** = Vite; see also **`web-api`** / **`web-frontend`**).
 
 Exact labels use **Roman numerals** (`I`, `II`, `III`, …) for readability.
 
@@ -479,10 +487,10 @@ with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the directory you choose in the UI 
 
 ### Run it (development)
 
-1. From the Roadmap-Agent checkout: `pip install -r requirements-web.txt`
-2. Start the API: **`web/run-backend.ps1`** (Windows) or **`web/run-backend.sh`** (Unix).
-3. In another terminal: `cd web/frontend && npm install && npm run dev`
-4. Open **http://127.0.0.1:5173**, set **Project root** to the repository that contains `.rma/` and `.env`.
+1. **Hub:** **`roadmap-agent`** (no args) → **VII** (API) and **VIII** (frontend) — VII ensures **`.rma/venv`**, runs **`pip install -r requirements-web.txt`**, then **uvicorn**; VIII runs **`npm install`** and **`npm run dev`**.
+2. **CLI:** **`roadmap-agent web-api`** (or **`web-backend`**) and **`roadmap-agent web-frontend`** — same as VII / VIII.
+3. **Scripts:** **`web/run-backend.ps1`** or **`web/run-backend.sh`** if you prefer not to use the menu (uses whatever **`python`** those scripts put on `PATH`).
+4. Open **http://127.0.0.1:5173** when using Vite, set **Project root** to the repository that contains `.rma/` and `.env`.
 
 ### Single-port / “production-style” use
 

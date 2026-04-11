@@ -151,12 +151,16 @@ Inside the container, use `./launchers/roadmap-agent` from `/workspace` as docum
 
 Browser UI for editing project **`.env`** (whitelisted keys), **`rma doctor --json`**, model listing, and light LLM checks. It is **not** a replacement for the CLI.
 
-**Cross-cutting steps** (from the Roadmap-Agent repo root):
+**Fast path — hub / CLI** (from a project directory with **`rma` / `roadmap-agent`** on `PATH`, or **`./launchers/roadmap-agent`**):
+
+1. **`roadmap-agent`** (no args) → hub **VII** (API: venv + **`pip install -r requirements-web.txt`** + uvicorn) and **VIII** ( **`npm install`** + Vite). Or: **`roadmap-agent web-api`** and **`roadmap-agent web-frontend`**.
+2. Optional: set **`RMA_WEB_ADMIN_TOKEN`** before starting the API if you want mutating routes to require the token in the UI.
+
+**Manual scripts** (Roadmap-Agent repo root):
 
 1. `pip install -r requirements-web.txt`
-2. Start the API: **`web/run-backend.ps1`** (Windows) or **`./web/run-backend.sh`** (Unix).
-3. Frontend dev: `cd web/frontend && npm install && npm run dev` → open **http://127.0.0.1:5173** and set **Project root** to your app repo (the directory with `.rma/` / `.env`).
-4. Optional: set **`RMA_WEB_ADMIN_TOKEN`** in the environment before step 2 so saves and mutating API calls require the same token in the UI.
+2. **`web/run-backend.ps1`** (Windows) or **`./web/run-backend.sh`** (Unix).
+3. `cd web/frontend && npm install && npm run dev` → **http://127.0.0.1:5173**, set **Project root** to your app repo.
 
 **Single port:** after `npm run build` in `web/frontend`, the backend can serve the static SPA from **`/`** on **8765** (see **[`web/README.md`](../web/README.md)**).
 

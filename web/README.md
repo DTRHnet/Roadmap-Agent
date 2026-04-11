@@ -21,7 +21,9 @@ The UI **Project root** field is the managed repo (where `.rma/` and `.env` live
 
 ## Quick start (development)
 
-From the **repository root**:
+**Integrated (recommended):** run **`roadmap-agent`** / **`rma`** with no args → hub **VII** (API: ensure **`.rma/venv`**, **`pip install -r requirements-web.txt`**, **uvicorn :8765**) and **VIII** ( **`npm install`**, **Vite :5173**). CLI equivalents: **`roadmap-agent web-api`** / **`web-backend`** and **`roadmap-agent web-frontend`**.
+
+**Manual** from the **repository root**:
 
 1. `pip install -r requirements-web.txt`
 2. **Backend** (reload on code changes):
