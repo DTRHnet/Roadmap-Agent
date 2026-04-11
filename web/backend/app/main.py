@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from .constants import ENV_FILE_KEYS
 from .env_service import apply_masks_for_client, mask_values, merge_env_file, parse_env_file
+from .python_envs import discover_python_envs
 from .rma_runner import doctor_json, run_rma, tools_manifest
 from .settings import get_settings, parse_cors_list
 
@@ -278,6 +279,55 @@ def api_test_connection(body: ConnectionTestBody) -> dict:
 
 class RunCmdBody(BaseModel):
     args: list[str]
+
+
+class InitBody(BaseModel):
+    """Flags passed to `rma init` (non-interactive UI uses -y)."""
+
+    flags: list[str] = Field(default_factory=lambda: ["-y"])
+
+
+@app.get("/api/python-envs")
+def api_python_envs(project: str) -> dict:
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    return {"project": str(root), "envs": discover_python_envs(root)}
+
+
+@app.post("/api/project/init")
+def api_project_init(
+    project: str,
+    body: InitBody | None = None,
+    _: None = Depends(require_write_token),
+) -> dict:
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    flags = list(body.flags) if body else ["-y"]
+    proc = run_rma(root, ["init", *flags], timeout=600.0)
+    return {
+        "returncode": proc.returncode,
+        "stdout": proc.stdout[-24000:] if proc.stdout else "",
+        "stderr": proc.stderr[-24000:] if proc.stderr else "",
+    }
+
+
+@app.post("/api/project/setup-venv")
+def api_project_setup_venv(
+    project: str,
+    _: None = Depends(require_write_token),
+) -> dict:
+    """Run `rma setup-venv` (MemPalace / chromadb in project venv). Long-running."""
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    proc = run_rma(root, ["setup-venv"], timeout=900.0)
+    return {
+        "returncode": proc.returncode,
+        "stdout": proc.stdout[-24000:] if proc.stdout else "",
+        "stderr": proc.stderr[-24000:] if proc.stderr else "",
+    }
 
 
 @app.post("/api/run/rma")

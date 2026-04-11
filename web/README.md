@@ -34,6 +34,31 @@ The UI **Project root** field is the managed repo (where `.rma/` and `.env` live
 
 Open the Vite URL, set **Project root** to your app repository, then use **Doctor**, **Env**, and provider tools as needed.
 
+**API (project lifecycle):** `POST /api/project/init` runs `rma init` (JSON body `{ "flags": ["-y", "--no-embed"] }` optional); `POST /api/project/setup-venv` runs `rma setup-venv`; `GET /api/python-envs` lists interpreters / venv roots for **`RMA_PYTHON_VENV_DIR`**. Mutating routes honor **`RMA_WEB_ADMIN_TOKEN`** like **`PUT /api/env`**.
+
+---
+
+## Editor UI (React)
+
+The **Environment (.env)** card supports two modes:
+
+| Mode | What you get |
+|------|----------------|
+| **Guided** | Keys grouped into sections (LLM provider, Ollama, OpenAI-compatible, Claude, MemPalace, web, …) with a short blurb per section and **hint text** under each field. Uncategorized manifest keys appear under **Other manifest keys**. |
+| **Advanced** | **Filter keys** — substring match on variable names. **Quick edit** lists all whitelisted fields. **Bulk `KEY=value`** — one assignment per line; `#` comments ignored. **Load from form** fills the textarea from the current UI state; **Apply to form** parses bulk text into the form; **Save bulk** writes merged values for keys that appear in the textarea (same whitelist as the API; secrets masked in responses — leave blank to keep the on-disk value). |
+
+The **Project** card also runs **`init -y`** (optional **`--no-embed`**), **`setup-venv`**, **Scan Python envs** (then **Set as RMA_PYTHON_VENV_DIR** writes `.env`), and keeps **Reload** / **Doctor** / arbitrary **`rma`** args.
+
+At the bottom of the page, **Documentation** links open the matching files in the repo (default base: `https://github.com/DTRHnet/Roadmap-Agent/blob/main`). To point those links at your fork or another base URL, set a Vite env at **build** time:
+
+```bash
+# Example: point footer links at your fork (no trailing slash).
+export VITE_DOCS_BASE="https://github.com/you/Roadmap-Agent/blob/main"
+cd web/frontend && npm ci && npm run build
+```
+
+See **`src/docsLinks.ts`** and **`src/envConfig.ts`** in the frontend for the link list and hint copy.
+
 ---
 
 ## Environment variables (`RMA_WEB_*`)

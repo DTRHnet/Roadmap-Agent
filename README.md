@@ -31,7 +31,7 @@
 | **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
 | **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v1.0.0`, …). |
 | **[`docs/RELEASING.md`](docs/RELEASING.md)** | **Shipping a release** — tags, GitHub releases, source archives, Docker image; why there is no required compiled “binary”. |
-| **[`web/README.md`](web/README.md)** | **Optional web UI** — FastAPI + React: `.env` editor, `doctor --json`, model probes; dev, single-port, and Docker workflows. |
+| **[`web/README.md`](web/README.md)** | **Optional web UI** — FastAPI + React: **Guided** (grouped keys + hints) and **Advanced** (filter + bulk `KEY=value`) `.env` editor, footer doc links, `doctor --json`, model probes; dev, single-port, Docker; build-time **`VITE_DOCS_BASE`** for doc URLs. |
 
 **ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
 
@@ -193,6 +193,12 @@ Generated files/directories include:
 
 A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelisted keys as `load_rma_env_file()` in `.env`, run **`rma doctor --json`**, read **`rma tools --json`**, probe Ollama / OpenAI-compatible endpoints, and stream **`ollama pull`**. The backend invokes **`scripts/windows/roadmap-agent.ps1`** or **`scripts/unix/roadmap-agent.sh`** under **`RMA_WEB_APP_ROOT`** (the toolkit checkout), with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the app directory you pick in the UI — same bridge behavior as the CLI, not a separate SaaS.
 
+**SPA behavior**
+
+- **Guided** — keys grouped by topic with short section blurbs and **per-field hints** (provider-specific blocks for Ollama, OpenAI-compatible, Claude).
+- **Advanced** — search/filter across every manifest env key; **bulk `KEY=value`** textarea to paste many assignments at once (**load from form**, **apply to form**, **save**). Bulk updates only keys you list; other lines in `.env` stay as on disk.
+- **Footer** — opens **MANUAL**, **QUICKSTART**, **web README**, **TROUBLESHOOTING**, **ARCHITECTURE**, **MENU-REFERENCE**, and **`.env.example`** on GitHub (upstream `main` by default). For a fork or custom docs host, set **`VITE_DOCS_BASE`** when building the frontend (see [`web/README.md`](web/README.md)).
+
 **Fast path**
 
 1. **From the hub (menu):** open **`roadmap-agent`** / **`rma`** with no args → **VII** starts the API (creates **`.rma/venv`** if missing, **`pip install -r requirements-web.txt`**, then **uvicorn** on **:8765**); **VIII** runs **`npm install`** and **Vite** on **:5173**. Use two terminals if you want both.
@@ -283,7 +289,7 @@ That script rebuilds `$env:Path` from the Machine + User registry values (the sa
 
 ## Commands
 
-- `init` - bootstrap `.rma/` and template files.
+- `init` - bootstrap `.rma/` and template files; when the toolkit checkout differs from the project root, also copies the CLI into **`.roadmap-agent/`** and adds project-local **`rma` / `rma.ps1` / `rma.cmd`** (see **`docs/QUICKSTART.md`**). Flags: **`-y`**, **`--embed`**, **`--no-embed`**.
 - `status` - show project/branch and task execution summary.
 - `doctor` - run diagnostics for environment, providers, and persistence sync state.
 - `plan` - generate a dry-run roadmap plan file.

@@ -10,6 +10,12 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 - **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`docs/RELEASING.md`**.
 - **Hub VII / VIII** and CLI **`web-api`** (**`web-backend`**) / **`web-frontend`**: start the optional web stack from the same entrypoint as the rest of ROADMAP-AGENT — ensure **`.rma/venv`** (create with **`python3 -m venv`** if missing), **`pip install -r requirements-web.txt`** before **uvicorn**, and **`npm install`** before **Vite** (`scripts/unix/roadmap-agent.sh`).
+- **Web UI (React SPA)**: **Guided** mode — env keys in grouped sections with blurbs and **per-key hints**; **Advanced** mode — substring **filter** over all whitelisted fields, **bulk `KEY=value`** editor (**load from form** / **apply to form** / **save**; only listed keys are written from bulk, other `.env` lines preserved); **footer** links to **`docs/MANUAL.md`**, **`docs/QUICKSTART.md`**, **`web/README.md`**, **`docs/TROUBLESHOOTING.md`**, **`docs/ARCHITECTURE.md`**, **`docs/MENU-REFERENCE.md`**, **`.env.example`** (URLs default to `main` on upstream GitHub; set **`VITE_DOCS_BASE`** at frontend build time for forks). Sharper SPA chrome (borders, focus rings, typography).
+- **`init` embeds the toolkit** when the checkout **APP_DIR** differs from the project **ROOT_DIR**: syncs the repo into **`<project>/.roadmap-agent/`** (rsync or tar; excludes `.git`, `.rma`, `node_modules`, etc.) and writes **`rma`**, **`rma.ps1`**, **`rma.cmd`**, **`roadmap-agent.cmd`** at the project root so **`.\rma.ps1`** works without a global install. **`init -y` / `--yes`** skips the overwrite prompt; **`--no-embed`** / **`--embed`** override defaults; running from an already embedded kit does not copy onto itself.
+
+### Changed
+
+- **Web UI**: richer **`.env`** editing in the browser without changing backend whitelist or merge semantics.
 
 ### Fixed
 
@@ -19,7 +25,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ### Documentation
 
-- **Companion web UI**: expanded **[`web/README.md`](web/README.md)** (prerequisites, `RMA_WEB_*`, dev vs single-port vs Docker, security); linked and summarized from **[`README.md`](README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)**, **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)**, **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**, **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** (including **§9** WSL vs Windows venv); **`.env.example`** comments for **`RMA_WEB_*`**.
+- **Companion web UI**: expanded **[`web/README.md`](web/README.md)** (prerequisites, `RMA_WEB_*`, dev vs single-port vs Docker, security, Guided/Advanced editor, bulk rules, **`VITE_DOCS_BASE`**); **[`web/frontend/README.md`](web/frontend/README.md)** — SPA dev and build-time doc URLs. Linked from **[`README.md`](README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (including **init embed** / project-local **`rma.ps1`**), **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)**, **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**, **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** (including **§9** WSL vs Windows venv); **`.env.example`** comments for **`RMA_WEB_*`**. Root **[`README.md`](README.md)** summarizes SPA modes and footer docs.
 
 ## [1.0.0] - 2026-04-10
 

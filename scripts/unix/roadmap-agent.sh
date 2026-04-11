@@ -139,23 +139,43 @@ configure_python_runtime() {
       ;;
   esac
 
-  if [[ -e "$vdir/bin/python" ]]; then
-    export VIRTUAL_ENV="$vdir"
-    case ":$PATH:" in
-      *":$vdir/bin:"*) ;;
-      *) export PATH="$vdir/bin:$PATH" ;;
-    esac
-    export RMA_PYTHON_BIN="$vdir/bin/python"
-    return 0
+  # Linux / WSL: a Windows-created venv has Scripts/python.exe; an older bin/python may exist without
+  # MemPalace. Prefer whichever interpreter can import mempalace+chromadb when both paths exist.
+  local bin_py="$vdir/bin/python"
+  local win_py="$vdir/Scripts/python.exe"
+  local pick=""
+  if [[ -e "$bin_py" ]] && [[ -e "$win_py" ]]; then
+    if "$bin_py" -c "import mempalace, chromadb" >/dev/null 2>&1; then
+      pick="$bin_py"
+    elif "$win_py" -c "import mempalace, chromadb" >/dev/null 2>&1; then
+      pick="$win_py"
+    fi
+  fi
+  if [[ -z "$pick" ]]; then
+    if [[ -e "$bin_py" ]] && "$bin_py" -c "import sys" >/dev/null 2>&1; then
+      pick="$bin_py"
+    elif [[ -e "$win_py" ]]; then
+      pick="$win_py"
+    fi
   fi
 
-  if [[ -e "$vdir/Scripts/python.exe" ]]; then
+  if [[ -n "$pick" ]]; then
     export VIRTUAL_ENV="$vdir"
-    case ":$PATH:" in
-      *":$vdir/Scripts:"*) ;;
-      *) export PATH="$vdir/Scripts:$PATH" ;;
+    case "$pick" in
+      */Scripts/python.exe)
+        case ":$PATH:" in
+          *":$vdir/Scripts:"*) ;;
+          *) export PATH="$vdir/Scripts:$PATH" ;;
+        esac
+        ;;
+      *)
+        case ":$PATH:" in
+          *":$vdir/bin:"*) ;;
+          *) export PATH="$vdir/bin:$PATH" ;;
+        esac
+        ;;
     esac
-    export RMA_PYTHON_BIN="$vdir/Scripts/python.exe"
+    export RMA_PYTHON_BIN="$pick"
     return 0
   fi
 
@@ -198,16 +218,16 @@ rma_project_venv_must_recreate() {
     return 1
   fi
 
-  if [[ "$has_unix" -eq 1 ]]; then
-    if "$vdir/bin/python" -c "import sys" 2>/dev/null; then
-      return 1
-    fi
-    warn "Unix venv python failed; will recreate."
-    return 0
+  # Linux / WSL (e.g. PowerShell launched roadmap-agent.ps1 → bash): keep a Windows-only venv if
+  # python.exe runs; do not delete it just because OSTYPE is Linux.
+  if [[ "$has_unix" -eq 1 ]] && "$vdir/bin/python" -c "import sys" 2>/dev/null; then
+    return 1
   fi
-  if [[ "$has_win" -eq 1 ]]; then
-    warn "This .rma/venv is Windows-style (Scripts\\\\python.exe) but current shell is Linux/WSL."
-    warn "Removing it; next setup-venv / web-api / RUN.sh will create a Linux venv here."
+  if [[ "$has_win" -eq 1 ]] && "$vdir/Scripts/python.exe" -c "import sys" 2>/dev/null; then
+    return 1
+  fi
+  if [[ "$has_unix" -eq 1 ]] || [[ "$has_win" -eq 1 ]]; then
+    warn "Project venv exists but no working python in bin/ or Scripts/; will recreate."
     return 0
   fi
   return 1
@@ -348,7 +368,7 @@ USAGE
   rma [command]
 
 COMMANDS
-  init             Initialize .rma metadata and templates
+  init             Initialize .rma metadata and templates (see INIT OPTIONS below)
   status           Show roadmap/project status summary
   doctor           Run environment/provider/persistence diagnostics
   plan             Generate roadmap dry-run plan (optional interactive open questions)
@@ -383,6 +403,14 @@ AGENT LLM: uses the same RMA_LLM_PROVIDER and keys as plan (ollama | openllama |
 AGENT logs and memory:
   - Session log: .rma/logs/agent.log
   - Long-form history: .rma/mempalace/agent-history.md
+
+INIT OPTIONS (roadmap-agent init [flags])
+  -y, --yes Non-interactive: overwrite existing .rma without fzf prompt
+  --embed         Copy the toolkit into <project>/.roadmap-agent/ even when init runs inside the toolkit clone
+  --no-embed      Only create .rma templates; do not copy the toolkit (overrides default when roots differ)
+  Default: if the toolkit checkout (APP_DIR) differs from the project root (ROOT_DIR), init also syncs the full
+  CLI tree into .roadmap-agent/ and writes project-local launchers: ./rma, ./rma.ps1, ./rma.cmd, ./roadmap-agent.cmd
+  so you can run .\rma.ps1 / ./rma without a global PATH install. Commit or gitignore .roadmap-agent/ as your team prefers.
 
 ANALYZE-INIT OPTIONS
   --yes, -y        Non-interactive: accept and write all proposed .rma files
@@ -587,7 +615,9 @@ EOF
 }
 
 resolve_python_cmd() {
-  if [[ -n "${RMA_PYTHON_BIN:-}" ]] && [[ -x "${RMA_PYTHON_BIN:-}" ]]; then
+  # Use -e (exists), not -x: WSL/Linux sees Windows NTFS venvs under /mnt/c/... without the Unix +x bit,
+  # but python.exe still runs. Without this, we fall back to system python and miss mempalace/chromadb.
+  if [[ -n "${RMA_PYTHON_BIN:-}" ]] && [[ -e "${RMA_PYTHON_BIN:-}" ]]; then
     printf "%s" "$RMA_PYTHON_BIN"
     return 0
   fi
@@ -604,7 +634,7 @@ resolve_python_cmd() {
 
 resolve_mempalace_cmd() {
   if [[ -n "${RMA_MEMPALACE_BIN:-}" ]]; then
-    if [[ -x "${RMA_MEMPALACE_BIN}" ]]; then
+    if [[ -e "${RMA_MEMPALACE_BIN}" ]]; then
       printf "%s" "$RMA_MEMPALACE_BIN"
       return 0
     fi
@@ -1719,6 +1749,9 @@ cmd_persistence_check() {
   fi
 
   printf "Persistence status\n"
+  if [[ "${RMA_WINDOWS_BRIDGE:-0}" == "1" ]]; then
+    printf "Note: Launched from Windows PowerShell — this block reflects the WSL/bash process (global install, rc, PATH).\n"
+  fi
   printf "OS: %s\n" "$os"
   printf "Shell: %s\n" "$shell_name"
   printf "Suggested rc: %s\n" "$rc_file"
@@ -1892,7 +1925,7 @@ write_runtime_warnings_panel() {
       echo "INFO: .env not found (optional; copy from .env.example if needed)."
     fi
 
-    if [[ -x "${RMA_PYTHON_VENV_DIR:-}/bin/python" ]]; then
+    if [[ -e "${RMA_PYTHON_VENV_DIR:-}/bin/python" ]] || [[ -e "${RMA_PYTHON_VENV_DIR:-}/Scripts/python.exe" ]]; then
       echo "Python venv: ${RMA_PYTHON_VENV_DIR} (active for rma commands)"
     else
       echo "WARN: Python venv missing at ${RMA_PYTHON_VENV_DIR:-$ROOT_DIR/.rma/venv}"
@@ -2012,6 +2045,10 @@ cmd_doctor() {
   echo "Root   : $ROOT_DIR"
   echo "App    : $APP_DIR"
   echo "Time   : $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  if [[ "${RMA_WINDOWS_BRIDGE:-0}" == "1" ]]; then
+    echo "Launch : Windows (roadmap-agent.ps1) → WSL/bash — doctor OS/shell below is the runtime, not the IDE host."
+    echo "         Python/MemPalace checks use RMA_PYTHON_BIN from configure_python_runtime (Windows venv is OK)."
+  fi
   echo
 
   echo "[Core Tools]"
@@ -2185,14 +2222,140 @@ EOF
   done
 }
 
+sync_embedded_toolkit_into_project() {
+  local dest="$ROOT_DIR/.roadmap-agent"
+  local src="$APP_DIR"
+  mkdir -p "$dest" || return 1
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete \
+      --exclude '.git/' \
+      --exclude '.rma/' \
+      --exclude '.cursor/' \
+      --exclude '.roadmap-agent/' \
+      --exclude 'node_modules/' \
+      --exclude 'web/frontend/node_modules/' \
+      --exclude 'web/frontend/dist/' \
+      "$src"/ "$dest"/ || return 1
+  else
+    warn "rsync not found; using tar to copy embedded toolkit (slower)."
+    rm -rf "$dest" || true
+    mkdir -p "$dest" || return 1
+    (cd "$src" && tar -cf - \
+      --exclude='./.git' \
+      --exclude='./.rma' \
+      --exclude='./.cursor' \
+      --exclude='./.roadmap-agent' \
+      --exclude='./node_modules' \
+      --exclude='./web/frontend/node_modules' \
+      --exclude='./web/frontend/dist' \
+      .) | tar -xf - -C "$dest" || return 1
+  fi
+  return 0
+}
+
+write_project_root_launchers() {
+  local rma_sh="$ROOT_DIR/rma"
+  cat > "$rma_sh" <<'EOF'
+#!/usr/bin/env bash
+# Project-local ROADMAP-AGENT — embedded kit under .roadmap-agent/
+set -u
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export ROADMAP_AGENT_APP_ROOT="$SELF_DIR/.roadmap-agent"
+export ROADMAP_AGENT_PROJECT_ROOT="$SELF_DIR"
+exec bash "$ROADMAP_AGENT_APP_ROOT/scripts/unix/roadmap-agent.sh" "$@"
+EOF
+  chmod +x "$rma_sh" 2>/dev/null || true
+
+  local rma_ps1="$ROOT_DIR/rma.ps1"
+  cat > "$rma_ps1" <<'EOF'
+# Project-local ROADMAP-AGENT launcher (embedded under .roadmap-agent/)
+$AppRoot = Join-Path $PSScriptRoot ".roadmap-agent"
+$Bridge = Join-Path $AppRoot "scripts\windows\roadmap-agent.ps1"
+if (-not (Test-Path -LiteralPath $Bridge)) {
+  Write-Error "Missing embedded toolkit at $AppRoot. Re-run init from a full ROADMAP-AGENT checkout."
+  exit 1
+}
+& $Bridge @args
+EOF
+
+  local rma_cmd="$ROOT_DIR/rma.cmd"
+  cat > "$rma_cmd" <<'EOF'
+@echo off
+setlocal
+for %%I in ("%~dp0.") do set "RMA_PROJ=%%~fI"
+where pwsh >nul 2>nul
+if %errorlevel%==0 (
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "%RMA_PROJ%\.roadmap-agent\scripts\windows\roadmap-agent.ps1" %*
+) else (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%RMA_PROJ%\.roadmap-agent\scripts\windows\roadmap-agent.ps1" %*
+)
+EOF
+
+  local ra_cmd="$ROOT_DIR/roadmap-agent.cmd"
+  cat > "$ra_cmd" <<'EOF'
+@echo off
+setlocal
+for %%I in ("%~dp0.") do set "RMA_PROJ=%%~fI"
+where pwsh >nul 2>nul
+if %errorlevel%==0 (
+  pwsh -NoProfile -ExecutionPolicy Bypass -File "%RMA_PROJ%\.roadmap-agent\scripts\windows\roadmap-agent.ps1" %*
+) else (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%RMA_PROJ%\.roadmap-agent\scripts\windows\roadmap-agent.ps1" %*
+)
+EOF
+}
+
 cmd_init() {
+  local init_yes=0
+  local embed_pref=""
+  local a
+  for a in "$@"; do
+    case "$a" in
+      -y|--yes) init_yes=1 ;;
+      --embed) embed_pref="1" ;;
+      --no-embed) embed_pref="0" ;;
+    esac
+  done
+
+  local app_abs root_abs embed_root running_from_embedded
+  app_abs="$(cd "$APP_DIR" && pwd)"
+  root_abs="$(cd "$ROOT_DIR" && pwd)"
+  embed_root=""
+  if [[ -d "$ROOT_DIR/.roadmap-agent/scripts/unix" ]]; then
+    embed_root="$(cd "$ROOT_DIR/.roadmap-agent" && pwd)"
+  fi
+  running_from_embedded=0
+  if [[ -n "$embed_root" ]] && [[ "$app_abs" == "$embed_root" ]]; then
+    running_from_embedded=1
+  fi
+
+  local do_embed=0
+  if [[ "$running_from_embedded" -eq 0 ]] && [[ "$app_abs" != "$root_abs" ]]; then
+    do_embed=1
+  fi
+  case "$embed_pref" in
+    0) do_embed=0 ;;
+    1)
+      if [[ "$running_from_embedded" -eq 1 ]]; then
+        warn "init: --embed ignored (already running from $embed_root)."
+        do_embed=0
+      else
+        do_embed=1
+      fi
+      ;;
+  esac
+
   local overwrite="No (default)"
   if [[ -d "$RMA_DIR" ]] && [[ -n "$(ls -A "$RMA_DIR" 2>/dev/null)" ]]; then
-    ensure_fzf || return 1
-    overwrite="$(fzf_choose_one ".rma/ already exists. Overwrite? (y/N)" "No (default)" "Yes, overwrite")"
-    if [[ "$overwrite" != "Yes, overwrite" ]]; then
-      info "Initialization cancelled."
-      return 0
+    if [[ "$init_yes" -eq 1 ]]; then
+      overwrite="Yes, overwrite"
+    else
+      ensure_fzf || true
+      overwrite="$(fzf_choose_one ".rma/ already exists. Overwrite? (y/N)" "No (default)" "Yes, overwrite")"
+      if [[ "$overwrite" != "Yes, overwrite" ]]; then
+        info "Initialization cancelled."
+        return 0
+      fi
     fi
     rm -rf "$RMA_DIR"
   fi
@@ -2212,7 +2375,20 @@ EOF
 - [ ] Generate a first planning pass with `roadmap-agent plan`.
 EOF
 
-  printf "ROADMAP-AGENT initialized. Run \`roadmap-agent\` to open menu.\n"
+  if [[ "$do_embed" -eq 1 ]]; then
+    info "Embedding ROADMAP-AGENT into $ROOT_DIR/.roadmap-agent/ …"
+    if ! sync_embedded_toolkit_into_project; then
+      warn "Failed to copy embedded toolkit; .rma is initialized but project-local launchers were not written."
+      printf "ROADMAP-AGENT initialized .rma/ only. Run init again after fixing permissions or disk space.\n"
+      return 1
+    fi
+    write_project_root_launchers
+    printf "ROADMAP-AGENT initialized. Embedded kit: %s/.roadmap-agent/\n" "$ROOT_DIR"
+    printf "From this project root use: ./rma or .\\rma.ps1 or .\\rma.cmd (then: menu, doctor, plan, …).\n"
+    printf "Tip: add .roadmap-agent/ to this repo's .gitignore if you do not want to commit the vendored toolkit.\n"
+  else
+    printf "ROADMAP-AGENT initialized. Run \`roadmap-agent\` from the toolkit to open the menu.\n"
+  fi
 }
 
 mempalace_setup_local_models() {
@@ -3283,7 +3459,7 @@ main() {
       show_manpage
       ;;
     init)
-      cmd_init
+      cmd_init "$@"
       ;;
     status)
       ensure_rma_required_files

@@ -43,6 +43,25 @@ From the **project root** (your app repo or this repo):
 .\launchers\rma.ps1 init
 ```
 
+#### Use another app folder without global `rma`
+
+If `rma` is not on your PATH, you only need a one-time init **from a full clone** of ROADMAP-AGENT while your shell’s current directory is the **app** you care about (for example `C:\Users\you\VoiceInvoice-Repo\VoiceInvoice`):
+
+```powershell
+cd C:\path\to\YourApp
+& C:\path\to\RoadmapAgent\launchers\rma.ps1 init
+```
+
+When the toolkit checkout and the project root differ, `init` copies the CLI into **`YourApp\.roadmap-agent\`** and adds **`rma.ps1`**, **`rma.cmd`**, **`rma`**, and **`roadmap-agent.cmd`** at **`YourApp`**. After that, use the project-local launchers only:
+
+```powershell
+cd C:\path\to\YourApp
+.\rma.ps1 doctor
+.\rma.ps1
+```
+
+Non-interactive overwrite of an existing `.rma`: `.\rma.ps1 init -y` (from the toolkit) or `& ...\rma.ps1 init -y`. To create **only** `.rma` templates without embedding: `init --no-embed`.
+
 ### 5. Run the menu or a command
 
 ```powershell
@@ -112,6 +131,19 @@ cp .env.example .env
 ./launchers/roadmap-agent
 ./launchers/roadmap-agent doctor
 ```
+
+#### Another project directory (no global install)
+
+From your app root, point at a full clone once; `init` creates `.rma/` plus **`.roadmap-agent/`** and **`./rma`** in the app:
+
+```bash
+cd /path/to/YourApp
+/path/to/RoadmapAgent/launchers/roadmap-agent init
+chmod +x rma   # if needed
+./rma doctor
+```
+
+Flags: **`init -y`** (overwrite `.rma` without prompt), **`init --no-embed`** (templates only).
 
 ### 5. (Optional) Global install
 

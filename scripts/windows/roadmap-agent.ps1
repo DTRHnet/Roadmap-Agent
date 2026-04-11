@@ -87,7 +87,7 @@ if ($bashCmd -and (Test-Path $unixRuntime)) {
         if ($args.Count -gt 0) {
             $argText = ($args | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join " "
         }
-        $scriptBlock = "export ROADMAP_AGENT_PROJECT_ROOT=""$cwdBash""; bash ""$runtimeBash"" $argText"
+        $scriptBlock = "export RMA_WINDOWS_BRIDGE=1; export ROADMAP_AGENT_PROJECT_ROOT=""$cwdBash""; bash ""$runtimeBash"" $argText"
         & $bashCmd.Source -lc $scriptBlock
         $exitCode = $LASTEXITCODE
     } finally {
