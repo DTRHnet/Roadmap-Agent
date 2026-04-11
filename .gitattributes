@@ -2,6 +2,7 @@
 *.sh text eol=lf
 *.bash text eol=lf
 docker/entrypoint.sh text eol=lf
+scripts/unix/release-rma.sh text eol=lf
 roadmap-agent text eol=lf
 rma text eol=lf
 rma.sh text eol=lf

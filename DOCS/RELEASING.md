@@ -18,6 +18,18 @@ git push origin v1.0.0
 
 Tags use the **`v` prefix** so `git describe` and the CLI “last release” hints stay consistent.
 
+### Automated helper (menu + CLI)
+
+From the **hub** choose **“VI — Create release…”** or run:
+
+```bash
+roadmap-agent release --help
+roadmap-agent release --dry-run
+roadmap-agent release -y
+```
+
+This runs [`scripts/unix/release-rma.sh`](../scripts/unix/release-rma.sh): reads **`VERSION`**, extracts the matching **`## [x.y.z]`** block from **`CHANGELOG.md`** for the GitHub release body, optionally creates the annotated tag, builds Docker images `roadmap-agent:<ver>` and `:latest`, pushes the tag to **`origin`**, and runs **`gh release create`** when the [GitHub CLI](https://cli.github.com/) is installed and authenticated. Use flags such as `--skip-docker` or `--skip-github-release` as needed. Set **`RMA_RELEASE_IMAGE_NAME`** to override the Docker image basename.
+
 ## 3. GitHub Release (recommended)
 
 1. On GitHub: **Releases → Draft a new release**.

@@ -292,6 +292,7 @@ COMMANDS
   persistence-check Check persistence status and offer install
   setup-venv       Create/refresh .rma Python venv + mempalace/chromadb (OS setup script)
   pick-env         Choose a project .env* file and copy it to .env (backs up existing)
+  release          Maintainer: tag + Docker + GitHub Release from VERSION & CHANGELOG (see --help)
   man              Show built-in manual/manpage text
   help, --help,-h  Show this detailed help
   menu             Open interactive hub and AI submenu (default)
@@ -338,6 +339,16 @@ PLAN OPTIONS
   Open questions: list bullets in .rma/open-questions.md and/or lines with Open: in .rma/*.md
   Answers append to .rma/other.md under "Decisions recorded"
 
+RELEASE OPTIONS (roadmap-agent release ...)
+  --dry-run              Print VERSION-derived notes and planned steps only
+  --skip-docker          Skip docker build
+  --skip-tag             Skip git tag creation
+  --skip-push            Skip git push of the tag
+  --skip-github-release  Skip gh release create
+  -y, --yes              Non-interactive (no prompts)
+  Uses APP_DIR (toolkit root), not the managed project root. Requires git; optional docker, gh.
+  See DOCS/RELEASING.md and scripts/unix/release-rma.sh.
+
 PERSISTENCE MODE
   Linux/macOS:
     - Detects active shell and suggests rc file (.bashrc/.zshrc/etc)
@@ -375,6 +386,7 @@ persistence_scripts_in_sync() {
   local files=(
     "scripts/unix/roadmap-agent.sh"
     "scripts/unix/setup-local-models-mempalace.sh"
+    "scripts/unix/release-rma.sh"
     "scripts/windows/roadmap-agent.ps1"
     "scripts/windows/install-persistence.ps1"
     "scripts/windows/setup-rma.ps1"
@@ -1465,6 +1477,16 @@ cmd_pick_env_file() {
   fi
 }
 
+# Maintainer: VERSION + CHANGELOG → tag, docker build, gh release (scripts/unix/release-rma.sh).
+cmd_release() {
+  local rel="$APP_DIR/scripts/unix/release-rma.sh"
+  if [[ ! -f "$rel" ]]; then
+    warn "Release helper missing: $rel"
+    return 1
+  fi
+  bash "$rel" "$@"
+}
+
 cmd_persistence_check() {
   local non_interactive="${1:-0}"
   local os shell_name rc_file cmd_path has_cmd has_rc_block
@@ -2456,6 +2478,7 @@ render_hub_menu() {
     "III Check/add persistence if missing"
     "IV  Create / refresh Python venv (MemPalace)"
     "V   Choose active .env (copy to .env)"
+    "VI  Create release (tag, Docker, GitHub from VERSION)"
     "0   Exit roadmap-agent"
   )
   if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
@@ -2498,6 +2521,10 @@ render_hub_menu() {
       ;;
     V\ \ \ *)
       cmd_pick_env_file
+      return 0
+      ;;
+    VI\ \ *)
+      cmd_release
       return 0
       ;;
     *) return 1 ;;
@@ -2776,7 +2803,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -2785,7 +2812,7 @@ ROADMAP-AGENT tool manifest (for humans and external agents)
 CLI commands:
   init, status, doctor, plan, analyze, analyze-init, execute-one, agent, run-agent,
   tools [--json], unlock, menu, persistence, persistence-check, setup-venv, pick-env,
-  man, help
+  release, man, help
 
 Agent loop (roadmap-agent agent "goal"):
   Internally dispatches: plan, analyze, execute-one (optional), status, unlock,
@@ -3065,6 +3092,9 @@ main() {
     pick-env)
       ensure_core_dirs
       cmd_pick_env_file
+      ;;
+    release)
+      cmd_release "$@"
       ;;
     menu|*)
       ensure_fzf || true

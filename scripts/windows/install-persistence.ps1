@@ -108,6 +108,7 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
     $files = @(
         "scripts\\unix\\roadmap-agent.sh",
         "scripts\\unix\\setup-local-models-mempalace.sh",
+        "scripts\\unix\\release-rma.sh",
         "scripts\\windows\\roadmap-agent.ps1",
         "scripts\\windows\\install-persistence.ps1",
         "scripts\\windows\\refresh-rma-path.ps1",

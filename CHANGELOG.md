@@ -6,6 +6,10 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Added
+
+- **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`DOCS/RELEASING.md`**.
+
 ## [1.0.0] - 2026-04-10
 
 First **stable** semver release: project bootstrap, multi-provider agent, documented env, and layout polish.

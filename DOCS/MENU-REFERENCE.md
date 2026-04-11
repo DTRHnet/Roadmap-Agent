@@ -9,6 +9,7 @@ ROADMAP-AGENT uses a two-level fzf navigation pattern.
 - `HUB::3 Check/add persistence if missing`
 - `HUB::4 Create / refresh Python venv (MemPalace)`
 - `HUB::5 Choose active .env (copy to .env)`
+- `HUB::6 Create release (tag, Docker, GitHub from VERSION + CHANGELOG)`
 - `ACT::exit::0 Exit roadmap-agent`
 
 ## AI Submenu
@@ -35,6 +36,7 @@ ROADMAP-AGENT uses a two-level fzf navigation pattern.
 - `roadmap-agent persistence-check` -> option `HUB::3`
 - `roadmap-agent setup-venv` -> option `HUB::4`
 - `roadmap-agent pick-env` -> option `HUB::5`
+- `roadmap-agent release` -> option `HUB::6` (maintainer: see `release --help` / `DOCS/RELEASING.md`)
 - `roadmap-agent --help` -> detailed CLI help
 - `roadmap-agent man` -> built-in manual/manpage text
 
