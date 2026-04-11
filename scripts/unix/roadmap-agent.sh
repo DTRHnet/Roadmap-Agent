@@ -86,7 +86,7 @@ info() { printf "${CYAN}%s${RESET}\n" "$1"; }
 load_rma_env_file() {
   # Load only known ROADMAP-AGENT keys from project .env.
   local env_file="$ROOT_DIR/.env"
-  [[ -f "$env_file" ]] || return 0
+  if [[ -f "$env_file" ]]; then
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
@@ -101,6 +101,7 @@ load_rma_env_file() {
       export "$key=$val"
     fi
   done < "$env_file"
+  fi
   RMA_LLM_PROVIDER="${RMA_LLM_PROVIDER:-ollama}"
   RMA_OLLAMA_MODEL="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
   RMA_OLLAMA_HOST="${RMA_OLLAMA_HOST:-http://127.0.0.1:11434}"
@@ -118,13 +119,13 @@ load_rma_env_file() {
   RMA_WEB_PORT="${RMA_WEB_PORT:-8765}"
   RMA_WEB_VITE_PORT="${RMA_WEB_VITE_PORT:-5173}"
   RMA_WEB_FREE_PORT_ASK="${RMA_WEB_FREE_PORT_ASK:-1}"
-  RMA_MCP_TRANSPORT="${RMA_MCP_TRANSPORT:-stdio}"
+  RMA_MCP_TRANSPORT="${RMA_MCP_TRANSPORT:-streamable-http}"
   RMA_MCP_HOST="${RMA_MCP_HOST:-127.0.0.1}"
   RMA_MCP_PORT="${RMA_MCP_PORT:-8767}"
   RMA_MCP_ALLOW_SHELL="${RMA_MCP_ALLOW_SHELL:-0}"
   RMA_MCP_NAME="${RMA_MCP_NAME:-roadmap-agent}"
   RMA_MCP_LOG="${RMA_MCP_LOG:-1}"
-  RMA_MCP_DETACH="${RMA_MCP_DETACH:-0}"
+  RMA_MCP_DETACH="${RMA_MCP_DETACH:-1}"
   RMA_MCP_FORCE="${RMA_MCP_FORCE:-0}"
 }
 
@@ -416,7 +417,7 @@ COMMANDS
   web-api          Web UI: ensure project venv, pip install requirements-web.txt, start FastAPI (:8765)
   web-backend      Alias of web-api
   web-frontend     Web UI: npm install, start Vite dev server (:5173; proxies /api to :8765)
-  mcp-start        MCP: Model Context Protocol server (stdio default; HTTP + --detach in docs/MCP-SERVER.md)
+  mcp-start        MCP: Model Context Protocol server (default: streamable-http + background; stdio opt-in — docs/MCP-SERVER.md)
   release          Maintainer: tag + Docker + GitHub Release from VERSION & CHANGELOG (see --help)
   man              Show built-in manual/manpage text
   help, --help,-h  Show this detailed help
@@ -482,12 +483,12 @@ RELEASE OPTIONS (roadmap-agent release ...)
   Uses APP_DIR (toolkit root), not the managed project root. Requires git; optional docker, gh.
   See docs/RELEASING.md and scripts/unix/release-rma.sh.
 
-MCP OPTIONS (roadmap-agent mcp-start [--detach] [--force])
-  Default transport is stdio: keep the terminal open; there is no TCP port. For streamable-http or sse,
-  set RMA_MCP_TRANSPORT (and RMA_MCP_HOST / RMA_MCP_PORT) in .env; use --detach or RMA_MCP_DETACH=1 to
-  run in the background (see .rma/mcp/nohup.log). Use --force or RMA_MCP_FORCE=1 to stop the server
-  recorded in .rma/mcp/runtime.json before starting. The hub banner and runtime warnings show the URL
-  when a TCP MCP process is alive.
+MCP OPTIONS (roadmap-agent mcp-start [--detach] [--foreground] [--force])
+  Defaults (when unset in .env): RMA_MCP_TRANSPORT=streamable-http, RMA_MCP_DETACH=1 — the hub releases
+  the terminal and the server logs to .rma/mcp/nohup.log (see .rma/mcp/runtime.json for URL). Use
+  mcp-start --foreground (or RMA_MCP_DETACH=0) to block the shell on HTTP. For Claude/Cursor stdio hosts,
+  set RMA_MCP_TRANSPORT=stdio (and RMA_MCP_DETACH=0); stdio must not write non-JSON to stdout — the CLI
+  sends MCP messages only on stdout. Use --force or RMA_MCP_FORCE=1 to stop the old PID in runtime.json.
   See docs/MCP-SERVER.md.
 
 PERSISTENCE MODE
@@ -1737,7 +1738,7 @@ except Exception:
     rm -f "$rt"
     return 0
   }
-  info "RMA_MCP_FORCE=1 / --force: stopping MCP pid $pid (best-effort)"
+  info "RMA_MCP_FORCE=1 / --force: stopping MCP pid $pid (best-effort)" >&2
   kill "$pid" 2>/dev/null || true
   sleep 1
   kill -9 "$pid" 2>/dev/null || true
@@ -1750,14 +1751,14 @@ rma_mcp_status_human() {
     printf '%s\n' "MCP: (no .rma directory yet)"
     return 0
   }
-  ROOT_DIR="$ROOT_DIR" RMA_MCP_TRANSPORT="${RMA_MCP_TRANSPORT:-stdio}" python3 <<'PY' 2>/dev/null || printf '%s\n' "MCP: (install python3 for status line)"
+  ROOT_DIR="$ROOT_DIR" RMA_MCP_TRANSPORT="${RMA_MCP_TRANSPORT:-streamable-http}" python3 <<'PY' 2>/dev/null || printf '%s\n' "MCP: (install python3 for status line)"
 import json, os
 root = os.environ.get("ROOT_DIR", ".")
 rt = os.path.join(root, ".rma", "mcp", "runtime.json")
-t = os.environ.get("RMA_MCP_TRANSPORT", "stdio").strip().lower()
+t = os.environ.get("RMA_MCP_TRANSPORT", "streamable-http").strip().lower()
 if not os.path.isfile(rt):
     if t in ("stdio", ""):
-        print("MCP: stdio (default) — hub launch uses this terminal until the client exits; no TCP port")
+        print("MCP: stdio — terminal stays open until the MCP client exits; no TCP port (set RMA_MCP_TRANSPORT=stdio explicitly)")
     else:
         print(f"MCP: idle (.env transport={t!r}; run mcp-start to bind)")
     raise SystemExit(0)
@@ -1787,13 +1788,15 @@ PY
 }
 
 cmd_mcp_start() {
-  local opt_detach=0
+  local cli_detach_set=0
+  local cli_detach_val=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --detach) opt_detach=1 ;;
+      --detach) cli_detach_set=1; cli_detach_val=1 ;;
+      --foreground|--no-detach) cli_detach_set=1; cli_detach_val=0 ;;
       --force) export RMA_MCP_FORCE=1 ;;
       *)
-        warn "mcp-start: unknown option '$1' (try --detach, --force)"
+        warn "mcp-start: unknown option '$1' (try --detach, --foreground, --force)" >&2
         return 1
         ;;
     esac
@@ -1813,17 +1816,17 @@ cmd_mcp_start() {
     fi
   fi
   [[ -n "$py" ]] || {
-    warn "Python not found; run: roadmap-agent setup-venv"
+    warn "Python not found; run: roadmap-agent setup-venv" >&2
     return 1
   }
   if ! "$py" -c "from mcp.server import fastmcp" >/dev/null 2>&1; then
-    info "Installing MCP SDK (requirements-mcp.txt)…"
+    info "Installing MCP SDK (requirements-mcp.txt)…" >&2
     PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
     local req_for_pip
     req_for_pip="$(rma_path_for_windows_python "$req_unix" "$py")"
     if ! ( cd "$APP_DIR" && "$py" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" -r requirements-mcp.txt ); then
       if ! "$py" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" -r "$req_for_pip"; then
-        warn "pip install -r requirements-mcp.txt failed (toolkit: $APP_DIR)."
+        warn "pip install -r requirements-mcp.txt failed (toolkit: $APP_DIR)." >&2
         return 1
       fi
     fi
@@ -1842,24 +1845,24 @@ cmd_mcp_start() {
   export PYTHONPATH="${APP_DIR}${PYTHONPATH:+:$PYTHONPATH}"
 
   local transport
-  transport="$(printf '%s' "${RMA_MCP_TRANSPORT:-stdio}" | tr '[:upper:]' '[:lower:]')"
-  local want_detach="$opt_detach"
-  [[ "${RMA_MCP_DETACH:-0}" == "1" ]] && want_detach=1
+  transport="$(printf '%s' "${RMA_MCP_TRANSPORT:-streamable-http}" | tr '[:upper:]' '[:lower:]')"
+  local want_detach="${RMA_MCP_DETACH:-1}"
+  [[ "$cli_detach_set" == "1" ]] && want_detach="$cli_detach_val"
 
   mcp_clear_stale_runtime_json
   mcp_stop_existing_if_force
 
   if [[ "$transport" != "streamable-http" ]] && [[ "$transport" != "sse" ]]; then
     if [[ "$transport" != "stdio" ]] && [[ -n "$transport" ]]; then
-      warn "Unknown RMA_MCP_TRANSPORT='$transport' — using stdio."
+      warn "Unknown RMA_MCP_TRANSPORT='$transport' — using stdio." >&2
     fi
     if [[ "$want_detach" == "1" ]]; then
-      warn "Background mode needs RMA_MCP_TRANSPORT=streamable-http or sse (stdio cannot detach)."
-      return 1
+      warn "RMA_MCP_DETACH=1 is ignored for stdio — use streamable-http (default) for background, or set RMA_MCP_TRANSPORT=stdio RMA_MCP_DETACH=0." >&2
     fi
-    info "MCP (stdio): leave this terminal open while your MCP client is connected."
-    info "For background + URL: set RMA_MCP_TRANSPORT=streamable-http RMA_MCP_DETACH=1 (or mcp-start --detach) — default port ${RMA_MCP_PORT:-8767}"
-    info "Project root: $ROADMAP_AGENT_PROJECT_ROOT  |  Toolkit: $ROADMAP_AGENT_APP_ROOT"
+    # stdio MCP: stdout must be JSON-RPC only — never print banner to stdout (breaks clients).
+    export RMA_MCP_TRANSPORT=stdio
+    info "MCP (stdio): JSON-RPC on stdout — messages on stderr only." >&2
+    info "Project root: $ROADMAP_AGENT_PROJECT_ROOT  |  Toolkit: $ROADMAP_AGENT_APP_ROOT" >&2
     exec "$py" -m rma_mcp
   fi
 
@@ -1879,15 +1882,15 @@ except Exception:
 " 2>/dev/null)"
     fi
     if [[ -n "$ep" ]] && kill -0 "$ep" 2>/dev/null; then
-      warn "MCP already running (pid $ep) on $mh:$mp — stop it, pick another RMA_MCP_PORT, or use --force / RMA_MCP_FORCE=1."
+      warn "MCP already running (pid $ep) on $mh:$mp — stop it, pick another RMA_MCP_PORT, or use --force / RMA_MCP_FORCE=1." >&2
       return 1
     fi
     local np
     np="$(mcp_pick_free_port "$mh" "$mp")" || {
-      warn "No free TCP port in range $mp–$((mp + 24)) on $mh"
+      warn "No free TCP port in range $mp–$((mp + 24)) on $mh" >&2
       return 1
     }
-    warn "Port $mp busy (foreign listener) — binding $np instead (set RMA_MCP_PORT=$np in .env to pin)."
+    warn "Port $mp busy (foreign listener) — binding $np instead (set RMA_MCP_PORT=$np in .env to pin)." >&2
     export RMA_MCP_PORT="$np"
     mp="$np"
   fi
@@ -1896,8 +1899,8 @@ except Exception:
   export RMA_MCP_HOST="$mh"
   export RMA_MCP_PORT="$mp"
 
-  info "MCP (${RMA_MCP_NAME:-roadmap-agent}) transport=$transport — http://${mh}:${mp}/"
-  info "Project root: $ROADMAP_AGENT_PROJECT_ROOT  |  Toolkit: $ROADMAP_AGENT_APP_ROOT"
+  info "MCP (${RMA_MCP_NAME:-roadmap-agent}) transport=$transport — http://${mh}:${mp}/" >&2
+  info "Project root: $ROADMAP_AGENT_PROJECT_ROOT  |  Toolkit: $ROADMAP_AGENT_APP_ROOT" >&2
 
   if [[ "$want_detach" == "1" ]]; then
     mkdir -p "$RMA_DIR/mcp"
@@ -1910,7 +1913,7 @@ except Exception:
       export PYTHONPATH="${APP_DIR}${PYTHONPATH:+:$PYTHONPATH}"
       nohup "$py" -m rma_mcp >>"$RMA_DIR/mcp/nohup.log" 2>&1 &
     )
-    info "MCP detached — log: $RMA_DIR/mcp/nohup.log"
+    info "MCP detached — log: $RMA_DIR/mcp/nohup.log" >&2
     local _i
     for _i in 1 2 3 4 5 6 8 10 12 16 20 24 30 35 40 50; do
       sleep 0.2
@@ -1919,7 +1922,7 @@ except Exception:
     if [[ -f "$RMA_DIR/mcp/runtime.json" ]]; then
       rma_mcp_status_human
     else
-      warn "runtime.json not created yet — see $RMA_DIR/mcp/nohup.log (server may still be starting or failed)."
+      warn "runtime.json not created yet — see $RMA_DIR/mcp/nohup.log (server may still be starting or failed)." >&2
     fi
     return 0
   fi
@@ -3337,7 +3340,7 @@ render_submenu_web_mcp() {
   local options=(
     "1  Web UI — start API (venv, pip deps, uvicorn :8765)"
     "2  Web UI — start frontend (npm, Vite :5173)"
-    "3  MCP server — Model Context Protocol (stdio)"
+    "3  MCP server — streamable-http (background) or stdio if set in .env"
     "0  Back to categories"
   )
   if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then

@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy the 'mcpServers.roadmap-agent' block into your host config (e.g. Cursor MCP settings). Adjust paths for your machine.",
+  "_comment": "stdio example for Cursor/Claude command-based MCP. Hub/CLI default is streamable-http + detach (URL in .rma/mcp/runtime.json) — use an HTTP-capable client for that.",
   "mcpServers": {
     "roadmap-agent": {
       "command": "python",
@@ -9,6 +9,7 @@
         "ROADMAP_AGENT_APP_ROOT": "C:/path/to/RoadmapAgent",
         "ROADMAP_AGENT_PROJECT_ROOT": "C:/path/to/your-app-repo",
         "RMA_MCP_TRANSPORT": "stdio",
+        "RMA_MCP_DETACH": "0",
         "RMA_MCP_ALLOW_SHELL": "0"
       }
     }

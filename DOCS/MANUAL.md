@@ -526,9 +526,9 @@ ROADMAP-AGENT ships **`rma_mcp`**: a **FastMCP** server that reads your **`.rma/
 ### How to start it
 
 - **CLI:** **`roadmap-agent mcp-start`** (or **`rma mcp-start`**).
-- **Hub:** run **`roadmap-agent`** with no args → **Web & MCP** → **MCP server (stdio)**.
+- **Hub:** run **`roadmap-agent`** with no args → **Web & MCP** → **MCP server** (defaults: **streamable-http** + background).
 
-The shell entry installs **`requirements-mcp.txt`** into **`.rma/venv`** on first use if the **`mcp`** import fails, sets **`ROADMAP_AGENT_PROJECT_ROOT`** / **`ROADMAP_AGENT_APP_ROOT`**, **`PYTHONPATH`** to the toolkit root, and runs **`python -m rma_mcp`**. Default transport is **stdio** (what most hosts expect). Optional **`RMA_MCP_TRANSPORT`** values include **`streamable-http`** and **`sse`** per the SDK.
+The shell entry installs **`requirements-mcp.txt`** into **`.rma/venv`** on first use if the **`mcp`** import fails, sets **`ROADMAP_AGENT_PROJECT_ROOT`** / **`ROADMAP_AGENT_APP_ROOT`**, **`PYTHONPATH`** to the toolkit root, and runs **`python -m rma_mcp`**. **`mcp-start`** defaults to **`streamable-http`** with **`RMA_MCP_DETACH=1`** (terminal released; **`python -m rma_mcp`** alone still defaults to **stdio** when **`RMA_MCP_TRANSPORT`** is unset). Optional **`RMA_MCP_TRANSPORT`** values include **`stdio`**, **`streamable-http`**, and **`sse`** per the SDK.
 
 ### Configure your MCP host
 

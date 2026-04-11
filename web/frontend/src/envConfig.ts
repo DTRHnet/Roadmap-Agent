@@ -137,7 +137,8 @@ export const ENV_HINTS: Record<string, string> = {
     '1 = if the API or Vite port is busy, prompt (y/N) to run fuser/lsof kill on that TCP port before starting. 0 = fail immediately.',
   RMA_WEB_VITE_PROXY_TARGET:
     'Full base URL for the API from the browser (e.g. http://127.0.0.1:8765). Exported when starting Vite so /api proxies correctly.',
-  RMA_MCP_TRANSPORT: 'MCP transport (default stdio). See docs/MCP-SERVER.md.',
+  RMA_MCP_TRANSPORT:
+    'CLI default when unset: streamable-http (background). Use stdio for Cursor/Claude command MCP. See docs/MCP-SERVER.md.',
   RMA_MCP_NAME: 'Display name of the MCP server for hosts.',
   RMA_MCP_ALLOW_SHELL: '1 = allow run_shell tool (use only on trusted projects).',
   RMA_MCP_PROJECT_ROOT: 'Optional project path override for MCP (relative or absolute).',
@@ -146,7 +147,7 @@ export const ENV_HINTS: Record<string, string> = {
   RMA_MCP_HOST: 'Bind address for streamable-http / sse (default 127.0.0.1).',
   RMA_MCP_PORT: 'TCP port for streamable-http / sse (default 8767).',
   RMA_MCP_DETACH:
-    '1 = mcp-start runs the HTTP MCP server in the background (nohup); log under .rma/mcp/nohup.log. stdio cannot detach.',
+    'CLI default when unset: 1 (HTTP MCP via nohup; .rma/mcp/nohup.log). 0 or mcp-start --foreground keeps the shell. Ignored for stdio.',
   RMA_MCP_FORCE:
     '1 = before starting, stop the MCP PID from .rma/mcp/runtime.json (best-effort). Use when replacing a stuck server.',
 }

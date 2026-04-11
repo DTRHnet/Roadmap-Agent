@@ -33,7 +33,7 @@
 | **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (`v1.0.0`, …). |
 | **[`docs/RELEASING.md`](docs/RELEASING.md)** | Shipping — tags, GitHub releases, archives, Docker; no required binary artifact. |
 | **[`web/README.md`](web/README.md)** | Optional web UI — FastAPI + React, guided/advanced `.env` editor, `doctor --json`, model probes, Docker, **`VITE_DOCS_BASE`**. |
-| **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** | **MCP** (Model Context Protocol) — stdio server for Cursor/Claude/etc.: `.rma/` context, `rma plan`/`analyze`, scoped file tools, optional shell. |
+| **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** | **MCP** — default **streamable-http** (background) from the CLI; **stdio** for Cursor/Claude command config. `.rma/` context, `rma plan`/`analyze`, scoped file tools, optional shell. |
 
 Project memory lives in **`.rma/`**; plans and execution run from the **terminal** with **local LLMs** (Ollama by default) when you want repo-aware help — **no** hosted dashboard or vendor lock-in for the core workflow.
                                                                                                                                                                   
@@ -83,7 +83,7 @@ This stack is **local-first**: a **desktop MCP host** (Claude Desktop, Cursor, W
 
 - **Resource URI** is **`roadmap://context`**, not a separate `context://` scheme. The bundle is **Markdown from `.rma/`** — it does **not** auto-inject MemPalace vector hits. For retrieval-aware **plan** generation inside the CLI, use **`plan`** with an indexed **`.rma/mempalace`** (wake-up) as documented elsewhere; from MCP you can run **`rma_doctor`**, **`read_project_file`**, or **`run_shell`** (if enabled) toward the same goals.
 - **There is no `RMA_MCP_APPROVAL_MODE` env var** in this repo. Risk is mitigated by **keeping `RMA_MCP_ALLOW_SHELL=0`**, relying on your **host’s tool-approval UI**, and reading **`docs/MCP-SERVER.md`** for transport and logging (**`.rma/mcp/logs/`**).
-- **Suggested `.env` for capable local models:** `RMA_MCP_TRANSPORT=stdio`, optional `RMA_MCP_ALLOW_SHELL=1` only on trusted trees, and **`RMA_MCP_MAX_STEPS`** as a hint to clients (not enforced server-side). Use **`rma mcp-start --detach`** / **`RMA_MCP_DETACH=1`** with **`streamable-http`** or **`sse`** if you need a background URL (see **`docs/MCP-SERVER.md`**).
+- **Defaults:** `RMA_MCP_TRANSPORT=streamable-http` and **`RMA_MCP_DETACH=1`** (hub/`mcp-start` release the terminal; URL in **`.rma/mcp/runtime.json`**). For **stdio** hosts, set **`RMA_MCP_TRANSPORT=stdio`** and **`RMA_MCP_DETACH=0`**. Optional **`RMA_MCP_ALLOW_SHELL=1`** only on trusted trees; **`RMA_MCP_MAX_STEPS`** is a client hint (see **`docs/MCP-SERVER.md`**).
 
 **Bootstrap:** from the project root, `./RUN.sh mcp-start` or `.\RUN.ps1 mcp-start` (after your usual venv bootstrap) or configure the host to run `python -m rma_mcp` with **`PYTHONPATH`** and **`ROADMAP_AGENT_*_ROOT`** set — see **`rma_mcp/client-config.example.json`**.
 
@@ -180,7 +180,7 @@ RoadmapAgent/
     ROADMAP-WORKFLOW.md
     ARCHITECTURE.md
     TROUBLESHOOTING.md
-    MCP-SERVER.md            # MCP host setup, tools, safety (stdio / streamable-http)
+    MCP-SERVER.md            # MCP host setup, tools, safety (default HTTP+detach; stdio opt-in)
     MANUAL.md                # Detailed operator manual (usage, .rma editing, commands)
     man/
       roadmap-agent.1
@@ -392,7 +392,7 @@ That script rebuilds `$env:Path` from the Machine + User registry values (the sa
 - `unlock` - remove locked state.
 - `persistence` / `persistance` - check/install persistence mode.
 - `persistence-check` - check if persistence/global command wiring exists.
-- `mcp-start` - run the optional **Model Context Protocol** server (stdio by default; optional **`--detach`** / **`--force`** with HTTP transports); hub: **Web & MCP**. See **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** and [MCP + local LLM + IDE agents](#mcp-server-local-llm-and-ide-agents-how-they-fit-together) above.
+- `mcp-start` - run the **MCP** server (defaults: **streamable-http** + background; **`--foreground`** / **`RMA_MCP_DETACH=0`** to block the shell; **`--force`**; **stdio** via `.env`). Hub: **Web & MCP**. See **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** and [MCP + local LLM + IDE agents](#mcp-server-local-llm-and-ide-agents-how-they-fit-together) above.
 - `help`, `-h`, `--help` - command help.
 - default (no command): open interactive menu.
 

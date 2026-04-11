@@ -4,7 +4,7 @@ ROADMAP-AGENT can expose a **local MCP server** so Cursor, Claude Desktop, Winds
 
 - **Protocol:** [Model Context Protocol](https://modelcontextprotocol.io)  
 - **SDK:** Python `mcp[cli]` (see `requirements-mcp.txt`)  
-- **Entry:** `rma mcp-start` or hub **Web & MCP → MCP server** (stdio)
+- **Entry:** `rma mcp-start` or hub **Web & MCP → MCP server** (defaults: **streamable-http** + background)
 
 ## Prerequisites
 
@@ -36,10 +36,10 @@ The interactive hub banner and **runtime warnings** panel print a one-line MCP s
 | `ROADMAP_AGENT_APP_ROOT` | auto | Toolkit root (set by `mcp-start`). |
 | `ROADMAP_AGENT_PROJECT_ROOT` | cwd / `mcp-start` | Managed repo with `.rma/`. |
 | `RMA_MCP_PROJECT_ROOT` | — | Optional relative (to shell `ROOT_DIR`) or absolute override for project root. |
-| `RMA_MCP_TRANSPORT` | `stdio` | `stdio`, or HTTP modes such as `streamable-http` / `sse` (see MCP SDK). |
+| `RMA_MCP_TRANSPORT` | `streamable-http` | `streamable-http` / `sse`, or `stdio` for command-based hosts (see MCP SDK). |
 | `RMA_MCP_HOST` | `127.0.0.1` | Bind address for HTTP transports. |
 | `RMA_MCP_PORT` | `8767` | TCP port for HTTP transports. |
-| `RMA_MCP_DETACH` | `0` | `1` or `mcp-start --detach`: run HTTP MCP in background (`nohup`); see `.rma/mcp/nohup.log`. |
+| `RMA_MCP_DETACH` | `1` | `0` or `mcp-start --foreground`: block shell on HTTP. `1` / `--detach`: `nohup` (see `.rma/mcp/nohup.log`). Ignored for stdio. |
 | `RMA_MCP_FORCE` | `0` | `1` or `mcp-start --force`: stop PID in `.rma/mcp/runtime.json` before bind (best-effort). |
 | `RMA_MCP_NAME` | `roadmap-agent` | Server name. |
 | `RMA_MCP_ALLOW_SHELL` | `0` | Set `1` to enable **`run_shell`** (dangerous). |
@@ -68,7 +68,7 @@ All `RMA_MCP_*` keys are whitelisted in **`load_rma_env_file()`** (see `.env.exa
 ## Limitations
 
 - MCP client and model quality vary; strong tool-calling models work best.
-- **HTTP** transport is optional and depends on MCP SDK version; **stdio** is the most portable path for desktop MCP hosts.
+- **HTTP** transport depends on MCP SDK version; **`mcp-start`** defaults to **streamable-http** + background. **stdio** remains the most portable option for **command-based** desktop hosts (`python -m rma_mcp` with **`RMA_MCP_TRANSPORT=stdio`** or unset).
 - Shell tools require **bash** for `roadmap-agent.sh`.
 
 ## References

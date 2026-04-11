@@ -225,6 +225,7 @@ def run_shell(command: str, timeout_seconds: int = 120) -> str:
 
 
 def main() -> None:
+    # Default stdio when env unset — `mcp-start` sets RMA_MCP_TRANSPORT explicitly (default streamable-http there).
     transport = os.environ.get("RMA_MCP_TRANSPORT", "stdio").strip().lower()
     os.environ.setdefault("ROADMAP_AGENT_PROJECT_ROOT", str(project_root()))
     os.environ.setdefault("ROADMAP_AGENT_APP_ROOT", str(app_root()))
