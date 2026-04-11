@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #  ____   ___    ____  ___    ___ ___   ____  ____          ____   ____    ___  ____   ______ 
 # |    \ /   \  /    ||   \  |   |   | /    ||    \        /    | /    |  /  _]|    \ |      |
@@ -10,21 +9,11 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Portable launcher that routes to OS-specific runtime (PowerShell on MSYS/Git Bash; bash elsewhere).
-# Notes: Keeps repo layout portable; Windows bridge ultimately runs scripts/unix/roadmap-agent.sh under bash when available.
-# Last updated: 2026-04-10 | Version: v1.0.0
+# Summary: Launcher — forwards to scripts/windows/refresh-rma-path.ps1 (PATH refresh helper).
+# Notes: Called after persistence install so the current PowerShell session sees updated PATH.
+# Last updated: 2026-04-11 | Version: v1.0.0
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-set -u
-SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*)
-    if command -v pwsh >/dev/null 2>&1; then
-      exec pwsh -NoProfile -ExecutionPolicy Bypass -File "$SELF_DIR/scripts/windows/roadmap-agent.ps1" "$@"
-    fi
-    exec powershell -NoProfile -ExecutionPolicy Bypass -File "$SELF_DIR/scripts/windows/roadmap-agent.ps1" "$@"
-    ;;
-  *)
-    exec bash "$SELF_DIR/scripts/unix/roadmap-agent.sh" "$@"
-    ;;
-esac
+$LaunchersDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $LaunchersDir "..")).Path
+& (Join-Path $RepoRoot "scripts\windows\refresh-rma-path.ps1") @args

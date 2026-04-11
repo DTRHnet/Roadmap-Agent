@@ -1,0 +1,2 @@
+# Developer / CI tests (repository layout, future shell/API checks)
+pytest>=7.4.0

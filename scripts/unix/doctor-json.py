@@ -73,7 +73,8 @@ def main() -> int:
 
     def resolve_mempalace() -> str:
         b = getenv("RMA_MEMPALACE_BIN")
-        if b and Path(b).is_file() and os.access(b, os.X_OK):
+        # WSL + Windows NTFS: executable bit often unset; is_file is enough.
+        if b and Path(b).is_file():
             return b
         return shutil.which("mempalace") or ""
 
@@ -81,8 +82,8 @@ def main() -> int:
     req_mp = getenv("RMA_REQUIRE_MEMPALACE", "1") == "1"
 
     mpi_ok = False
-    pyexe = shutil.which("python3") or shutil.which("python")
-    if pyexe:
+    pyexe = getenv("RMA_PYTHON_BIN") or shutil.which("python3") or shutil.which("python")
+    if pyexe and Path(pyexe).is_file():
         r = subprocess.run(
             [pyexe, "-c", "import mempalace, chromadb"],
             capture_output=True,
@@ -126,6 +127,7 @@ def main() -> int:
             "root": str(root),
             "app": str(app),
             "timeUtc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "windowsBridge": getenv("RMA_WINDOWS_BRIDGE", "0") == "1",
         },
         "tools": tools,
         "environment": env_snapshot,

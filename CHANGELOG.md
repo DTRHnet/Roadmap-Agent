@@ -8,7 +8,24 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ### Added
 
-- **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`DOCS/RELEASING.md`**.
+- **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`docs/RELEASING.md`**.
+- **Hub VII / VIII** and CLI **`web-api`** (**`web-backend`**) / **`web-frontend`**: start the optional web stack from the same entrypoint as the rest of ROADMAP-AGENT — ensure **`.rma/venv`** (create with **`python3 -m venv`** if missing), **`pip install -r requirements-web.txt`** before **uvicorn**, and **`npm install`** before **Vite** (`scripts/unix/roadmap-agent.sh`).
+- **Web UI (React SPA)**: **Guided** mode — env keys in grouped sections with blurbs and **per-key hints**; **Advanced** mode — substring **filter** over all whitelisted fields, **bulk `KEY=value`** editor (**load from form** / **apply to form** / **save**; only listed keys are written from bulk, other `.env` lines preserved); **footer** links to **`docs/MANUAL.md`**, **`docs/QUICKSTART.md`**, **`web/README.md`**, **`docs/TROUBLESHOOTING.md`**, **`docs/ARCHITECTURE.md`**, **`docs/MENU-REFERENCE.md`**, **`.env.example`** (URLs default to `main` on upstream GitHub; set **`VITE_DOCS_BASE`** at frontend build time for forks). Sharper SPA chrome (borders, focus rings, typography).
+- **`init` embeds the toolkit** when the checkout **APP_DIR** differs from the project **ROOT_DIR**: syncs the repo into **`<project>/.roadmap-agent/`** (rsync or tar; excludes `.git`, `.rma`, `node_modules`, etc.) and writes **`rma`**, **`rma.ps1`**, **`rma.cmd`**, **`roadmap-agent.cmd`** at the project root so **`.\rma.ps1`** works without a global install. **`init -y` / `--yes`** skips the overwrite prompt; **`--no-embed`** / **`--embed`** override defaults; running from an already embedded kit does not copy onto itself.
+
+### Changed
+
+- **Web UI**: richer **`.env`** editing in the browser without changing backend whitelist or merge semantics.
+
+### Fixed
+
+- **Web UI / `.rma/venv`**: `configure_python_runtime` honors **Windows** `Scripts\python.exe`; **`rma_project_venv_must_recreate`** drops Linux/WSL-only venvs when running under **Git Bash/MSYS**; **`pip install`** for the web stack uses **`PIP_DEFAULT_TIMEOUT`** (default 120) and retries; **`web/run-backend.ps1`** resolves **`ROADMAP_AGENT_PROJECT_ROOT`**, detects WSL-style venv from PowerShell, and uses the Windows interpreter explicitly.
+- **PyPI timeouts during bootstrap**: **`RUN.ps1`**, **`RUN.sh`**, and **`scripts/*/setup-local-models-mempalace.*`** now export **`PIP_DEFAULT_TIMEOUT`** (default **120**) and pass **`--retries 8 --default-timeout=…`** to **`pip install`** so slow links do not fail at the default **15s** read timeout.
+- **WSL + Windows venv**: **`rma_project_venv_must_recreate`** treats **`Scripts\\python.exe`** as present when the file **exists** (not only when Unix **`+x`** is set on `/mnt/c/...`); Linux/WSL sessions **remove** that Windows-only venv and recreate a **`bin/python`** layout on the next **`web-api`** / setup step. **`launchers/*.ps1`** and **`web/run-backend.ps1`** now use the same ROADMAP-AGENT **ASCII banner** comment block as other scripts.
+
+### Documentation
+
+- **Companion web UI**: expanded **[`web/README.md`](web/README.md)** (prerequisites, `RMA_WEB_*`, dev vs single-port vs Docker, security, Guided/Advanced editor, bulk rules, **`VITE_DOCS_BASE`**); **[`web/frontend/README.md`](web/frontend/README.md)** — SPA dev and build-time doc URLs. Linked from **[`README.md`](README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (including **init embed** / project-local **`rma.ps1`**), **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)**, **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**, **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** (including **§9** WSL vs Windows venv); **`.env.example`** comments for **`RMA_WEB_*`**. Root **[`README.md`](README.md)** summarizes SPA modes and footer docs.
 
 ## [1.0.0] - 2026-04-10
 
@@ -24,11 +41,11 @@ First **stable** semver release: project bootstrap, multi-provider agent, docume
 - **Windows persistence**: after `robocopy`, normalize **`scripts/unix/*.sh`** and root bash launchers to **LF** (`Sync-UnixShellScriptsToLf`) so WSL/bash are not broken by CRLF. **`roadmap-agent.ps1`** detects CRLF in `roadmap-agent.sh` and runs a normalized temp copy with a clear note.
 - **`.gitattributes`**: force **LF** for `*.sh` and bash launchers so clones on Windows stay POSIX-safe.
 - **Local model setup** (`setup-local-models-mempalace`): after the venv exists, installs **`rma`** and **`roadmap-agent`** shims into **`venv/bin`** (Unix) or **`venv/Scripts`** (`*.cmd` + `*.ps1`, Windows) so activating the venv puts the CLI on `PATH` for that project.
-- **[`DOCS/RELEASING.md`](DOCS/RELEASING.md)**: how to tag releases, publish archives, and build the Docker image (this project is script-first; there is no mandatory compiled binary).
+- **[`docs/RELEASING.md`](docs/RELEASING.md)**: how to tag releases, publish archives, and build the Docker image (this project is script-first; there is no mandatory compiled binary).
 
 ### Changed
 
-- **Windows setup**: canonical **`scripts/windows/setup-rma.ps1`**; repo-root **`setup-rma.ps1`** / **`setup-rma.cmd`** are thin forwarders (same CLI as before).
+- **Windows setup**: canonical **`scripts/windows/setup-rma.ps1`**; **`launchers/setup-rma.ps1`** / **`launchers/setup-rma.cmd`** are thin forwarders (same CLI as before).
 - **Persistence sync checks** include **`RUN.*`**, **`setup-rma.*`**, and the canonical setup script path.
 
 ### Fixed
@@ -40,17 +57,17 @@ First **stable** semver release: project bootstrap, multi-provider agent, docume
 ### Added
 
 - **`roadmap-agent plan`** interactive **open questions**: when `RMA_PLAN_INTERACTIVE=1` (default) and stdin is a TTY, prompts for bullets in `.rma/open-questions.md` and for lines containing `Open:` in `.rma/description|ui|stack|other.md`; answers append to `.rma/other.md` before MemPalace runs. Use **`plan --no-interactive`** or **`RMA_PLAN_INTERACTIVE=0`** for CI. Env: **`RMA_PLAN_INTERACTIVE`**, **`RMA_PLAN_INTERACTIVE_MAX`**. **`init`** creates optional `.rma/open-questions.md` stub; **`doctor`** prints these vars.
-- README section **MemPalace mining and the roadmap loop** (what mining is, directory / `--limit` / `--dry-run`, how it relates to `plan` → `execute-one` → `analyze`) and diagram [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg).
-- [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md) — walkthrough: import tool, MemPalace, context files, **`plan`** (including interactive prompts), mining, **`execute-one`** / **`analyze`**.
-- [`DOCS/examples/rma-context-samples/`](DOCS/examples/rma-context-samples/) — three sample projects (**`weather-app`**, **`list-sharing`**, **`devtools-cli`**) with `description.md`, `ui.md`, `stack.md`, `other.md`; index covers **MCP** vs MemPalace.
+- README section **MemPalace mining and the roadmap loop** (what mining is, directory / `--limit` / `--dry-run`, how it relates to `plan` → `execute-one` → `analyze`) and diagram [`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg).
+- [`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md) — walkthrough: import tool, MemPalace, context files, **`plan`** (including interactive prompts), mining, **`execute-one`** / **`analyze`**.
+- [`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/) — three sample projects (**`weather-app`**, **`list-sharing`**, **`devtools-cli`**) with `description.md`, `ui.md`, `stack.md`, `other.md`; index covers **MCP** vs MemPalace.
 
 ### Changed
 
-- README, [`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md), and [`DOCS/ROADMAP-WORKFLOW.md`](DOCS/ROADMAP-WORKFLOW.md): clarify **iterated implementation** toward a real app—detailed MemPalace-backed roadmaps, prompting on gaps, **`execute-one`** as implementation spine. [`DOCS/MANUAL.md`](DOCS/MANUAL.md): **`plan`** section documents interactive questions; general context-file rule for driving detailed plans.
+- README, [`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md), and [`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md): clarify **iterated implementation** toward a real app—detailed MemPalace-backed roadmaps, prompting on gaps, **`execute-one`** as implementation spine. [`docs/MANUAL.md`](docs/MANUAL.md): **`plan`** section documents interactive questions; general context-file rule for driving detailed plans.
 
 ### Fixed
 
-- [`DOCS/roadmap-mining-and-loop.svg`](DOCS/roadmap-mining-and-loop.svg): XML validity so the diagram renders in browsers and on GitHub.
+- [`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg): XML validity so the diagram renders in browsers and on GitHub.
 - AI submenu **II / III** (`mempalace mine`): required project directory (`mempalace mine <dir>`), upstream **`--dry-run`**. Optional **`RMA_MEMPALACE_MINE_DIR`**.
 
 ## [0.3.0] - 2026-04-10
@@ -73,21 +90,21 @@ First **stable** semver release: project bootstrap, multi-provider agent, docume
 
 ### Added
 
-- `scripts/windows/refresh-rma-path.ps1` and repo-root `refresh-rma-path.ps1` to rebuild `PATH` in the current PowerShell session from Machine + User registry values (so `rma` works in the same window after persistence install).
+- `scripts/windows/refresh-rma-path.ps1` and **`launchers/refresh-rma-path.ps1`** to rebuild `PATH` in the current PowerShell session from Machine + User registry values (so `rma` works in the same window after persistence install).
 - Windows `install-persistence.ps1` and `setup-rma.ps1` call the PATH refresh helper after a successful install.
 - `VERSION` file at the repository root; `app_version` in the Unix runtime reads it first (then git tag, then dev snapshot).
-- Expanded documentation set with practical usage guides in `DOCS/`.
-- `DOCS/QUICKSTART.md` — per-OS quick start (Windows, Linux, macOS, Docker).
-- Rewrote `DOCS/MANUAL.md` as a detailed operator manual (table of contents, commands, interactive mode, `.rma` authoring, LLM/env/persistence, security).
+- Expanded documentation set with practical usage guides in `docs/`.
+- `docs/QUICKSTART.md` — per-OS quick start (Windows, Linux, macOS, Docker).
+- Rewrote `docs/MANUAL.md` as a detailed operator manual (table of contents, commands, interactive mode, `.rma` authoring, LLM/env/persistence, security).
 - Manual command support via `roadmap-agent man`.
-- Unix manpage source at `DOCS/man/roadmap-agent.1`.
+- Unix manpage source at `docs/man/roadmap-agent.1`.
 - Windows persistence installer script at `scripts/windows/install-persistence.ps1`.
 - GitHub-oriented banner image `roadmap-agent-github-banner.png`.
-- `DOCS/examples/MOCK-WORKFLOW-SESSION.md` — illustrative mock transcripts.
+- `docs/examples/MOCK-WORKFLOW-SESSION.md` — illustrative mock transcripts.
 
 ### Changed
 
-- `README.md`: refreshed presentation; documentation index and MemPalace notes; linked `DOCS/QUICKSTART.md` and `DOCS/MANUAL.md` from Quick Start and the documentation index.
+- `README.md`: refreshed presentation; documentation index and MemPalace notes; linked `docs/QUICKSTART.md` and `docs/MANUAL.md` from Quick Start and the documentation index.
 - Reorganized repository by operating system:
   - Windows runtime/scripts in `scripts/windows/`
   - Linux/macOS runtime/scripts in `scripts/unix/`
@@ -97,7 +114,7 @@ First **stable** semver release: project bootstrap, multi-provider agent, docume
 - Updated menu display labels from `SUB::...` format to Roman numerals for cleaner UX.
 - Added persistence health-check option (`persistence-check`) and menu entry to detect and optionally remediate missing global persistence.
 - Implemented a Defender-safe Windows bridge runtime in `scripts/windows/roadmap-agent.ps1` that delegates full CLI execution to `scripts/unix/roadmap-agent.sh` through `bash` while keeping Windows persistence installation local.
-- `DOCS/GETTING-STARTED.md`: links to `QUICKSTART.md` / `MANUAL.md`; Windows persistence notes updated for `setup-rma.ps1` user vs machine scope and PATH refresh.
+- `docs/GETTING-STARTED.md`: links to `QUICKSTART.md` / `MANUAL.md`; Windows persistence notes updated for `setup-rma.ps1` user vs machine scope and PATH refresh.
 
 ## [0.1.0] - 2026-04-10
 

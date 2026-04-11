@@ -26,6 +26,7 @@ fi
 LOG_DIR="$ROOT_DIR/.rma/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/setup-local-models.log"
+export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
 
 TS() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 log_info() { printf "[%s] [INFO] %s\n" "$(TS)" "$1" | tee -a "$LOG_FILE"; }
@@ -127,13 +128,13 @@ else
 
   if "$python_bin" -m pip --version >/dev/null 2>&1; then
     log_info "Upgrading pip/setuptools/wheel..."
-    if ! "$python_bin" -m pip install --upgrade pip setuptools wheel >>"$LOG_FILE" 2>&1; then
+    if ! "$python_bin" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" --upgrade pip setuptools wheel >>"$LOG_FILE" 2>&1; then
       log_warn "pip toolchain upgrade failed. Continuing with existing tooling."
       warnings=$((warnings+1))
     fi
 
     log_info "Installing/refreshing required packages: mempalace, chromadb"
-    if ! "$python_bin" -m pip install --upgrade mempalace chromadb >>"$LOG_FILE" 2>&1; then
+    if ! "$python_bin" -m pip install --retries 8 --default-timeout="$PIP_DEFAULT_TIMEOUT" --upgrade mempalace chromadb >>"$LOG_FILE" 2>&1; then
       log_error "Failed to install one or more required packages."
       failures=$((failures+1))
     else

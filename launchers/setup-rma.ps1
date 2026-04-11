@@ -9,12 +9,15 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Repo-root forwarder to scripts/windows/setup-rma.ps1 (stable path for docs and muscle memory).
-# Notes: No logic here — keeps clone root as single entry point for Windows persistence install.
-# Last updated: 2026-04-10 | Version: v1.0.0
+# Summary: Launcher — forwards to scripts/windows/setup-rma.ps1 (Windows persistence wrapper).
+# Notes: launchers/ only; clone root keeps RUN.* for bootstrap.
+# Last updated: 2026-04-11 | Version: v1.0.0
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 $ErrorActionPreference = "Stop"
-$target = Join-Path $PSScriptRoot "scripts\windows\setup-rma.ps1"
+$LaunchersDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $LaunchersDir "..")).Path
+$target = Join-Path $RepoRoot "scripts\windows\setup-rma.ps1"
 if (-not (Test-Path -LiteralPath $target)) {
     Write-Host "ERROR: Missing $target" -ForegroundColor Red
     exit 1

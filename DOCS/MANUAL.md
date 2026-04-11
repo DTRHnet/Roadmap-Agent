@@ -19,14 +19,15 @@ This document describes how to **use**, **configure**, **edit project metadata**
 11. [Roadmap artifacts: `plan`, `tasks`, and `run`](#roadmap-artifacts-plan-tasks-and-run)
 12. [Codebase analysis: `analyze` and `analyze-init`](#codebase-analysis-analyze-and-analyze-init)
 13. [Environment variables and `.env`](#environment-variables-and-env)
-14. [LLM providers](#llm-providers)
-15. [Python virtual environment](#python-virtual-environment)
-16. [MemPalace-related features](#mempalace-related-features)
-17. [Persistence (global commands)](#persistence-global-commands)
-18. [Diagnostics: `doctor`](#diagnostics-doctor)
-19. [Modifying or extending the project](#modifying-or-extending-the-project)
-20. [Security, secrets, and safety](#security-secrets-and-safety)
-21. [Related documentation](#related-documentation)
+14. [Companion web UI (optional)](#companion-web-ui-optional)
+15. [LLM providers](#llm-providers)
+16. [Python virtual environment](#python-virtual-environment)
+17. [MemPalace-related features](#mempalace-related-features)
+18. [Persistence (global commands)](#persistence-global-commands)
+19. [Diagnostics: `doctor`](#diagnostics-doctor)
+20. [Modifying or extending the project](#modifying-or-extending-the-project)
+21. [Security, secrets, and safety](#security-secrets-and-safety)
+22. [Related documentation](#related-documentation)
 
 ---
 
@@ -113,7 +114,7 @@ Pass the same subcommands and flags to any of them, for example:
 ```text
 roadmap-agent status
 rma doctor
-./rma.ps1 analyze-init --dry-run
+./launchers/rma.ps1 analyze-init --dry-run
 ```
 
 ### No subcommand = interactive menu
@@ -211,6 +212,14 @@ Installs or repairs **global** launchers and PATH integration. On Unix this may 
 
 Checks whether global install exists, version/sync status, and may prompt to upgrade or install.
 
+### `web-api` / `web-backend` (alias)
+
+Ensures **`RMA_PYTHON_VENV_DIR`** exists (creates **`python3 -m venv`** if needed), runs **`pip install -r requirements-web.txt`** from the toolkit (**`ROADMAP_AGENT_APP_ROOT`**), sets **`RMA_WEB_APP_ROOT`**, and starts **uvicorn** on **127.0.0.1:8765** with reload. Same action as hub **VII**.
+
+### `web-frontend`
+
+Runs **`npm install`** in **`web/frontend`**, then **`npm run dev`** (Vite on **:5173**). Same action as hub **VIII**. Requires **Node.js** / **npm** on `PATH`.
+
 ### `help`, `-h`, `--help`
 
 Prints CLI help (wording may differ slightly on Windows vs Unix).
@@ -229,7 +238,7 @@ With no arguments, the CLI opens a **hub** menu. From there you can reach:
 
 - **AI / MemPalace-oriented** actions (depending on build and dependencies).
 - **Roadmap** actions (status, plan, execute-one, etc.).
-- **Persistence-check** and related maintenance entries.
+- **Persistence-check**, **venv / .env** helpers, **release** maintainer flow, and **optional web UI** starters (**VII** = FastAPI + deps, **VIII** = Vite; see also **`web-api`** / **`web-frontend`**).
 
 Exact labels use **Roman numerals** (`I`, `II`, `III`, …) for readability.
 
@@ -461,6 +470,52 @@ User-wide variables can be set via **System Properties** or `setx`; changes appl
 
 ---
 
+## Companion web UI (optional)
+
+The repo includes a **local** web stack under **`web/`**: a FastAPI backend and a Vite + React SPA. It helps you edit the **project** `.env` (only keys whitelisted for `load_rma_env_file()`), run **`rma doctor --json`**, inspect the **`rma tools --json`** manifest, probe LLM HTTP endpoints, and stream **`ollama pull`**. It is **not** a hosted product: it runs on your machine and shells out to the same runtime as the CLI.
+
+Canonical setup detail: **[`web/README.md`](../web/README.md)**. Summary:
+
+### How it invokes `rma`
+
+The backend resolves **`RMA_WEB_APP_ROOT`** (default: Roadmap-Agent repo root) and runs:
+
+- **Windows:** `powershell` / `pwsh` with **`scripts/windows/roadmap-agent.ps1`**
+- **Unix:** **`bash`** with **`scripts/unix/roadmap-agent.sh`**
+
+with **`ROADMAP_AGENT_PROJECT_ROOT`** set to the directory you choose in the UI (your app repo) and **`ROADMAP_AGENT_APP_ROOT`** set to the toolkit root. Therefore **Git Bash or WSL-backed bash** requirements match your normal Windows CLI usage.
+
+### Run it (development)
+
+1. **Hub:** **`roadmap-agent`** (no args) → **VII** (API) and **VIII** (frontend) — VII ensures **`.rma/venv`**, runs **`pip install -r requirements-web.txt`**, then **uvicorn**; VIII runs **`npm install`** and **`npm run dev`**.
+2. **CLI:** **`roadmap-agent web-api`** (or **`web-backend`**) and **`roadmap-agent web-frontend`** — same as VII / VIII.
+3. **Scripts:** **`web/run-backend.ps1`** or **`web/run-backend.sh`** if you prefer not to use the menu (uses whatever **`python`** those scripts put on `PATH`).
+4. Open **http://127.0.0.1:5173** when using Vite, set **Project root** to the repository that contains `.rma/` and `.env`.
+
+### Single-port / “production-style” use
+
+After `npm run build` in **`web/frontend`**, **`web/frontend/dist/`** may exist on disk. Starting uvicorn from **`web/backend`** then serves the SPA from **`/`** and the API under **`/api`** on the same port (default **8765**).
+
+### Docker
+
+**`docker compose up --build`** (see root **`docker-compose.yml`** and **`docker/Dockerfile.web`**) runs the backend on **127.0.0.1:8765** on the host. Build **`web/frontend/dist`** *before* the image build if you want the bundled UI inside the container; otherwise use the interactive API docs at **`/docs`** or run the Vite dev server on the host. On **Windows**, native **`web/run-backend.ps1`** is usually easier than Compose so `rma` can reach your usual bash bridge.
+
+### `RMA_WEB_*` variables (backend only)
+
+These configure the **web server**, not the CLI. They use the `RMA_WEB_` prefix in the environment of the uvicorn process (see **`web/backend/app/settings.py`**).
+
+| Variable | Role |
+|----------|------|
+| `RMA_WEB_HOST` | Bind address (default `127.0.0.1`; Compose may set `0.0.0.0` in-container). |
+| `RMA_WEB_PORT` | Port (default `8765`). |
+| `RMA_WEB_ADMIN_TOKEN` | If non-empty, mutating routes require `X-RMA-Web-Token`. |
+| `RMA_WEB_APP_ROOT` | Toolkit checkout containing `scripts/` (set by `run-backend` scripts). |
+| `RMA_WEB_CORS_ORIGINS` | Comma-separated browser origins allowed for the SPA (default includes Vite dev URLs). |
+
+Optional commented examples live in **`.env.example`** under *Optional companion web UI*.
+
+---
+
 ## LLM providers
 
 ### Ollama (default path)
@@ -518,7 +573,7 @@ Install once; run `rma` / `roadmap-agent` from any directory without typing full
 
 ### Windows
 
-- **`setup-rma.ps1`** (repo root forwards to **`scripts/windows/setup-rma.ps1`**): preferred wrapper (`-Scope User` or `-Scope Machine`).
+- **`launchers/setup-rma.ps1`** (forwards to **`scripts/windows/setup-rma.ps1`**): preferred wrapper (`-Scope User` or `-Scope Machine`).
 - **`install-persistence.ps1`**: lower-level installer; mirrors full tree into `%LOCALAPPDATA%\Roadmap-Agent` or `%ProgramFiles%\Roadmap-Agent`.
 - **`refresh-rma-path.ps1`**: reload PATH in the **current** PowerShell after install.
 
@@ -557,7 +612,7 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 
 - **Unix behavior**: `scripts/unix/roadmap-agent.sh` is the main logic.
 - **Windows**: `scripts/windows/roadmap-agent.ps1` bridges to bash; persistence is **`scripts/windows/install-persistence.ps1`**.
-- **Launchers** at repo root should stay thin — avoid duplicating logic there.
+- **Launchers** under **`launchers/`** should stay thin — avoid duplicating logic there.
 
 ### Conventions
 
@@ -572,6 +627,7 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 - **Never** commit `.env`, API keys, or internal URLs that are sensitive.
 - **`execute-one`** can run shell commands depending on task content — treat tasks like code review inputs.
 - **LLM output** is not guaranteed correct; always review generated `.rma` proposals before mass acceptance.
+- **Web UI** (`web/`): default bind is loopback; set **`RMA_WEB_ADMIN_TOKEN`** for mutating API routes; do not expose the service on untrusted networks without TLS and stronger auth. See **[`web/README.md`](../web/README.md)**.
 
 ---
 
@@ -585,10 +641,11 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 | [ROADMAP-WORKFLOW.md](ROADMAP-WORKFLOW.md) | Roadmap process |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Technical layout |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures |
+| [web/README.md](../web/README.md) | Optional local web UI: setup, `RMA_WEB_*`, Docker |
 | [README.md](../README.md) | Overview, env table, deployment |
 | [CHANGELOG.md](../CHANGELOG.md) | Release notes |
 | [examples/MOCK-WORKFLOW-SESSION.md](examples/MOCK-WORKFLOW-SESSION.md) | Illustrative mock logs (install → init → hub → roadmap) |
 | [examples/rma-context-samples/README.md](examples/rma-context-samples/README.md) | Sample `.rma` context files by project type; MCP (Model Context Protocol) notes |
 | [examples/END-TO-END-LIST-SHARING-APP.md](examples/END-TO-END-LIST-SHARING-APP.md) | End-to-end workflow example with mock transcripts |
 
-Unix manpage source: `DOCS/man/roadmap-agent.1`.
+Unix manpage source: `docs/man/roadmap-agent.1`.

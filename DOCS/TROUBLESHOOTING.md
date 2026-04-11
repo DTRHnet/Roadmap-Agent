@@ -11,7 +11,7 @@ Cause:
 Fix:
 
 ```bash
-roadmap-agent init
+./launchers/roadmap-agent init
 ```
 
 Then populate:
@@ -92,8 +92,8 @@ Cause:
 
 Fix:
 
-- use `roadmap-agent.cmd` or `rma.ps1` on Windows
-- use `roadmap-agent`/`.sh` in bash-compatible environments
+- use `launchers/roadmap-agent.cmd` or `launchers/rma.ps1` on Windows
+- use `launchers/roadmap-agent` / `launchers/rma.sh` in bash-compatible environments
 
 ## 8) Docker run cannot access project files
 
@@ -107,7 +107,33 @@ Fix:
 docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 ```
 
-## 9) What to collect before filing an issue
+## 9) pip / `.rma/venv` broken: `/usr/bin\python.exe`, or mixed WSL vs Windows
+
+**Cause:** **`.rma/venv`** was created with one Python family (e.g. **WSL/Linux** → `bin/python` and `home = /usr/...` in `pyvenv.cfg`) but **PowerShell** or **Git Bash + Windows Python** then used the same folder. Windows `pip` can error with `did not find executable at '/usr/bin\python.exe'`. The opposite (only **`Scripts\python.exe`**) is unusable from **Linux/WSL** bash alone.
+
+**Fix:**
+
+- Use **one** environment per clone for the venv (always WSL, always Git Bash, or always PowerShell + Windows Python).
+- Delete the broken venv and recreate from that shell:
+  - **PowerShell:** `Remove-Item -Recurse -Force .\.rma\venv`
+  - **Bash (Unix/WSL):** `rm -rf .rma/venv`
+- Then run **`rma web-api`** / hub **VII** or **`web/run-backend.ps1`**. The Unix runtime **removes and recreates** a mismatched venv automatically: **Git Bash** vs **Linux `bin/python`**, and **Linux/WSL** vs **Windows `Scripts\\python.exe`** (detection uses **file existence** on `/mnt/c/...` so NTFS venvs are not missed). **`pip install`** uses **`PIP_DEFAULT_TIMEOUT`** (default **120** seconds) and **`--retries 8`** on the MemPalace setup path (**`RUN.ps1`**, **`RUN.sh`**, **`setup-local-models-mempalace.*`**, web stack). Override before bootstrap: `$env:PIP_DEFAULT_TIMEOUT = "180"` (PowerShell) or `export PIP_DEFAULT_TIMEOUT=180` (bash); optional mirror: **`PIP_INDEX_URL`**.
+- **`web/run-backend.ps1`** exits with a clear message if it sees only a Linux-style **`bin\python`** while you are in PowerShell.
+
+## 10) Web UI: API errors, 401, or blank UI
+
+**Symptoms:** browser shows **Unauthorized** /401 on save, **Doctor** or **Env** fails, Vite shows proxy errors, or Docker shows only JSON/OpenAPI.
+
+**Checks:**
+
+- **`RMA_WEB_ADMIN_TOKEN`**: if the backend was started with a token, open the UI field **Admin token** and paste the same value (sent as **`X-RMA-Web-Token`** on mutating requests).
+- **Project root** in the UI must be an existing directory (your app repo with `.rma/` / `.env`).
+- **Backend reachability:** dev mode expects API at **http://127.0.0.1:8765**; ensure **`web/run-backend.ps1`** or **`web/run-backend.sh`** is running.
+- **Windows + `rma`:** the backend shells out to **`scripts/windows/roadmap-agent.ps1`** and still needs **Git Bash / WSL** behavior consistent with the CLI. Prefer **`web/run-backend.ps1`** over Docker on Windows when bridge tools are hard to reach from a container.
+- **CORS:** if you use a non-default dev URL, set **`RMA_WEB_CORS_ORIGINS`** (comma-separated) to include that origin.
+- **Docker:** without **`web/frontend/dist`** in the build context, open **http://127.0.0.1:8765/docs** or run **`npm run dev`** on the host against the mapped port. See **[`web/README.md`](../web/README.md)**.
+
+## 11) What to collect before filing an issue
 
 - command used
 - exact output/error

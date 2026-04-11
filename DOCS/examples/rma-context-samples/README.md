@@ -42,4 +42,4 @@ If by **“MCR”** you meant a **project-specific acronym** (for example *Markd
 - In **`ui.md`**, describe **screens and flows**, not library versions (those go in **`stack.md`**).
 - In **`other.md`**, put **secrets policy**, **third-party APIs**, and **“never do X”** rules.
 
-Full editorial guidance: [`DOCS/MANUAL.md`](../../MANUAL.md) → *Writing and maintaining context files*.
+Full editorial guidance: [`docs/MANUAL.md`](../../MANUAL.md) → *Writing and maintaining context files*.

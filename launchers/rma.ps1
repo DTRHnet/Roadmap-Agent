@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 #  ____   ___    ____  ___    ___ ___   ____  ____          ____   ____    ___  ____   ______ 
 # |    \ /   \  /    ||   \  |   |   | /    ||    \        /    | /    |  /  _]|    \ |      |
@@ -10,10 +9,11 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Direct launcher to scripts/unix/roadmap-agent.sh (no Windows PowerShell branch).
-# Notes: Prefer when you are already on bash (Linux, macOS, WSL); use ./roadmap-agent for MSYS auto-routing.
-# Last updated: 2026-04-10 | Version: v1.0.0
+# Summary: Launcher — forwards to scripts/windows/roadmap-agent.ps1 (ROADMAP_AGENT_PROJECT_ROOT = cwd).
+# Notes: Repo-root helpers live in launchers/; only RUN.* stays at clone root.
+# Last updated: 2026-04-11 | Version: v1.0.0
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
-set -u
-SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exec bash "$SELF_DIR/scripts/unix/roadmap-agent.sh" "$@"
+$LaunchersDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path (Join-Path $LaunchersDir "..")).Path
+& (Join-Path $RepoRoot "scripts\windows\roadmap-agent.ps1") @args

@@ -40,15 +40,34 @@ copy .env.example .env
 From the **project root** (your app repo or this repo):
 
 ```powershell
-.\rma.ps1 init
+.\launchers\rma.ps1 init
 ```
+
+#### Use another app folder without global `rma`
+
+If `rma` is not on your PATH, you only need a one-time init **from a full clone** of ROADMAP-AGENT while your shell’s current directory is the **app** you care about (for example `C:\Users\you\VoiceInvoice-Repo\VoiceInvoice`):
+
+```powershell
+cd C:\path\to\YourApp
+& C:\path\to\RoadmapAgent\launchers\rma.ps1 init
+```
+
+When the toolkit checkout and the project root differ, `init` copies the CLI into **`YourApp\.roadmap-agent\`** and adds **`rma.ps1`**, **`rma.cmd`**, **`rma`**, and **`roadmap-agent.cmd`** at **`YourApp`**. After that, use the project-local launchers only:
+
+```powershell
+cd C:\path\to\YourApp
+.\rma.ps1 doctor
+.\rma.ps1
+```
+
+Non-interactive overwrite of an existing `.rma`: `.\rma.ps1 init -y` (from the toolkit) or `& ...\rma.ps1 init -y`. To create **only** `.rma` templates without embedding: `init --no-embed`.
 
 ### 5. Run the menu or a command
 
 ```powershell
-.\rma.ps1
-.\rma.ps1 status
-.\rma.ps1 doctor
+.\launchers\rma.ps1
+.\launchers\rma.ps1 status
+.\launchers\rma.ps1 doctor
 ```
 
 ### 6. (Optional) Install `rma` globally (persistence)
@@ -56,7 +75,7 @@ From the **project root** (your app repo or this repo):
 From the Roadmap-Agent repo root:
 
 ```powershell
-.\setup-rma.ps1 -Scope User
+.\launchers\setup-rma.ps1 -Scope User
 ```
 
 - **User** scope: no Administrator; installs under `%LOCALAPPDATA%\Roadmap-Agent` and updates User PATH.
@@ -65,7 +84,7 @@ From the Roadmap-Agent repo root:
 After install, the script refreshes PATH in the current session. If `rma` is still not found:
 
 ```powershell
-.\refresh-rma-path.ps1
+.\launchers\refresh-rma-path.ps1
 ```
 
 Then:
@@ -89,7 +108,7 @@ rma --help
 ```bash
 git clone https://github.com/DTRHnet/Roadmap-Agent.git
 cd RoadmapAgent
-chmod +x roadmap-agent rma scripts/unix/roadmap-agent.sh
+chmod +x launchers/roadmap-agent launchers/rma scripts/unix/roadmap-agent.sh
 ```
 
 ### 2. Python / MemPalace stack (required for `plan` and safe mine)
@@ -108,17 +127,30 @@ cp .env.example .env
 ### 4. Initialize and run
 
 ```bash
-./roadmap-agent init
-./roadmap-agent
-./roadmap-agent doctor
+./launchers/roadmap-agent init
+./launchers/roadmap-agent
+./launchers/roadmap-agent doctor
 ```
+
+#### Another project directory (no global install)
+
+From your app root, point at a full clone once; `init` creates `.rma/` plus **`.roadmap-agent/`** and **`./rma`** in the app:
+
+```bash
+cd /path/to/YourApp
+/path/to/RoadmapAgent/launchers/roadmap-agent init
+chmod +x rma   # if needed
+./rma doctor
+```
+
+Flags: **`init -y`** (overwrite `.rma` without prompt), **`init --no-embed`** (templates only).
 
 ### 5. (Optional) Global install
 
 ```bash
-./roadmap-agent persistence-check
+./launchers/roadmap-agent persistence-check
 # or
-./roadmap-agent persistence
+./launchers/roadmap-agent persistence
 ```
 
 Follow prompts; you may need `sudo`. Open a **new** terminal after install so PATH and shell RC changes apply.
@@ -127,7 +159,7 @@ Follow prompts; you may need `sudo`. Open a **new** terminal after install so PA
 
 ## macOS
 
-Same flow as **Linux** (bash, `chmod +x` launchers, `./roadmap-agent`, optional `setup-local-models` script).
+Same flow as **Linux** (bash, `chmod +x` launchers, `./launchers/roadmap-agent`, optional `setup-local-models` script).
 
 - Install **bash** and **git** via Xcode Command Line Tools or Homebrew if needed.
 - **fzf**: install with Homebrew (`brew install fzf`) or rely on runtime auto-install / fallback.
@@ -143,7 +175,30 @@ docker build -t roadmap-agent .
 docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 ```
 
-Inside the container, use `./roadmap-agent` from `/workspace` as documented in the image entrypoint.
+Inside the container, use `./launchers/roadmap-agent` from `/workspace` as documented in the image entrypoint.
+
+---
+
+## Optional web UI (local)
+
+Browser UI for editing project **`.env`** (whitelisted keys), **`rma doctor --json`**, model listing, and light LLM checks. It is **not** a replacement for the CLI.
+
+**Fast path — hub / CLI** (from a project directory with **`rma` / `roadmap-agent`** on `PATH`, or **`./launchers/roadmap-agent`**):
+
+1. **`roadmap-agent`** (no args) → hub **VII** (API: venv + **`pip install -r requirements-web.txt`** + uvicorn) and **VIII** ( **`npm install`** + Vite). Or: **`roadmap-agent web-api`** and **`roadmap-agent web-frontend`**.
+2. Optional: set **`RMA_WEB_ADMIN_TOKEN`** before starting the API if you want mutating routes to require the token in the UI.
+
+**Manual scripts** (Roadmap-Agent repo root):
+
+1. `pip install -r requirements-web.txt`
+2. **`web/run-backend.ps1`** (Windows) or **`./web/run-backend.sh`** (Unix).
+3. `cd web/frontend && npm install && npm run dev` → **http://127.0.0.1:5173**, set **Project root** to your app repo.
+
+**Single port:** after `npm run build` in `web/frontend`, the backend can serve the static SPA from **`/`** on **8765** (see **[`web/README.md`](../web/README.md)**).
+
+**Docker:** `docker compose up --build` exposes **http://127.0.0.1:8765**. Build `web/frontend/dist` *before* `docker compose build` if you want the bundled UI in the image; otherwise use **http://127.0.0.1:8765/docs** (OpenAPI) or run Vite on the host. On **Windows**, native `web/run-backend.ps1` is usually easier than Compose so `rma` reaches Git Bash / WSL like your normal CLI.
+
+Full detail: **[`web/README.md`](../web/README.md)**, **[`docs/MANUAL.md`](MANUAL.md)** (*Companion web UI*).
 
 ---
 
@@ -156,3 +211,4 @@ Inside the container, use `./roadmap-agent` from `/workspace` as documented in t
 | Menus, FZF, fallback | [MANUAL.md](MANUAL.md) — *Interactive mode* |
 | Troubleshooting | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Architecture | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Optional web UI | [web/README.md](../web/README.md), [MANUAL.md](MANUAL.md) (*Companion web UI*) |

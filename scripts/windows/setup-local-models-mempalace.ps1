@@ -14,6 +14,8 @@
 # Last updated: 2026-04-10 | Version: v1.0.0
 
 $ErrorActionPreference = "Continue"
+if (-not $env:PIP_DEFAULT_TIMEOUT) { $env:PIP_DEFAULT_TIMEOUT = "120" }
+$script:PipTimeout = $env:PIP_DEFAULT_TIMEOUT
 
 $ToolkitRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
 if ($env:ROADMAP_AGENT_PROJECT_ROOT -and (Test-Path -LiteralPath $env:ROADMAP_AGENT_PROJECT_ROOT)) {
@@ -150,7 +152,7 @@ if (-not $pythonCmd) {
     if ($pipOk) {
         Write-Log "INFO" "Upgrading pip/setuptools/wheel..."
         try {
-            & $pythonCmd -m pip install --upgrade pip setuptools wheel | Out-Null
+            & $pythonCmd -m pip install --retries 8 --default-timeout=$script:PipTimeout --upgrade pip setuptools wheel | Out-Null
         } catch {
             Write-Log "WARN" "pip toolchain upgrade failed. Continuing with existing tooling."
             $script:Warnings++
@@ -158,7 +160,7 @@ if (-not $pythonCmd) {
 
         Write-Log "INFO" "Installing/refreshing required packages: mempalace, chromadb"
         try {
-            & $pythonCmd -m pip install --upgrade mempalace chromadb | Out-Null
+            & $pythonCmd -m pip install --retries 8 --default-timeout=$script:PipTimeout --upgrade mempalace chromadb | Out-Null
             Write-Log "INFO" "Package installation completed."
         } catch {
             Write-Log "ERROR" "Failed to install one or more required packages."

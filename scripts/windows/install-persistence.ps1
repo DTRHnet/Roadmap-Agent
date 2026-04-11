@@ -89,7 +89,7 @@ function Sync-UnixShellScriptsToLf([string]$InstallRoot) {
             [IO.File]::WriteAllText($dockerEntry, $fixed, $utf8NoBom)
         }
     }
-    foreach ($name in @("roadmap-agent", "rma", "rma.sh", "RUN.sh")) {
+    foreach ($name in @("launchers\roadmap-agent", "launchers\rma", "launchers\rma.sh", "RUN.sh")) {
         $p = Join-Path $InstallRoot $name
         if (Test-Path $p -PathType Leaf) {
             $text = [IO.File]::ReadAllText($p)
@@ -123,14 +123,15 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
         "scripts\\windows\\refresh-rma-path.ps1",
         "scripts\\windows\\setup-rma.ps1",
         "scripts\\windows\\setup-local-models-mempalace.ps1",
-        "roadmap-agent",
-        "roadmap-agent.cmd",
-        "rma",
-        "rma.cmd",
-        "rma.ps1",
-        "rma.sh",
-        "setup-rma.ps1",
-        "setup-rma.cmd",
+        "launchers\\roadmap-agent",
+        "launchers\\roadmap-agent.cmd",
+        "launchers\\rma",
+        "launchers\\rma.cmd",
+        "launchers\\rma.ps1",
+        "launchers\\rma.sh",
+        "launchers\\setup-rma.ps1",
+        "launchers\\setup-rma.cmd",
+        "launchers\\refresh-rma-path.ps1",
         "RUN.sh",
         "RUN.ps1",
         "RUN.cmd",

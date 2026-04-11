@@ -88,6 +88,7 @@ $ProjectRoot = (Get-Location).Path
 
 $env:ROADMAP_AGENT_APP_ROOT = $ToolkitRoot
 $env:ROADMAP_AGENT_PROJECT_ROOT = $ProjectRoot
+if (-not $env:PIP_DEFAULT_TIMEOUT) { $env:PIP_DEFAULT_TIMEOUT = "120" }
 
 function Write-Section([string]$Title) {
     Write-Host ""

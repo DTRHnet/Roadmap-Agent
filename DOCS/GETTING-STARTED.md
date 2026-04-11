@@ -19,7 +19,7 @@ Use ROADMAP-AGENT from the same directory where your source code lives.
 ## 3) Initialize `.rma/`
 
 ```bash
-roadmap-agent init
+./launchers/roadmap-agent init
 ```
 
 This initializes required structure and templates.
@@ -81,10 +81,19 @@ Inside container, entrypoint routes into the same menu flow.
 If you want global command access:
 
 - **Linux/macOS:** `roadmap-agent persistence` or `roadmap-agent persistence-check` (follow prompts; may use `sudo`).
-- **Windows:** from the cloned repo run `.\setup-rma.ps1 -Scope User` (no Administrator) or `-Scope Machine` from an elevated shell. See **QUICKSTART.md** for PATH refresh (`refresh-rma-path.ps1`) if `rma` is not found in the current window.
+- **Windows:** from the cloned repo run `.\launchers\setup-rma.ps1 -Scope User` (no Administrator) or `-Scope Machine` from an elevated shell. See **QUICKSTART.md** for PATH refresh (`refresh-rma-path.ps1`) if `rma` is not found in the current window.
 
 Installers mirror the full app tree and deduplicate PATH entries where applicable.
 
 ## 10) Shipping / versioning
 
 To tag a release, publish GitHub Release archives, or build the Docker image, see **[RELEASING.md](RELEASING.md)**.
+
+## 11) Optional web UI (browser)
+
+For a **local** FastAPI + React companion that edits project **`.env`**, runs **`rma doctor --json`**, and probes LLM endpoints:
+
+1. **Hub:** **`roadmap-agent`** → **VII** (API) and **VIII** (Vite), or **`roadmap-agent web-api`** / **`roadmap-agent web-frontend`**.
+2. **Scripts:** **`web/run-backend.ps1`** (Windows) or **`web/run-backend.sh`** (Unix), plus **`npm run dev`** in **`web/frontend`** if you do not use VIII.
+
+See **[`web/README.md`](../web/README.md)** for **`RMA_WEB_*`** variables, **`RMA_WEB_ADMIN_TOKEN`**, single-port production-style serving, **`docker compose`**, and Windows vs Docker notes. Operator-oriented summary: **[MANUAL.md](MANUAL.md)** (*Companion web UI*).

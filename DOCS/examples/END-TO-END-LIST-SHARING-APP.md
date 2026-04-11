@@ -1,6 +1,6 @@
 # End-to-end example: list-sharing app with ROADMAP-AGENT
 
-This walkthrough is **illustrative**. Commands, transcripts, and file excerpts are **fictional** but aligned with how ROADMAP-AGENT is meant to be used: you bring the tool into a **new or existing repo**, initialize **`.rma/`**, run **`doctor`**, then loop **`plan` → `execute-one` → `analyze`**, using **MemPalace** (mine → retrieve context) so plans and agents are grounded in **your actual tree**. Adjust paths to your OS (PowerShell examples below; on Linux/macOS use `./roadmap-agent` or `rma` as installed).
+This walkthrough is **illustrative**. Commands, transcripts, and file excerpts are **fictional** but aligned with how ROADMAP-AGENT is meant to be used: you bring the tool into a **new or existing repo**, initialize **`.rma/`**, run **`doctor`**, then loop **`plan` → `execute-one` → `analyze`**, using **MemPalace** (mine → retrieve context) so plans and agents are grounded in **your actual tree**. Adjust paths to your OS (PowerShell examples below; on Linux/macOS use `./launchers/roadmap-agent` or `rma` on PATH).
 
 **Product we are pretending to build:** a web app for **creating and sharing lists**, including **public lists**, **categories**, and **permissions** (owners, editors, viewers, **mutual** co-management of shared lists).
 
@@ -273,7 +273,7 @@ rma
 # Navigate to AI → safe mine (menu II / III depending on version)
 ```
 
-Underlying idea (see also [`roadmap-mining-and-loop.svg`](../roadmap-mining-and-loop.svg)):
+Underlying idea (see also [`roadmap-mining-and-loop.svg`](../../img/roadmap-mining-and-loop.svg)):
 
 ```bash
 mempalace mine "C:\Users\dev\Projects\ListHub" --limit 200 --dry-run
@@ -354,4 +354,4 @@ See [`TROUBLESHOOTING.md`](../TROUBLESHOOTING.md) and [`ROADMAP-WORKFLOW.md`](..
 4. **`mine` → `plan` → `execute-one` → `analyze`** in a tight loop: palace + Markdown **drive** intelligent iteration; **`execute-one`** tracks **real implementation** work toward a **shippable app**.  
 5. **Use an agent** to expand plans, implement tasks, and **ask you** important questions when context is thin; **capture answers** in `.rma` and re-run **`plan`**. The outcome is **working software** in your repo—not documentation for its own sake.
 
-For a shorter generic transcript (install → hub), see [`MOCK-WORKFLOW-SESSION.md`](MOCK-WORKFLOW-SESSION.md). For the mining vs roadmap diagram, see [`../roadmap-mining-and-loop.svg`](../roadmap-mining-and-loop.svg).
+For a shorter generic transcript (install → hub), see [`MOCK-WORKFLOW-SESSION.md`](MOCK-WORKFLOW-SESSION.md). For the mining vs roadmap diagram, see [`../../img/roadmap-mining-and-loop.svg`](../../img/roadmap-mining-and-loop.svg).
