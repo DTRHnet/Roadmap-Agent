@@ -1,0 +1,11 @@
+# Optional companion web UI (FastAPI). Build from repository root:
+#   docker build -f docker/Dockerfile.web -t rma-web .
+FROM python:3.12-slim-bookworm
+WORKDIR /workspace
+COPY requirements-web.txt .
+RUN pip install --no-cache-dir -r requirements-web.txt
+COPY . .
+ENV RMA_WEB_APP_ROOT=/workspace
+WORKDIR /workspace/web/backend
+EXPOSE 8765
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8765"]

@@ -1,0 +1,13 @@
+# Optional local web UI. Intended for Linux/macOS hosts; on Windows prefer native
+# Python + web/run-backend.ps1 so rma can reach Git Bash/WSL.
+services:
+  rma-web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      RMA_WEB_HOST: "0.0.0.0"
+      # Optional: require token for PUT/POST
+      # RMA_WEB_ADMIN_TOKEN: "change-me"

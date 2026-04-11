@@ -27,6 +27,13 @@ ROADMAP-AGENT is a script-first architecture with mirrored PowerShell and bash r
    - `git` metadata
    - optional `mempalace` and `python` checks
 
+## Companion web service (optional)
+
+- **`web/backend`**: FastAPI app that reads/writes project `.env` (keys whitelisted in `load_rma_env_file()`), calls **`rma tools --json`** for the env manifest, runs **`rma doctor --json`**, and probes LLM HTTP endpoints without reimplementing the shell runtime.
+- **`web/frontend`**: Vite + React SPA; dev server proxies `/api` to the backend.
+- **`doctor --json`**: `scripts/unix/roadmap-agent.sh` invokes **`scripts/unix/doctor-json.py`**, which prints one JSON document (schema `roadmap-agent-doctor-json/1`) for structured diagnostics.
+- **Container**: `docker/Dockerfile.web` and root **`docker-compose.yml`** run the API (bind `0.0.0.0` in the container; still treat as trusted-network only).
+
 ## Data Model (`.rma/`)
 
 - **Context input**

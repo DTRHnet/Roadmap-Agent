@@ -1781,7 +1781,30 @@ write_runtime_warnings_panel() {
   printf "%s" "$warn_file"
 }
 
+# Machine-readable doctor output (single JSON object on stdout) for companion UIs.
+cmd_doctor_json() {
+  ensure_core_dirs
+  load_rma_env_file
+  configure_python_runtime
+  export ROOT_DIR APP_DIR
+  local persist_file
+  persist_file="$(mktemp 2>/dev/null || echo "/tmp/rma-doctor-persist-$$.txt")"
+  ( cmd_persistence_check 1 >"$persist_file" 2>&1 ) || true
+  export DOCTOR_PERSIST_FILE="$persist_file"
+  python3 "$APP_DIR/scripts/unix/doctor-json.py"
+  local py_rc=$?
+  rm -f "$persist_file"
+  if [[ "$py_rc" -eq 0 ]]; then
+    return 0
+  fi
+  return 1
+}
+
 cmd_doctor() {
+  if [[ "${1:-}" == "--json" ]]; then
+    cmd_doctor_json
+    return $?
+  fi
   ensure_core_dirs
   load_rma_env_file
   local ok=0
@@ -3059,7 +3082,7 @@ main() {
       roadmap_status
       ;;
     doctor)
-      cmd_doctor
+      cmd_doctor "$@"
       ;;
     plan)
       ensure_core_dirs

@@ -187,6 +187,10 @@ Generated files/directories include:
 - Uses `fzf` for all interactive selections.
 - Includes roadmap and persistence-check entries in the same UI.
 
+### 4) Optional companion web UI
+
+A **local** FastAPI + React app under [`web/`](web/) can edit the same whitelisted keys as `load_rma_env_file()` in `.env`, run **`rma doctor --json`**, probe Ollama / OpenAI-compatible endpoints, and stream **`ollama pull`**. It shells out to the existing `rma` launchers; it is not a hosted SaaS. Defaults bind to **127.0.0.1**; set **`RMA_WEB_ADMIN_TOKEN`** for mutating API calls. See **[`web/README.md`](web/README.md)**, **`requirements-web.txt`**, and **`docker-compose.yml`** (optional container).
+
 ---
 
 ## Requirements
