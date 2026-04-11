@@ -10,7 +10,8 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Portable alias launcher for roadmap-agent.
+# Summary: Root-level alias that execs roadmap-agent from the same directory (identical CLI surface).
+# Notes: Same flags and commands as roadmap-agent; use for muscle memory / shorter name.
 # Last updated: 2026-04-10 | Version: v1.0.0
 
 set -u

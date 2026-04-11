@@ -10,7 +10,8 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Unix helper script for local MemPalace model setup.
+# Summary: Creates/refreshes project Python venv, installs mempalace + chromadb, writes venv bin launchers for rma/roadmap-agent.
+# Notes: ROOT_DIR is ROADMAP_AGENT_PROJECT_ROOT when set, else toolkit root. TOOLKIT_ROOT is always this repo; venv shims set ROADMAP_AGENT_APP_ROOT to TOOLKIT_ROOT and PROJECT_ROOT to ROOT_DIR.
 # Last updated: 2026-04-10 | Version: v1.0.0
 
 set -u

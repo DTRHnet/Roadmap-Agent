@@ -9,7 +9,8 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Windows helper script for local MemPalace model setup.
+# Summary: Windows helper — venv under project, pip install mempalace/chromadb, venv Scripts launchers for rma.
+# Notes: ROOT_DIR from ROADMAP_AGENT_PROJECT_ROOT when set; TOOLKIT_ROOT from script path. Launchers call scripts/windows/roadmap-agent.ps1 with project cd.
 # Last updated: 2026-04-10 | Version: v1.0.0
 
 $ErrorActionPreference = "Continue"

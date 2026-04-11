@@ -10,7 +10,8 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Docker entrypoint that launches ROADMAP-AGENT inside /workspace.
+# Summary: Container entrypoint — cd /workspace and exec Unix roadmap-agent CLI.
+# Notes: Dockerfile copies repo to /workspace; all paths assume that layout.
 # Last updated: 2026-04-10 | Version: v1.0.0
 
 set -u

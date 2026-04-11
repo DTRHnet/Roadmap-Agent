@@ -9,7 +9,8 @@ REM |__|\_|\___/ |__|__||_____||___|___||__|__||__|         |__|__||___,_||_____
 REM                                                                                             
 REM A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 REM -------------------------------------------------------------------------------------------
-REM Summary: Windows CMD alias launcher for roadmap-agent.cmd.
+REM Summary: Windows CMD alias — delegates to roadmap-agent.cmd with the same arguments.
+REM Notes: Keeps one implementation path for the PowerShell bridge.
 REM Last updated: 2026-04-10 | Version: v1.0.0
 
 @echo off

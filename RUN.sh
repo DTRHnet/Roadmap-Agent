@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
-# ROADMAP-AGENT — bootstrap a project directory (venv, .env template), then run the main CLI.
-# Works from bash, zsh (when launched with bash), Git Bash, and WSL.
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  ____   ___    ____  ___    ___ ___   ____  ____          ____   ____    ___  ____   ______ 
+# |    \ /   \  /    ||   \  |   |   | /    ||    \        /    | /    |  /  _]|    \ |      |
+# |  D  )     ||  o  ||    \ | _   _ ||  o  ||  o  )_____ |  o  ||   __| /  [_ |  _  ||      |
+# |    /|  O  ||     ||  D  ||  \_/  ||     ||   _/|     ||     ||  |  ||    _]|  |  ||_|  |_|
+# |    \|     ||  _  ||     ||   |   ||  _  ||  |  |_____||  _  ||  |_ ||   [_ |  |  |  |  |  
+# |  .  \     ||  |  ||     ||   |   ||  |  ||  |         |  |  ||     ||     ||  |  |  |  |  
+# |__|\_|\___/ |__|__||_____||___|___||__|__||__|         |__|__||___,_||_____||__|__|  |__|  
+#                                                                                             
+# A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
+# -------------------------------------------------------------------------------------------
+# Summary: One-shot bootstrap — seed .env, run MemPalace venv setup for current directory, then exec roadmap-agent (default menu).
+# Notes: TOOLKIT_ROOT is this script's directory; PROJECT_ROOT is pwd. Exports ROADMAP_AGENT_APP_ROOT and ROADMAP_AGENT_PROJECT_ROOT. Use RUN.ps1/RUN.cmd on native Windows.
+# Last updated: 2026-04-10 | Version: v1.0.0
+
 set -euo pipefail
 
 RUN_ASSUME_YES=0

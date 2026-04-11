@@ -1,5 +1,16 @@
-# ROADMAP-AGENT — Windows persistence wrapper (install-persistence.ps1 + PATH refresh).
-# Canonical location: scripts/windows/ (repo root setup-rma.ps1 forwards here).
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  ____   ___    ____  ___    ___ ___   ____  ____          ____   ____    ___  ____   ______ 
+# |    \ /   \  /    ||   \  |   |   | /    ||    \        /    | /    |  /  _]|    \ |      |
+# |  D  )     ||  o  ||    \ | _   _ ||  o  ||  o  )_____ |  o  ||   __| /  [_ |  _  ||      |
+# |    /|  O  ||     ||  D  ||  \_/  ||     ||   _/|     ||     ||  |  ||    _]|  |  ||_|  |_|
+# |    \|     ||  _  ||     ||   |   ||  _  ||  |  |_____||  _  ||  |_ ||   [_ |  |  |  |  |  
+# |  .  \     ||  |  ||     ||   |   ||  |  ||  |         |  |  ||     ||     ||  |  |  |  |  
+# |__|\_|\___/ |__|__||_____||___|___||__|__||__|         |__|__||___,_||_____||__|__|  |__|  
+#                                                                                             
+# A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
+# -------------------------------------------------------------------------------------------
+# Summary: Convenience wrapper around install-persistence.ps1 plus quiet PATH refresh in this session.
+# Notes: Repo root is two levels above this file. Repo-root setup-rma.ps1 forwards here for stable paths.
 # Last updated: 2026-04-10 | Version: v1.0.0
 
 param(

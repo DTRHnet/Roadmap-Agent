@@ -9,7 +9,8 @@ REM |__|\_|\___/ |__|__||_____||___|___||__|__||__|         |__|__||___,_||_____
 REM                                                                                             
 REM A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 REM -------------------------------------------------------------------------------------------
-REM Summary: Windows CMD launcher that routes to PowerShell runtime.
+REM Summary: Windows CMD launcher that routes to scripts/windows/roadmap-agent.ps1 (pwsh or powershell).
+REM Notes: SCRIPT_DIR is repo root; uses same bridge as Unix roadmap-agent for full CLI.
 REM Last updated: 2026-04-10 | Version: v1.0.0
 
 @echo off

@@ -10,9 +10,9 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: Portable launcher that routes to OS-specific runtime script.
+# Summary: Portable launcher that routes to OS-specific runtime (PowerShell on MSYS/Git Bash; bash elsewhere).
+# Notes: Keeps repo layout portable; Windows bridge ultimately runs scripts/unix/roadmap-agent.sh under bash when available.
 # Last updated: 2026-04-10 | Version: v1.0.0
-
 
 set -u
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -9,7 +9,8 @@
 #                                                                                             
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
-# Summary: PowerShell alias launcher for roadmap-agent.ps1.
+# Summary: Repo-root PowerShell entry that delegates to scripts/windows/roadmap-agent.ps1.
+# Notes: Keeps working directory as the caller's project root for ROADMAP_AGENT_PROJECT_ROOT semantics in the bridge.
 # Last updated: 2026-04-10 | Version: v1.0.0
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
