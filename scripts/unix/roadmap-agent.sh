@@ -118,7 +118,16 @@ load_rma_env_file() {
 
 configure_python_runtime() {
   local vdir="${RMA_PYTHON_VENV_DIR:-.rma/venv}"
-  if [[ "$vdir" != /* ]]; then
+  # .env may use a Windows path; WSL bash needs /mnt/c/... for venv lookups.
+  if [[ "$vdir" =~ ^[A-Za-z]:[\\/] ]]; then
+    local d rest
+    d="${vdir:0:1}"
+    rest="${vdir:2}"
+    rest="${rest//\\//}"
+    rest="${rest#/}"
+    d="$(printf '%s' "$d" | tr '[:upper:]' '[:lower:]')"
+    vdir="/mnt/$d/$rest"
+  elif [[ "$vdir" != /* ]]; then
     vdir="$ROOT_DIR/$vdir"
   fi
   export RMA_PYTHON_VENV_DIR="$vdir"
@@ -153,9 +162,15 @@ configure_python_runtime() {
   fi
   if [[ -z "$pick" ]]; then
     if [[ -e "$bin_py" ]] && "$bin_py" -c "import sys" >/dev/null 2>&1; then
-      pick="$bin_py"
-    elif [[ -e "$win_py" ]]; then
+      if "$bin_py" -c "import mempalace, chromadb" >/dev/null 2>&1; then
+        pick="$bin_py"
+      fi
+    fi
+    if [[ -z "$pick" ]] && [[ -e "$win_py" ]]; then
       pick="$win_py"
+    fi
+    if [[ -z "$pick" ]] && [[ -e "$bin_py" ]] && "$bin_py" -c "import sys" >/dev/null 2>&1; then
+      pick="$bin_py"
     fi
   fi
 
@@ -1901,6 +1916,8 @@ pause_prompt() {
 
 write_runtime_warnings_panel() {
   ensure_core_dirs
+  load_rma_env_file
+  configure_python_runtime
   local warn_file="$STATE_DIR/runtime-warnings.txt"
   local missing=0
   {
@@ -2036,6 +2053,7 @@ cmd_doctor() {
   fi
   ensure_core_dirs
   load_rma_env_file
+  configure_python_runtime
   local ok=0
 
   echo "ROADMAP-AGENT Doctor"
