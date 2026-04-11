@@ -31,6 +31,7 @@
 | **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** | End-to-end walkthrough (mock transcripts): MemPalace + `.rma`, agent prompts, `execute-one`. |
 | **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** | Illustrative session — install → `init` → hub → `plan` / `analyze` / `execute-one`. |
 | **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (`v1.0.0`, …). |
+| **[`.env.example`](.env.example)** | Full catalog of **whitelisted** project vars + process-only vars (comments, options, defaults). |
 | **[`docs/RELEASING.md`](docs/RELEASING.md)** | Shipping — tags, GitHub releases, archives, Docker; no required binary artifact. |
 | **[`web/README.md`](web/README.md)** | Optional web UI — FastAPI + React, guided/advanced `.env` editor, `doctor --json`, model probes, Docker, **`VITE_DOCS_BASE`**. |
 | **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** | **MCP** — default **streamable-http** (background) from the CLI; **stdio** for Cursor/Claude command config. `.rma/` context, `rma plan`/`analyze`, scoped file tools, optional shell. |
@@ -86,6 +87,23 @@ This stack is **local-first**: a **desktop MCP host** (Claude Desktop, Cursor, W
 - **Defaults:** `RMA_MCP_TRANSPORT=streamable-http` and **`RMA_MCP_DETACH=1`** (hub/`mcp-start` release the terminal; URL in **`.rma/mcp/runtime.json`**). For **stdio** hosts, set **`RMA_MCP_TRANSPORT=stdio`** and **`RMA_MCP_DETACH=0`**. Optional **`RMA_MCP_ALLOW_SHELL=1`** only on trusted trees; **`RMA_MCP_MAX_STEPS`** is a client hint (see **`docs/MCP-SERVER.md`**).
 
 **Bootstrap:** from the project root, `./RUN.sh mcp-start` or `.\RUN.ps1 mcp-start` (after your usual venv bootstrap) or configure the host to run `python -m rma_mcp` with **`PYTHONPATH`** and **`ROADMAP_AGENT_*_ROOT`** set — see **`rma_mcp/client-config.example.json`**.
+
+---
+
+## Project components (subsystems)
+
+ROADMAP-AGENT is split into **loosely coupled units** that share the same repo and often the same **project `.env`** (for keys whitelisted by **`load_rma_env_file()`** in **`scripts/unix/roadmap-agent.sh`**). Use this map when deciding where to change behavior or add features.
+
+| Unit | Responsibility | Primary tech | Location in repo |
+|------|----------------|--------------|------------------|
+| **CORE** | Interactive hub (`fzf` / text fallback), commands (`init`, `plan`, `analyze`, `execute-one`, `agent`, `doctor`, `release`, …), Windows-to-bash bridge, persistence installers, `.rma/` lifecycle | **Bash 4+**, **PowerShell 5.1+**, **Python3** (for LLM/agent HTTP and helpers), **git**, optional **fzf** | **`scripts/unix/roadmap-agent.sh`**, **`scripts/windows/`**, **`launchers/`**, **`docker/entrypoint.sh`** |
+| **MemPalace stack** | Project venv, **`mempalace`** + **ChromaDB**, safe **mine** previews from the hub, optional **wake-up** text for **`plan`** | **Python**, **mempalace**, **chromadb** | **`scripts/*/setup-local-models-mempalace.*`**, **`.rma/mempalace/`**, **`requirements`** via setup scripts |
+| **WEBUI** | Browser **`.env`** editor (whitelisted keys only), **`doctor --json`**, Ollama/OpenAI-compat probes, **`rma` CLI bridge | **FastAPI**, **Pydantic**, **Uvicorn**; **Vite**, **React**, **TypeScript** | **`web/backend/`**, **`web/frontend/`**, **`requirements-web.txt`** |
+| **MCP** | **Model Context Protocol** server: **`roadmap://context`**, **`rma_*`** tools, scoped file I/O, optional **shell** | **Python**, **`mcp` / FastMCP** | **`rma_mcp/`**, **`requirements-mcp.txt`** |
+| **SYSINFO** | Read-only workspace OS/stack audit; **`rma_sysinfo`** MCP tool wraps it | **Python 3.8+** (stdlib) | **`sysinfo/`**, **`.sysinfo/`** output |
+| **Release & images** | Version tags, Docker build, GitHub Release helper | **bash**, **docker**, **gh** (optional) | **`scripts/unix/release-rma.sh`**, **`Dockerfile`**, **`docs/RELEASING.md`** |
+
+**Data flow:** **CORE** orchestrates subprocesses and reads **`.rma/`**. **WEBUI** and **MCP** call back into **CORE** via **`roadmap-agent.sh`** (or **`roadmap-agent.ps1`** → bash) with **`ROADMAP_AGENT_*_ROOT`** set — they are not separate backends for roadmap state. **MCP** and **CORE** both honor the same **`RMA_MCP_*`** and LLM **`RMA_*`** variables when loaded from **`.env`**.
 
 ---
 
@@ -543,36 +561,79 @@ Notes:
 
 ## Environment variables
 
-The runtime works without custom environment variables, but supports useful overrides and inherited shell configuration.
+The runtime applies **sensible defaults** even when **`.env`** is missing (see **`load_rma_env_file()`**). Only a fixed **whitelist** of keys is read from the project **`.env`**; other lines are left untouched on disk. The **Web UI** uses the **same whitelist** as **`web/backend/app/constants.py`** (kept in sync with **`roadmap-agent.sh`**). The authoritative commented catalog is **[`.env.example`](.env.example)**.
 
-| Variable | Used By | Purpose | Example |
-|---|---|---|---|
-| `ROADMAP_AGENT_PROJECT_ROOT` | Unix runtime | Forces project root detection instead of deriving from script location | `export ROADMAP_AGENT_PROJECT_ROOT="$PWD"` |
-| `RMA_LLM_PROVIDER` | analyze-init | Selects LLM backend (`ollama`, `openllama`, `claude`) | `RMA_LLM_PROVIDER=ollama` |
-| `RMA_OLLAMA_HOST` | ollama provider | Ollama API host URL | `RMA_OLLAMA_HOST=http://127.0.0.1:11434` |
-| `RMA_OLLAMA_MODEL` | ollama provider | Model used for local generation | `RMA_OLLAMA_MODEL=llama3.1:latest` |
-| `RMA_OPENAI_BASE_URL` | openllama provider | OpenAI-compatible local endpoint URL | `RMA_OPENAI_BASE_URL=http://127.0.0.1:11434/v1` |
-| `RMA_OPENAI_MODEL` | openllama provider | OpenAI-compatible model name | `RMA_OPENAI_MODEL=openllama` |
-| `RMA_OPENAI_API_KEY` | openllama provider | OpenAI-compatible API key/token | `RMA_OPENAI_API_KEY=local-no-key` |
-| `RMA_CLAUDE_MODEL` | claude provider | Claude model name | `RMA_CLAUDE_MODEL=claude-3-5-sonnet-latest` |
-| `ANTHROPIC_API_KEY` | claude provider | Claude API key | `ANTHROPIC_API_KEY=...` |
-| `RMA_REQUIRE_OLLAMA` | analyze-init | Fail fast if Ollama/model unavailable | `RMA_REQUIRE_OLLAMA=1` |
-| `RMA_DISABLE_FZF` | menu system | Force fallback text menus/selectors | `RMA_DISABLE_FZF=1` |
-| `RMA_PYTHON_VENV_DIR` | setup-local-models | Virtualenv path used by local setup scripts | `RMA_PYTHON_VENV_DIR=.rma/venv` |
-| `RMA_REQUIRE_MEMPALACE` | doctor, warnings | `1` = treat missing MemPalace CLI or Python imports as errors in diagnostics | `RMA_REQUIRE_MEMPALACE=1` |
-| `RMA_MEMPALACE_BIN` | mine, wake-up (plan prompt) | Optional absolute path to `mempalace` if not on `PATH` | `RMA_MEMPALACE_BIN=/path/to/mempalace` |
-| `RMA_MEMPALACE_MINE_DIR` | mine (menu II, III) | Directory passed to `mempalace mine <dir>`; relative paths resolve under project root (default: project root) | `RMA_MEMPALACE_MINE_DIR=.` |
-| `RMA_ALLOW_PLAN_FALLBACK` | plan | `1` = write a generic template to `plan.md` if **LLM** plan generation fails (dev-only) | `RMA_ALLOW_PLAN_FALLBACK=0` |
-| `RMA_PLAN_INTERACTIVE` | plan | `1` = on an interactive TTY, prompt for open questions from `.rma/open-questions.md` and `Open:` lines before the LLM runs; `0` for CI | `RMA_PLAN_INTERACTIVE=1` |
-| `RMA_PLAN_INTERACTIVE_MAX` | plan | Max questions per `plan` run | `15` |
-| `PATH` | All runtimes | Used to find `git`, `python`, `mempalace`, `fzf`, and installed launchers | `PATH=/usr/local/bin:$PATH` |
-| `FZF_DEFAULT_OPTS` | fzf | Optional global styling/behavior overrides for fzf menus | `export FZF_DEFAULT_OPTS='--height 85%'` |
-| `ProgramFiles` | Windows runtime | Resolves persistence install path (`Roadmap-Agent\bin`) | Inherited from Windows |
-| `SHELL` | Unix runtime | Used to detect preferred RC file in persistence mode | `/bin/bash`, `/bin/zsh` |
+### Project `.env` — whitelisted keys (`load_rma_env_file`)
+
+| Variable | Typical values | Purpose |
+|----------|----------------|---------|
+| `RMA_LLM_PROVIDER` | `ollama` · `openllama` · `claude` | LLM backend for **`plan`**, **`analyze-init`**, **`agent`**. |
+| `RMA_OLLAMA_HOST` | URL, no trailing path | Ollama HTTP API (when provider is **ollama**). |
+| `RMA_OLLAMA_MODEL` | e.g. `llama3.1:latest` | Ollama model tag. |
+| `RMA_REQUIRE_OLLAMA` | `0` · `1` | `1` = fail some generation paths if Ollama/model unreachable. |
+| `RMA_OPENAI_BASE_URL` | e.g. `http://127.0.0.1:11434/v1` | OpenAI-compatible base (when provider is **openllama**). |
+| `RMA_OPENAI_MODEL` | string | Model id for that API. |
+| `RMA_OPENAI_API_KEY` | string | Key/header value for OpenAI-compatible calls (often placeholder locally). |
+| `OPENAI_API_KEY` | string | Alternate env name some tools expect; same secrecy rules. |
+| `RMA_CLAUDE_MODEL` | e.g. `claude-3-5-sonnet-latest` | Anthropic model id (when provider is **claude**). |
+| `ANTHROPIC_API_KEY` | secret | Claude API key. |
+| `RMA_DISABLE_FZF` | `0` · `1` | `1` = plain text menus instead of **fzf**. |
+| `RMA_PYTHON_VENV_DIR` | path | Project venv root (default **`.rma/venv`**); relative → project root. |
+| `RMA_REQUIRE_MEMPALACE` | `0` · `1` | `1` = **doctor** / warnings treat missing MemPalace as serious. |
+| `RMA_MEMPALACE_BIN` | path | Optional explicit **`mempalace`** executable. |
+| `RMA_MEMPALACE_MINE_DIR` | path | Directory for **`mempalace mine`** (menu); default project root. |
+| `RMA_ALLOW_PLAN_FALLBACK` | `0` · `1` | `1` = static **plan.md** scaffold if LLM **plan** fails (dev escape hatch). |
+| `RMA_PLAN_INTERACTIVE` | `0` · `1` | `1` = TTY prompts for open questions before **plan**. |
+| `RMA_PLAN_INTERACTIVE_MAX` | integer | Cap on prompts per **plan** (default **15**). |
+| `RMA_WEB_HOST` | host | Used when hub starts **web-api** / CLI reads stack hints (default **127.0.0.1**). |
+| `RMA_WEB_PORT` | port | FastAPI port for companion web stack (default **8765**). |
+| `RMA_WEB_VITE_PORT` | port | Vite dev port (default **5173**). |
+| `RMA_WEB_FREE_PORT_ASK` | `0` · `1` | `1` = prompt before trying to free a busy port when starting web stack. |
+| `RMA_WEB_VITE_PROXY_TARGET` | URL | Browser-facing API base for Vite proxy (e.g. `http://127.0.0.1:8765`). |
+| `RMA_MCP_TRANSPORT` | `streamable-http` · `sse` · `stdio` | MCP wire format; CLI defaults **streamable-http** when unset in **`.env`**. |
+| `RMA_MCP_HOST` | host | Bind address for HTTP MCP (default **127.0.0.1**). |
+| `RMA_MCP_PORT` | port | TCP port for HTTP MCP (default **8767**). |
+| `RMA_MCP_NAME` | string | MCP server display name. |
+| `RMA_MCP_MAX_STEPS` | integer | Hint for clients (not enforced server-side). |
+| `RMA_MCP_ALLOW_SHELL` | `0` · `1` | `1` = enable dangerous **`run_shell`** tool. |
+| `RMA_MCP_PROJECT_ROOT` | path | Optional MCP-only project path override (relative or absolute). |
+| `RMA_MCP_LOG` | `0` · `1` | `1` = JSONL tool log under **`.rma/mcp/logs/`**. |
+| `RMA_MCP_DETACH` | `0` · `1` | `1` = **`mcp-start`** backgrounds HTTP MCP (**nohup**); ignored for **stdio**. |
+| `RMA_MCP_FORCE` | `0` · `1` | `1` = stop PID in **`.rma/mcp/runtime.json`** before bind. |
+| `GITHUB_TOKEN` | secret | Optional GitHub API auth for tooling. |
+
+### Shell / process-only (not loaded from project `.env` by `load_rma_env_file`)
+
+These are still important for operators and CI; set them in the environment or wrapper scripts. See **[`.env.example`](.env.example)** for prose.
+
+| Variable | Used By | Purpose |
+|----------|---------|---------|
+| `ROADMAP_AGENT_PROJECT_ROOT` | CORE, WEBUI bridge, MCP | Absolute managed repo root (contains **`.rma/`**). |
+| `ROADMAP_AGENT_APP_ROOT` | CORE, MCP | Toolkit checkout (**`scripts/`**, **`rma_mcp/`**). |
+| `RMA_WINDOWS_BRIDGE` | **roadmap-agent.ps1** | Set when invoking bash from Windows bridge (diagnostics). |
+| `RMA_PYTHON_BIN` | CORE | Picked interpreter after **`configure_python_runtime`** (do not set manually unless debugging). |
+| `RMA_WEB_ADMIN_TOKEN` | FastAPI | If set, mutating API routes require header **`X-RMA-Web-Token`**. |
+| `RMA_WEB_APP_ROOT` | FastAPI **`Settings`** | Toolkit root for **`rma` runner** (defaults to repo behind **`web/backend`**). |
+| `RMA_WEB_CORS_ORIGINS` | FastAPI | Comma-separated browser origins for CORS. |
+| `RMA_RELEASE_IMAGE_NAME` | **`release-rma.sh`** | Docker image basename (default **`roadmap-agent`**). |
+| `RMA_RELEASE_REPO_ROOT` | **`release-rma.sh`** | Toolkit root when release runs from a temp copy. |
+| `PIP_DEFAULT_TIMEOUT` | pip invocations | Seconds for pip read timeout (default **120** in bootstrap scripts). |
+| `NO_COLOR` | CORE output | Disable ANSI colors when non-empty. |
+| `VITE_DOCS_BASE` | **frontend build** | Base URL for doc links in the SPA (build-time). |
+| `SYSINFO_WORKSPACE_ROOT` | **sysinfo.py** | Override workspace root for audits. |
+
+### Inherited / generic
+
+| Variable | Used By | Purpose |
+|----------|---------|---------|
+| `PATH` | All runtimes | **`git`**, **`python`**, **`bash`**, **`mempalace`**, **`fzf`**, launchers. |
+| `FZF_DEFAULT_OPTS` | fzf | Optional global **fzf** UI flags. |
+| `ProgramFiles`, `LOCALAPPDATA` | Windows persistence | Install locations for global **`rma`**. |
+| `SHELL` | Unix persistence | RC file detection. |
 
 ### ENV Guidance
 
-- **Project `.env`**: Copy `.env.example` to `.env` at the **project root** (the repository you are working in). Variables are read by the bash runtime when `.env` exists; use Unix-style `KEY=value` lines. Do not commit `.env` (it is gitignored).
+- **Project `.env`**: Copy **[`.env.example`](.env.example)** to **`.env`** at the **project root**. Only **whitelisted** keys are exported by **`load_rma_env_file()`**; all other lines remain in the file for tools that read raw **`.env`**. Do not commit secrets.
 - **Shell exports (Unix)**: For a one-off session, `export RMA_OLLAMA_MODEL=llama3.1:latest` in `bash`/`zsh`. For persistence across logins, add the same to `~/.profile` or your shell RC file, or keep using `.env` per project.
 - **Windows**: You can set user-wide variables via **System Properties → Environment Variables**, or `setx RMA_OLLAMA_MODEL "llama3.1:latest"` in `cmd` (requires new console). Prefer a project-local `.env` so settings travel with the repo and stay out of global policy.
 - **Secrets**: Put API keys in `.env` or your OS secret store; never commit real keys. `ANTHROPIC_API_KEY`, `RMA_OPENAI_API_KEY`, and `OPENAI_API_KEY` follow the same rule.

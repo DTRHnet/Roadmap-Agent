@@ -16,6 +16,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 - **`RUN.sh` / `RUN.ps1`**: help examples include **`mcp-start`** / **`mcp-start --detach`** so bootstrap + MCP is discoverable from the root runners.
 - **`docs/MANUAL.md`**, **`docs/ARCHITECTURE.md`**: MCP sections mention **`rma_sysinfo`** and clarify **`roadmap://context`** vs MemPalace.
 - **MCP CLI defaults**: **`RMA_MCP_TRANSPORT`** defaults to **`streamable-http`** and **`RMA_MCP_DETACH`** to **`1`** (hub releases the terminal; logs under **`.rma/mcp/nohup.log`**). **`mcp-start --foreground`** / **`--no-detach`** blocks on HTTP. **`load_rma_env_file()`** applies all **`RMA_*`** defaults even when **`.env`** is missing. **`stdio`** remains available via **`.env`** or client env; all **`mcp-start`** messages before **`exec`** go to **stderr** so JSON-RPC on stdout is not corrupted.
+- **README**: **Project components (subsystems)** table (CORE, MemPalace, WEBUI, MCP, SYSINFO, release) with tech stacks; **Environment variables** section lists every **whitelisted** **`.env`** key plus process-only and inherited vars. **`.env.example`** rewritten as the full operator catalog with sectioned comments.
 
 ## [1.0.1] - 2026-04-11
 
