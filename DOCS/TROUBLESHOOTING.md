@@ -117,7 +117,7 @@ docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 - Delete the broken venv and recreate from that shell:
   - **PowerShell:** `Remove-Item -Recurse -Force .\.rma\venv`
   - **Bash (Unix/WSL):** `rm -rf .rma/venv`
-- Then run **`rma web-api`** / hub **VII** or **`web/run-backend.ps1`**. The Unix runtime removes a **Git Bash** vs **Linux-bin** mismatch automatically; **`pip install`** uses **`PIP_DEFAULT_TIMEOUT`** (default **120** seconds) and **`--retries 8`** on the MemPalace setup path (**`RUN.ps1`**, **`RUN.sh`**, **`setup-local-models-mempalace.*`**, web stack). Override before bootstrap: `$env:PIP_DEFAULT_TIMEOUT = "180"` (PowerShell) or `export PIP_DEFAULT_TIMEOUT=180` (bash); optional mirror: **`PIP_INDEX_URL`**.
+- Then run **`rma web-api`** / hub **VII** or **`web/run-backend.ps1`**. The Unix runtime **removes and recreates** a mismatched venv automatically: **Git Bash** vs **Linux `bin/python`**, and **Linux/WSL** vs **Windows `Scripts\\python.exe`** (detection uses **file existence** on `/mnt/c/...` so NTFS venvs are not missed). **`pip install`** uses **`PIP_DEFAULT_TIMEOUT`** (default **120** seconds) and **`--retries 8`** on the MemPalace setup path (**`RUN.ps1`**, **`RUN.sh`**, **`setup-local-models-mempalace.*`**, web stack). Override before bootstrap: `$env:PIP_DEFAULT_TIMEOUT = "180"` (PowerShell) or `export PIP_DEFAULT_TIMEOUT=180` (bash); optional mirror: **`PIP_INDEX_URL`**.
 - **`web/run-backend.ps1`** exits with a clear message if it sees only a Linux-style **`bin\python`** while you are in PowerShell.
 
 ## 10) Web UI: API errors, 401, or blank UI

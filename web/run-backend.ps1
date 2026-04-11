@@ -1,6 +1,19 @@
-# Start FastAPI dev server (reload). Run from anywhere; resolves repo root automatically.
-# Uses project .rma\venv\Scripts\python.exe when present (Windows). Avoids activating a
-# WSL/Linux venv from PowerShell (that causes "did not find executable at '/usr/bin\python.exe'").
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+#  ____   ___    ____  ___    ___ ___   ____  ____          ____   ____    ___  ____   ______ 
+# |    \ /   \  /    ||   \  |   |   | /    ||    \        /    | /    |  /  _]|    \ |      |
+# |  D  )     ||  o  ||    \ | _   _ ||  o  ||  o  )_____ |  o  ||   __| /  [_ |  _  ||      |
+# |    /|  O  ||     ||  D  ||  \_/  ||     ||   _/|     ||     ||  |  ||    _]|  |  ||_|  |_|
+# |    \|     ||  _  ||     ||   |   ||  _  ||  |  |_____||  _  ||  |_ ||   [_ |  |  |  |  |  
+# |  .  \     ||  |  ||     ||   |   ||  |  ||  |         |  |  ||     ||     ||  |  |  |  |  
+# |__|\_|\___/ |__|__||_____||___|___||__|__||__|         |__|__||___,_||_____||__|__|  |__|  
+#                                                                                             
+# A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
+# -------------------------------------------------------------------------------------------
+# Summary: Start FastAPI dev server (reload); resolves toolkit + project roots.
+# Notes: Prefers .rma\venv\Scripts\python.exe; errors if only Linux/WSL venv (bin\python) in PowerShell.
+# Last updated: 2026-04-11 | Version: v1.0.0
+# '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
 $ErrorActionPreference = "Stop"
 $here = $PSScriptRoot
 $repo = Resolve-Path (Join-Path $here "..")

@@ -127,7 +127,7 @@ configure_python_runtime() {
   # Windows Git Bash / MSYS: stdlib venv uses Scripts\python.exe (no bin/python).
   case "${OSTYPE:-}" in
     msys*|cygwin*)
-      if [[ -x "$vdir/Scripts/python.exe" ]]; then
+      if [[ -e "$vdir/Scripts/python.exe" ]]; then
         export VIRTUAL_ENV="$vdir"
         case ":$PATH:" in
           *":$vdir/Scripts:"*) ;;
@@ -139,7 +139,7 @@ configure_python_runtime() {
       ;;
   esac
 
-  if [[ -x "$vdir/bin/python" ]]; then
+  if [[ -e "$vdir/bin/python" ]]; then
     export VIRTUAL_ENV="$vdir"
     case ":$PATH:" in
       *":$vdir/bin:"*) ;;
@@ -149,7 +149,7 @@ configure_python_runtime() {
     return 0
   fi
 
-  if [[ -x "$vdir/Scripts/python.exe" ]]; then
+  if [[ -e "$vdir/Scripts/python.exe" ]]; then
     export VIRTUAL_ENV="$vdir"
     case ":$PATH:" in
       *":$vdir/Scripts:"*) ;;
@@ -178,8 +178,9 @@ rma_project_venv_must_recreate() {
   esac
 
   local has_unix=0 has_win=0
-  [[ -x "$vdir/bin/python" ]] && has_unix=1
-  [[ -x "$vdir/Scripts/python.exe" ]] && has_win=1
+  # WSL sees Windows NTFS venvs: python.exe may exist but lack Unix +x; use -e.
+  [[ -e "$vdir/bin/python" ]] && has_unix=1
+  [[ -e "$vdir/Scripts/python.exe" ]] && has_win=1
 
   if [[ "$is_msys" -eq 1 ]]; then
     if [[ "$has_win" -eq 1 ]]; then
@@ -205,8 +206,8 @@ rma_project_venv_must_recreate() {
     return 0
   fi
   if [[ "$has_win" -eq 1 ]]; then
-    warn "This .rma/venv is Windows-only (Scripts) but current shell is Unix/WSL."
-    warn "Use Windows + Git Bash or PowerShell for this tree, or remove: rm -rf \"$vdir\""
+    warn "This .rma/venv is Windows-style (Scripts\\\\python.exe) but current shell is Linux/WSL."
+    warn "Removing it; next setup-venv / web-api / RUN.sh will create a Linux venv here."
     return 0
   fi
   return 1

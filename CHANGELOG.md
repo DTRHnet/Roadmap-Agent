@@ -15,6 +15,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 - **Web UI / `.rma/venv`**: `configure_python_runtime` honors **Windows** `Scripts\python.exe`; **`rma_project_venv_must_recreate`** drops Linux/WSL-only venvs when running under **Git Bash/MSYS**; **`pip install`** for the web stack uses **`PIP_DEFAULT_TIMEOUT`** (default 120) and retries; **`web/run-backend.ps1`** resolves **`ROADMAP_AGENT_PROJECT_ROOT`**, detects WSL-style venv from PowerShell, and uses the Windows interpreter explicitly.
 - **PyPI timeouts during bootstrap**: **`RUN.ps1`**, **`RUN.sh`**, and **`scripts/*/setup-local-models-mempalace.*`** now export **`PIP_DEFAULT_TIMEOUT`** (default **120**) and pass **`--retries 8 --default-timeout=…`** to **`pip install`** so slow links do not fail at the default **15s** read timeout.
+- **WSL + Windows venv**: **`rma_project_venv_must_recreate`** treats **`Scripts\\python.exe`** as present when the file **exists** (not only when Unix **`+x`** is set on `/mnt/c/...`); Linux/WSL sessions **remove** that Windows-only venv and recreate a **`bin/python`** layout on the next **`web-api`** / setup step. **`launchers/*.ps1`** and **`web/run-backend.ps1`** now use the same ROADMAP-AGENT **ASCII banner** comment block as other scripts.
 
 ### Documentation
 
