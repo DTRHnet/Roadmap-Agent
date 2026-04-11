@@ -1,0 +1,14 @@
+# Bash and POSIX scripts must use LF so WSL/Git Bash do not see stray CR.
+*.sh text eol=lf
+*.bash text eol=lf
+docker/entrypoint.sh text eol=lf
+roadmap-agent text eol=lf
+rma text eol=lf
+rma.sh text eol=lf
+
+# Windows scripts may use CRLF (native PowerShell / CMD).
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Default: normalize on checkout per platform for other text.
+* text=auto

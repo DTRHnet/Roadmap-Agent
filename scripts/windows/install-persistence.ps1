@@ -59,6 +59,39 @@ function Normalize-Version([string]$v) {
     return $v
 }
 
+function Sync-UnixShellScriptsToLf([string]$InstallRoot) {
+    # Robocopy from a Windows repo with core.autocrlf=true can copy CRLF into *.sh; bash then fails with $'\r'.
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    $unixDir = Join-Path $InstallRoot "scripts\unix"
+    if (Test-Path $unixDir) {
+        Get-ChildItem -Path $unixDir -Filter "*.sh" -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $text = [IO.File]::ReadAllText($_.FullName)
+            if ($text.Contains("`r")) {
+                $fixed = $text -replace "`r`n", "`n" -replace "`r", "`n"
+                [IO.File]::WriteAllText($_.FullName, $fixed, $utf8NoBom)
+            }
+        }
+    }
+    $dockerEntry = Join-Path $InstallRoot "docker\entrypoint.sh"
+    if (Test-Path $dockerEntry) {
+        $text = [IO.File]::ReadAllText($dockerEntry)
+        if ($text.Contains("`r")) {
+            $fixed = $text -replace "`r`n", "`n" -replace "`r", "`n"
+            [IO.File]::WriteAllText($dockerEntry, $fixed, $utf8NoBom)
+        }
+    }
+    foreach ($name in @("roadmap-agent", "rma", "rma.sh")) {
+        $p = Join-Path $InstallRoot $name
+        if (Test-Path $p -PathType Leaf) {
+            $text = [IO.File]::ReadAllText($p)
+            if ($text.Contains("`r")) {
+                $fixed = $text -replace "`r`n", "`n" -replace "`r", "`n"
+                [IO.File]::WriteAllText($p, $fixed, $utf8NoBom)
+            }
+        }
+    }
+}
+
 function Test-VersionOlder([string]$Installed, [string]$Current) {
     $a = Normalize-Version $Installed
     $b = Normalize-Version $Current
@@ -172,6 +205,8 @@ if ($LASTEXITCODE -ge 8) {
     Write-Host "ERROR: Failed to mirror repository into $installRoot (robocopy exit code $LASTEXITCODE)." -ForegroundColor Red
     exit 1
 }
+
+Sync-UnixShellScriptsToLf -InstallRoot $installRoot
 
 # Ensure bin dir exists after mirror (robocopy /MIR may remove it).
 New-Item -ItemType Directory -Path $binDir -Force | Out-Null

@@ -290,6 +290,8 @@ COMMANDS
   persistence      Install global launcher/manpages (admin/root)
   persistance      Alias of persistence
   persistence-check Check persistence status and offer install
+  setup-venv       Create/refresh .rma Python venv + mempalace/chromadb (OS setup script)
+  pick-env         Choose a project .env* file and copy it to .env (backs up existing)
   man              Show built-in manual/manpage text
   help, --help,-h  Show this detailed help
   menu             Open interactive hub and AI submenu (default)
@@ -1401,6 +1403,55 @@ version_is_older() {
   fi
 }
 
+# Hub / CLI: create .rma venv and install mempalace + chromadb (Unix script or Windows .ps1 path from mempalace_setup_local_models).
+cmd_setup_python_venv() {
+  info "Running Python venv + MemPalace setup for project root: $ROOT_DIR"
+  mempalace_setup_local_models
+}
+
+# Hub / CLI: copy a selected project-root .env* file to .env (backup existing .env).
+cmd_pick_env_file() {
+  ensure_core_dirs
+  local -a files=()
+  local f selected stamp
+  shopt -s nullglob
+  for f in "$ROOT_DIR"/.env*; do
+    files+=("$f")
+  done
+  shopt -u nullglob
+  if [[ ${#files[@]} -eq 0 ]]; then
+    warn "No .env* files in $ROOT_DIR"
+    [[ -f "$ROOT_DIR/.env.example" ]] && info "Tip: copy .env.example to .env (or run from a project that has env templates)."
+    return 1
+  fi
+  ensure_fzf || true
+  if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
+    selected="$(printf "%s\n" "${files[@]}" | fzf --prompt="Source file (copied to .env) > ")"
+  else
+    selected="$(fzf_choose_one "Pick .env source → copies to .env" "${files[@]}")"
+  fi
+  [[ -z "${selected:-}" ]] && return 0
+  if [[ -f "$ROOT_DIR/.env" ]] && [[ "$selected" -ef "$ROOT_DIR/.env" ]]; then
+    info ".env is already the active file (no change)."
+    return 0
+  fi
+  if [[ -f "$ROOT_DIR/.env" ]]; then
+    stamp="$(date -u +"%Y%m%dT%H%M%SZ")"
+    if cp -f "$ROOT_DIR/.env" "$ROOT_DIR/.env.bak.$stamp" 2>/dev/null; then
+      info "Backed up existing .env → .env.bak.$stamp"
+    else
+      warn "Could not create .env backup; continuing."
+    fi
+  fi
+  if cp -f "$selected" "$ROOT_DIR/.env"; then
+    info "Active env: .env (copied from ${selected##*/})"
+    printf "%s pick_env from %s\n" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "${selected##*/}" >> "$EXEC_LOG" 2>/dev/null || true
+  else
+    warn "Copy to .env failed."
+    return 1
+  fi
+}
+
 cmd_persistence_check() {
   local non_interactive="${1:-0}"
   local os shell_name rc_file cmd_path has_cmd has_rc_block
@@ -2376,6 +2427,8 @@ render_hub_menu() {
     "I   Open AI submenu"
     "II  Roadmap status (quick view)"
     "III Check/add persistence if missing"
+    "IV  Create / refresh Python venv (MemPalace)"
+    "V   Choose active .env (copy to .env)"
     "0   Exit roadmap-agent"
   )
   if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
@@ -2410,6 +2463,14 @@ render_hub_menu() {
       ;;
     III\ *)
       cmd_persistence_check
+      return 0
+      ;;
+    IV\ \ *)
+      cmd_setup_python_venv
+      return 0
+      ;;
+    V\ \ \ *)
+      cmd_pick_env_file
       return 0
       ;;
     *) return 1 ;;
@@ -2615,7 +2676,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -2623,7 +2684,8 @@ ROADMAP-AGENT tool manifest (for humans and external agents)
 
 CLI commands:
   init, status, doctor, plan, analyze, analyze-init, execute-one, agent, run-agent,
-  tools [--json], unlock, menu, persistence, persistence-check, man, help
+  tools [--json], unlock, menu, persistence, persistence-check, setup-venv, pick-env,
+  man, help
 
 Agent loop (roadmap-agent agent "goal"):
   Internally dispatches: plan, analyze, execute-one (optional), status, unlock,
@@ -2870,6 +2932,14 @@ main() {
       ;;
     persistence-check)
       cmd_persistence_check
+      ;;
+    setup-venv)
+      ensure_core_dirs
+      cmd_setup_python_venv
+      ;;
+    pick-env)
+      ensure_core_dirs
+      cmd_pick_env_file
       ;;
     menu|*)
       ensure_fzf || true

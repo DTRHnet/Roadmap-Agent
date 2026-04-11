@@ -6,7 +6,9 @@ ROADMAP-AGENT uses a two-level fzf navigation pattern.
 
 - `HUB::1 Open AI submenu`
 - `HUB::2 Roadmap status (quick view)`
-- `HUB::3 Persistence mode (global access install)`
+- `HUB::3 Check/add persistence if missing`
+- `HUB::4 Create / refresh Python venv (MemPalace)`
+- `HUB::5 Choose active .env (copy to .env)`
 - `ACT::exit::0 Exit roadmap-agent`
 
 ## AI Submenu
@@ -29,7 +31,10 @@ ROADMAP-AGENT uses a two-level fzf navigation pattern.
 - `roadmap-agent plan` -> option `SUB::ai::1::8`
 - `roadmap-agent execute-one` -> option `SUB::ai::1::9`
 - `roadmap-agent unlock` -> option `SUB::ai::1::10`
-- `roadmap-agent persistence` -> option `HUB::3`
+- `roadmap-agent persistence` -> global install (also offered from `HUB::3`)
+- `roadmap-agent persistence-check` -> option `HUB::3`
+- `roadmap-agent setup-venv` -> option `HUB::4`
+- `roadmap-agent pick-env` -> option `HUB::5`
 - `roadmap-agent --help` -> detailed CLI help
 - `roadmap-agent man` -> built-in manual/manpage text
 

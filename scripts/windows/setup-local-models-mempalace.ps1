@@ -32,6 +32,39 @@ function Write-Log([string]$Level, [string]$Message) {
     }
 }
 
+function Install-RmaVenvLaunchers {
+    param(
+        [string]$ProjectRoot,
+        [string]$VenvDir
+    )
+    $scriptsOut = Join-Path $VenvDir "Scripts"
+    if (-not (Test-Path -LiteralPath $scriptsOut)) { return }
+    $bridge = Join-Path $ProjectRoot "scripts\windows\roadmap-agent.ps1"
+    if (-not (Test-Path -LiteralPath $bridge)) {
+        Write-Log "WARN" "Skipping venv launchers: missing $bridge"
+        return
+    }
+    $root = $ProjectRoot.TrimEnd('\')
+    foreach ($name in @("rma", "roadmap-agent")) {
+        $cmdPath = Join-Path $scriptsOut ("{0}.cmd" -f $name)
+        $cmdBody = @"
+@echo off
+setlocal
+cd /d "$root"
+powershell -NoProfile -ExecutionPolicy Bypass -File "$bridge" %*
+"@
+        Set-Content -LiteralPath $cmdPath -Value $cmdBody -Encoding ASCII
+        $ps1Path = Join-Path $scriptsOut ("{0}.ps1" -f $name)
+        $ps1Body = @"
+Set-Location -LiteralPath '$($root -replace "'", "''")'
+& '$($bridge -replace "'", "''")' @args
+exit `$LASTEXITCODE
+"@
+        Set-Content -LiteralPath $ps1Path -Value $ps1Body -Encoding UTF8
+    }
+    Write-Log "INFO" ("Installed venv launchers in {0}: rma.cmd, roadmap-agent.cmd (+ .ps1)" -f $scriptsOut)
+}
+
 function Resolve-PythonCommand {
     if (Get-Command python -ErrorAction SilentlyContinue) { return "python" }
     if (Get-Command python3 -ErrorAction SilentlyContinue) { return "python3" }
@@ -133,6 +166,10 @@ if (-not $pythonCmd) {
             Write-Log "ERROR" "Import verification failed for one or more modules."
             $script:Failures++
         }
+    }
+
+    if (Test-Path -LiteralPath (Join-Path $venvDir "Scripts\python.exe")) {
+        Install-RmaVenvLaunchers -ProjectRoot $RootDir -VenvDir $venvDir
     }
 }
 

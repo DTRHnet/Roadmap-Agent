@@ -6,6 +6,13 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hub** options **IV** (create/refresh Python venv + MemPalace deps) and **V** (pick a project `.env*` file and copy to `.env`, with backup). CLI: **`setup-venv`**, **`pick-env`**.
+- **Windows persistence**: after `robocopy`, normalize **`scripts/unix/*.sh`** and root bash launchers to **LF** (`Sync-UnixShellScriptsToLf`) so WSL/bash are not broken by CRLF. **`roadmap-agent.ps1`** detects CRLF in `roadmap-agent.sh` and runs a normalized temp copy with a clear note.
+- **`.gitattributes`**: force **LF** for `*.sh` and bash launchers so clones on Windows stay POSIX-safe.
+- **Local model setup** (`setup-local-models-mempalace`): after the venv exists, installs **`rma`** and **`roadmap-agent`** shims into **`venv/bin`** (Unix) or **`venv/Scripts`** (`*.cmd` + `*.ps1`, Windows) so activating the venv puts the CLI on `PATH` for that project.
+
 ### Fixed
 
 - **`roadmap-agent plan`** no longer invokes non-existent **`mempalace plan`** (upstream CLI has `init`, `mine`, `search`, `wake-up`, etc.). Plans are generated with the configured **LLM** and `.rma` context; optional **`mempalace wake-up --palace .rma/mempalace`** enriches the prompt when the palace directory exists.

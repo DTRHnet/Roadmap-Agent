@@ -5,14 +5,15 @@ $cmd = if ($args.Count -gt 0) { $args[0].ToLowerInvariant() } else { "menu" }
 if ($cmd -eq "tools") {
     $json = ($args.Count -gt 1 -and $args[1] -eq "--json")
     if ($json) {
-        '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
+        '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
     } else {
         @"
 ROADMAP-AGENT tool manifest (for humans and external agents)
 
 CLI commands:
   init, status, doctor, plan, analyze, analyze-init, execute-one, agent, run-agent,
-  tools [--json], unlock, menu, persistence, persistence-check, man, help
+  tools [--json], unlock, menu, persistence, persistence-check, setup-venv, pick-env,
+  man, help
 
 See README.md and scripts/unix/roadmap-agent.sh for full behavior.
 "@
@@ -40,19 +41,46 @@ if ($cmd -eq "persistence" -or $cmd -eq "persistance") {
     exit 1
 }
 
+function ConvertTo-WslBashPath([string]$WindowsPath) {
+    if ($WindowsPath -match '^([A-Za-z]):[\\/](.*)$') {
+        $drive = $Matches[1].ToLower()
+        $tail = $Matches[2] -replace '\\', '/'
+        return "/mnt/$drive/$tail"
+    }
+    return ($WindowsPath -replace '\\', '/')
+}
+
 $unixRuntime = Join-Path $rootDir "scripts/unix/roadmap-agent.sh"
 $bashCmd = Get-Command bash -ErrorAction SilentlyContinue
 if ($bashCmd -and (Test-Path $unixRuntime)) {
-    $runtimeBash = "/mnt/" + $unixRuntime.Substring(0,1).ToLower() + "/" + $unixRuntime.Substring(3).Replace('\','/')
-    $cwd = (Get-Location).Path
-    $cwdBash = "/mnt/" + $cwd.Substring(0,1).ToLower() + "/" + $cwd.Substring(3).Replace('\','/')
-    $argText = ""
-    if ($args.Count -gt 0) {
-        $argText = ($args | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join " "
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    $runtimePath = $unixRuntime
+    $tempRuntime = $null
+    $scriptText = [IO.File]::ReadAllText($unixRuntime)
+    if ($scriptText.IndexOf("`r") -ge 0) {
+        $normalized = $scriptText -replace "`r`n", "`n" -replace "`r", "`n"
+        $tempRuntime = Join-Path ([IO.Path]::GetTempPath()) ("rma-roadmap-agent-" + $PID + ".sh")
+        [IO.File]::WriteAllText($tempRuntime, $normalized, $utf8NoBom)
+        $runtimePath = $tempRuntime
+        Write-Host "NOTE: roadmap-agent.sh had CRLF line endings; using a normalized copy for bash. Re-run persistence install to fix files under Local/Roadmap-Agent." -ForegroundColor DarkYellow
     }
-    $scriptBlock = "export ROADMAP_AGENT_PROJECT_ROOT=""$cwdBash""; bash ""$runtimeBash"" $argText"
-    & $bashCmd.Source -lc $scriptBlock
-    exit $LASTEXITCODE
+    $exitCode = 1
+    try {
+        $runtimeBash = ConvertTo-WslBashPath $runtimePath
+        $cwdBash = ConvertTo-WslBashPath (Get-Location).Path
+        $argText = ""
+        if ($args.Count -gt 0) {
+            $argText = ($args | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join " "
+        }
+        $scriptBlock = "export ROADMAP_AGENT_PROJECT_ROOT=""$cwdBash""; bash ""$runtimeBash"" $argText"
+        & $bashCmd.Source -lc $scriptBlock
+        $exitCode = $LASTEXITCODE
+    } finally {
+        if ($null -ne $tempRuntime -and (Test-Path -LiteralPath $tempRuntime)) {
+            Remove-Item -LiteralPath $tempRuntime -Force -ErrorAction SilentlyContinue
+        }
+    }
+    exit $exitCode
 }
 
 Write-Host "Windows fallback mode active." -ForegroundColor Yellow

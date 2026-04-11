@@ -26,6 +26,34 @@ log_info() { printf "[%s] [INFO] %s\n" "$(TS)" "$1" | tee -a "$LOG_FILE"; }
 log_warn() { printf "[%s] [WARN] %s\n" "$(TS)" "$1" | tee -a "$LOG_FILE"; }
 log_error() { printf "[%s] [ERROR] %s\n" "$(TS)" "$1" | tee -a "$LOG_FILE"; }
 
+# Install rma / roadmap-agent into venv bin so `source venv/bin/activate` puts CLI on PATH.
+install_rma_venv_bin_launchers() {
+  local proj_root="$1"
+  local vdir="$2"
+  local bindir="$vdir/bin"
+  local core="$proj_root/scripts/unix/roadmap-agent.sh"
+  [[ -d "$bindir" ]] || return 0
+  [[ -f "$core" ]] || {
+    log_warn "Skipping venv launchers: missing $core"
+    return 0
+  }
+  local proj_q core_q
+  proj_q="$(printf '%q' "$proj_root")"
+  core_q="$(printf '%q' "$core")"
+  local name
+  for name in rma roadmap-agent; do
+    cat > "$bindir/$name" <<EOF
+#!/usr/bin/env bash
+set -u
+export ROADMAP_AGENT_PROJECT_ROOT=$proj_q
+export ROADMAP_AGENT_APP_ROOT=$proj_q
+exec bash $core_q "\$@"
+EOF
+    chmod +x "$bindir/$name" || true
+  done
+  log_info "Installed venv launchers: $bindir/rma, $bindir/roadmap-agent"
+}
+
 failures=0
 warnings=0
 
@@ -139,6 +167,10 @@ if command -v ollama >/dev/null 2>&1; then
 else
   log_warn "Ollama not found. Local LLM generation features will fall back unless required."
   warnings=$((warnings+1))
+fi
+
+if [[ -n "${local_venv_dir:-}" ]] && [[ -x "${local_venv_dir}/bin/python" ]]; then
+  install_rma_venv_bin_launchers "$ROOT_DIR" "$local_venv_dir" || true
 fi
 
 if (( failures > 0 )); then
