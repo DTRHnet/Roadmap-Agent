@@ -9,6 +9,9 @@ ROADMAP-AGENT is a script-first architecture with mirrored PowerShell and bash r
 - launcher wrappers:
   - `roadmap-agent`, `roadmap-agent.cmd`
   - `rma`, `rma.cmd`, `rma.ps1`, `rma.sh`
+- bootstrap / Windows install helpers:
+  - `RUN.sh`, `RUN.ps1`, `RUN.cmd` (venv + `.env` in cwd, then main CLI)
+  - `scripts/windows/setup-rma.ps1` (persistence + PATH refresh); repo-root `setup-rma.ps1` / `setup-rma.cmd` forward here
 
 ## Execution Layers
 

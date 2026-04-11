@@ -11,12 +11,17 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Unix helper script for local MemPalace model setup.
-# Last updated: 2026-04-10 | Version: v0.4.0
+# Last updated: 2026-04-10 | Version: v1.0.0
 
 set -u
 set -o pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+TOOLKIT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ -n "${ROADMAP_AGENT_PROJECT_ROOT:-}" ]] && [[ -d "${ROADMAP_AGENT_PROJECT_ROOT}" ]]; then
+  ROOT_DIR="$(cd "${ROADMAP_AGENT_PROJECT_ROOT}" && pwd)"
+else
+  ROOT_DIR="$TOOLKIT_ROOT"
+fi
 LOG_DIR="$ROOT_DIR/.rma/logs"
 mkdir -p "$LOG_DIR"
 LOG_FILE="$LOG_DIR/setup-local-models.log"
@@ -27,18 +32,21 @@ log_warn() { printf "[%s] [WARN] %s\n" "$(TS)" "$1" | tee -a "$LOG_FILE"; }
 log_error() { printf "[%s] [ERROR] %s\n" "$(TS)" "$1" | tee -a "$LOG_FILE"; }
 
 # Install rma / roadmap-agent into venv bin so `source venv/bin/activate` puts CLI on PATH.
+# project_root = repo under management; toolkit_root = ROADMAP-AGENT checkout (holds scripts/unix/...).
 install_rma_venv_bin_launchers() {
-  local proj_root="$1"
+  local project_root="$1"
   local vdir="$2"
+  local toolkit_root="$3"
   local bindir="$vdir/bin"
-  local core="$proj_root/scripts/unix/roadmap-agent.sh"
+  local core="$toolkit_root/scripts/unix/roadmap-agent.sh"
   [[ -d "$bindir" ]] || return 0
   [[ -f "$core" ]] || {
     log_warn "Skipping venv launchers: missing $core"
     return 0
   }
-  local proj_q core_q
-  proj_q="$(printf '%q' "$proj_root")"
+  local proj_q toolkit_q core_q
+  proj_q="$(printf '%q' "$project_root")"
+  toolkit_q="$(printf '%q' "$toolkit_root")"
   core_q="$(printf '%q' "$core")"
   local name
   for name in rma roadmap-agent; do
@@ -46,7 +54,7 @@ install_rma_venv_bin_launchers() {
 #!/usr/bin/env bash
 set -u
 export ROADMAP_AGENT_PROJECT_ROOT=$proj_q
-export ROADMAP_AGENT_APP_ROOT=$proj_q
+export ROADMAP_AGENT_APP_ROOT=$toolkit_q
 exec bash $core_q "\$@"
 EOF
     chmod +x "$bindir/$name" || true
@@ -170,7 +178,7 @@ else
 fi
 
 if [[ -n "${local_venv_dir:-}" ]] && [[ -x "${local_venv_dir}/bin/python" ]]; then
-  install_rma_venv_bin_launchers "$ROOT_DIR" "$local_venv_dir" || true
+  install_rma_venv_bin_launchers "$ROOT_DIR" "$local_venv_dir" "$TOOLKIT_ROOT" || true
 fi
 
 if (( failures > 0 )); then

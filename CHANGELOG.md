@@ -6,12 +6,26 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-04-10
+
+First **stable** semver release: project bootstrap, multi-provider agent, documented env, and layout polish.
+
 ### Added
 
+- **`RUN.sh`**, **`RUN.ps1`**, **`RUN.cmd`**: one-shot workspace bootstrap (detect environment, optional persistence upgrade prompt, seed `.env`, run MemPalace venv setup for **current directory** as `ROADMAP_AGENT_PROJECT_ROOT`, then hand off to `roadmap-agent`). Setup scripts honor **`ROADMAP_AGENT_PROJECT_ROOT`** so venv and `.rma` stay in the project tree when the toolkit lives elsewhere; venv launchers set **`ROADMAP_AGENT_APP_ROOT`** to the toolkit and **`ROADMAP_AGENT_PROJECT_ROOT`** to the managed repo.
+- **`.env.example`**: expanded comments for every supported variable, runtime roots, agent vs plan LLM usage, and WSL/Ollama notes.
+- **`roadmap-agent agent` / `run-agent`**: honor **`RMA_LLM_PROVIDER`** end-to-end (**ollama**, **openllama**, **claude**), matching **`plan`** (previously the agent loop only called Ollama).
+- **`rma tools --json`**: broader **`env`** list for external agents (OpenAI/Anthropic keys, `ROADMAP_AGENT_APP_ROOT`, etc.).
 - **Hub** options **IV** (create/refresh Python venv + MemPalace deps) and **V** (pick a project `.env*` file and copy to `.env`, with backup). CLI: **`setup-venv`**, **`pick-env`**.
 - **Windows persistence**: after `robocopy`, normalize **`scripts/unix/*.sh`** and root bash launchers to **LF** (`Sync-UnixShellScriptsToLf`) so WSL/bash are not broken by CRLF. **`roadmap-agent.ps1`** detects CRLF in `roadmap-agent.sh` and runs a normalized temp copy with a clear note.
 - **`.gitattributes`**: force **LF** for `*.sh` and bash launchers so clones on Windows stay POSIX-safe.
 - **Local model setup** (`setup-local-models-mempalace`): after the venv exists, installs **`rma`** and **`roadmap-agent`** shims into **`venv/bin`** (Unix) or **`venv/Scripts`** (`*.cmd` + `*.ps1`, Windows) so activating the venv puts the CLI on `PATH` for that project.
+- **[`DOCS/RELEASING.md`](DOCS/RELEASING.md)**: how to tag releases, publish archives, and build the Docker image (this project is script-first; there is no mandatory compiled binary).
+
+### Changed
+
+- **Windows setup**: canonical **`scripts/windows/setup-rma.ps1`**; repo-root **`setup-rma.ps1`** / **`setup-rma.cmd`** are thin forwarders (same CLI as before).
+- **Persistence sync checks** include **`RUN.*`**, **`setup-rma.*`**, and the canonical setup script path.
 
 ### Fixed
 

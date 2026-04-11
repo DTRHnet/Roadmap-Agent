@@ -518,7 +518,7 @@ Install once; run `rma` / `roadmap-agent` from any directory without typing full
 
 ### Windows
 
-- **`setup-rma.ps1`**: preferred wrapper (`-Scope User` or `-Scope Machine`).
+- **`setup-rma.ps1`** (repo root forwards to **`scripts/windows/setup-rma.ps1`**): preferred wrapper (`-Scope User` or `-Scope Machine`).
 - **`install-persistence.ps1`**: lower-level installer; mirrors full tree into `%LOCALAPPDATA%\Roadmap-Agent` or `%ProgramFiles%\Roadmap-Agent`.
 - **`refresh-rma-path.ps1`**: reload PATH in the **current** PowerShell after install.
 

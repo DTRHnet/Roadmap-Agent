@@ -11,7 +11,7 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Unix core ROADMAP-AGENT runtime (menu, roadmap, persistence, help).
-# Last updated: 2026-04-10 | Version: v0.4.0
+# Last updated: 2026-04-10 | Version: v1.0.0
 
 
 set -u
@@ -300,7 +300,9 @@ AGENT OPTIONS (roadmap-agent agent "goal" ...)
   --max-steps <n>           Maximum loop iterations (default: 10)
   -y, --yes                 Do not prompt between steps (still logs; use with care)
   --confirm-execute-one     Allow invoking interactive execute-one when the model requests it
-  --require-ollama          Fail if Ollama/model is unavailable (same as other commands)
+  --require-ollama          When RMA_LLM_PROVIDER=ollama, fail if Ollama/model is unavailable
+
+AGENT LLM: uses the same RMA_LLM_PROVIDER and keys as plan (ollama | openllama | claude).
 
 AGENT logs and memory:
   - Session log: .rma/logs/agent.log
@@ -375,6 +377,7 @@ persistence_scripts_in_sync() {
     "scripts/unix/setup-local-models-mempalace.sh"
     "scripts/windows/roadmap-agent.ps1"
     "scripts/windows/install-persistence.ps1"
+    "scripts/windows/setup-rma.ps1"
     "scripts/windows/setup-local-models-mempalace.ps1"
     "roadmap-agent"
     "roadmap-agent.cmd"
@@ -382,6 +385,11 @@ persistence_scripts_in_sync() {
     "rma.cmd"
     "rma.ps1"
     "rma.sh"
+    "setup-rma.ps1"
+    "setup-rma.cmd"
+    "RUN.sh"
+    "RUN.ps1"
+    "RUN.cmd"
   )
   for rel in "${files[@]}"; do
     local src="$APP_DIR/$rel"
@@ -1176,6 +1184,11 @@ extract_tasks_from_markdown() {
   done < <(find "$ROOT_DIR" -type f -name "*.md" 2>/dev/null)
 }
 
+# Refreshes the task ledger and run-state markdown, then prints:
+#   Synced canonical files:
+#    - <TASKS_FILE>   (default .rma/roadmaps/tasks.md)
+#    - <RUN_FILE>     (default .rma/roadmaps/run.md)
+# No extra env vars; paths follow ROADMAP_DIR if customized.
 sync_tasks_and_run_files() {
   ensure_core_dirs
   canonicalize_roadmap_files
@@ -1967,6 +1980,7 @@ mempalace_setup_local_models() {
   done
 
   if [[ -n "$script" ]]; then
+    export ROADMAP_AGENT_PROJECT_ROOT="$ROOT_DIR"
     bash "$script" || {
       warn "setup-local-models script returned an error."
       return 1
@@ -2105,8 +2119,11 @@ build_context_bundle() {
   printf "%s" "$ctx"
 }
 
-# Collect product "open questions" from .rma/open-questions.md (markdown bullets) and
-# lines containing "Open:" in description|ui|stack|other (case-sensitive token for scanning).
+# Collect product "open questions" for interactive plan (TTY). Feeds the message:
+#   plan: no open questions found. Add list items to .rma/open-questions.md or lines with Open: in .rma/*.md.
+# Sources: markdown list items (- ...) in .rma/open-questions.md; lines matching Open:... in
+# .rma/description.md, ui.md, stack.md, other.md. Prompts gated by RMA_PLAN_INTERACTIVE (default 1),
+# max count RMA_PLAN_INTERACTIVE_MAX; non-TTY skips prompts (see plan_interactive_resolve_open_questions).
 collect_open_questions() {
   local qs="" f line q
   if [[ -f "$RMA_DIR/open-questions.md" ]]; then
@@ -2147,6 +2164,7 @@ plan_interactive_resolve_open_questions() {
   mapfile -t qlist < <(printf "%s" "$qs")
   n="${#qlist[@]}"
   if [[ "$n" -eq 0 ]]; then
+    # Matches collect_open_questions sources; not an error—only guidance when the interactive list is empty.
     info "plan: no open questions found. Add list items to .rma/open-questions.md or lines with Open: in .rma/*.md."
     return 0
   fi
@@ -2218,6 +2236,15 @@ EOF
     RMA_PLAN_INTERACTIVE=0
   fi
 
+  # --- Settings tied to typical plan output / failure text ---
+  # Synced canonical files → sync_tasks_and_run_files (tasks.md + run.md under .rma/roadmaps).
+  # Open questions note → .rma/open-questions.md bullets and "Open:" lines in .rma/*.md;
+  #   RMA_PLAN_INTERACTIVE, RMA_PLAN_INTERACTIVE_MAX.
+  # LLM plan → RMA_LLM_PROVIDER (e.g. ollama), RMA_OLLAMA_MODEL / RMA_OLLAMA_HOST, plus provider-specific
+  #   keys (RMA_OPENAI_*, RMA_CLAUDE_MODEL, API keys in .env); ensure model exists (e.g. ollama pull <model>).
+  # If LLM fails → RMA_ALLOW_PLAN_FALLBACK=1 writes a static template; else user sees the WARN listing these.
+  # MemPalace → optional for plan: wake-up enriches prompt when CLI works and .rma/mempalace exists; mining uses
+  #   mempalace separately (RMA_REQUIRE_MEMPALACE, RMA_MEMPALACE_BIN, setup-venv / install mempalace).
   ensure_core_dirs
   sync_tasks_and_run_files
   [[ -f "$RMA_DIR/other.md" ]] || touch "$RMA_DIR/other.md"
@@ -2546,8 +2573,8 @@ PY
 call_agent_llm_json() {
   local goal="$1"
   local prior="$2"
-  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
-  local mem prompt raw
+  local provider="${RMA_LLM_PROVIDER:-ollama}"
+  local model mem prompt raw py
   ensure_core_dirs
   mem="$(agent_load_memory_context 7500)"
   prior="${prior:-None}"
@@ -2579,19 +2606,92 @@ Rules:
 - Schema: ${AGENT_SCHEMA_HINT}
 EOF
 )"
-  if command -v ollama >/dev/null 2>&1; then
-    raw="$(ollama run "$model" "$prompt" --format json 2>/dev/null || true)"
-  elif command -v curl >/dev/null 2>&1; then
-    local py
-    py="$(resolve_python_cmd || true)"
-    [[ -z "$py" ]] && { printf ""; return 1; }
-    raw="$(curl -fsS "${RMA_OLLAMA_HOST%/}/api/generate" \
-      -H "Content-Type: application/json" \
-      -d "{\"model\":\"$model\",\"prompt\":$("$py" -c 'import json,sys; print(json.dumps(sys.stdin.read()))' <<< "$prompt"),\"stream\":false,\"format\":\"json\"}" 2>/dev/null | \
-      "$py" -c 'import json,sys; d=json.load(sys.stdin); print(d.get("response",""))' 2>/dev/null || true)"
-  else
-    raw=""
-  fi
+  raw=""
+  case "$provider" in
+    ollama)
+      model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+      if command -v ollama >/dev/null 2>&1; then
+        raw="$(ollama run "$model" "$prompt" --format json 2>/dev/null || true)"
+      elif command -v curl >/dev/null 2>&1; then
+        py="$(resolve_python_cmd || true)"
+        [[ -z "$py" ]] && { printf ""; return 1; }
+        raw="$(curl -fsS "${RMA_OLLAMA_HOST%/}/api/generate" \
+          -H "Content-Type: application/json" \
+          -d "{\"model\":\"$model\",\"prompt\":$("$py" -c 'import json,sys; print(json.dumps(sys.stdin.read()))' <<< "$prompt"),\"stream\":false,\"format\":\"json\"}" 2>/dev/null | \
+          "$py" -c 'import json,sys; d=json.load(sys.stdin); print(d.get("response",""))' 2>/dev/null || true)"
+      fi
+      ;;
+    openllama)
+      py="$(resolve_python_cmd || true)"
+      [[ -z "$py" ]] && { printf ""; return 1; }
+      raw="$("$py" - <<'PY'
+import json, os, sys, urllib.request
+base = os.getenv("RMA_OPENAI_BASE_URL", "http://127.0.0.1:11434/v1").rstrip("/")
+key = os.getenv("RMA_OPENAI_API_KEY", "local-no-key")
+model = os.getenv("RMA_OPENAI_MODEL", "openllama")
+prompt = sys.stdin.read()
+body = {
+    "model": model,
+    "messages": [{"role":"user","content":prompt}],
+    "temperature": 0.2}
+req = urllib.request.Request(
+    base + "/chat/completions",
+    data=json.dumps(body).encode("utf-8"),
+    headers={"Content-Type": "application/json","Authorization":f"Bearer {key}"}
+)
+try:
+    with urllib.request.urlopen(req, timeout=180) as r:
+        data = json.loads(r.read().decode("utf-8"))
+        print(data["choices"][0]["message"]["content"])
+except Exception:
+    pass
+PY
+<<< "$prompt")"
+      raw="$(clean_llm_output "$raw")"
+      ;;
+    claude)
+      [[ -z "${ANTHROPIC_API_KEY:-}" ]] && { printf ""; return 1; }
+      py="$(resolve_python_cmd || true)"
+      [[ -z "$py" ]] && { printf ""; return 1; }
+      raw="$("$py" - <<'PY'
+import json, os, sys, urllib.request
+key = os.getenv("ANTHROPIC_API_KEY","")
+model = os.getenv("RMA_CLAUDE_MODEL", "claude-3-5-sonnet-latest")
+prompt = sys.stdin.read()
+if not key:
+    raise SystemExit(0)
+body = {
+    "model": model,
+    "max_tokens": 4096,
+    "temperature": 0.2,
+    "messages": [{"role":"user","content":prompt}]
+}
+req = urllib.request.Request(
+    "https://api.anthropic.com/v1/messages",
+    data=json.dumps(body).encode("utf-8"),
+    headers={
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+)
+try:
+    with urllib.request.urlopen(req, timeout=180) as r:
+        data = json.loads(r.read().decode("utf-8"))
+        chunks = data.get("content", [])
+        text = "".join(c.get("text","") for c in chunks if c.get("type")=="text")
+        print(text)
+except Exception:
+    pass
+PY
+<<< "$prompt")"
+      raw="$(clean_llm_output "$raw")"
+      ;;
+    *)
+      printf ""
+      return 1
+      ;;
+  esac
   printf "%s" "$raw"
 }
 
@@ -2676,7 +2776,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","ROADMAP_AGENT_PROJECT_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -2756,16 +2856,41 @@ EOF
   fi
 
   local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
-  if [[ "$require_ollama" == "1" ]]; then
+  local provider="${RMA_LLM_PROVIDER:-ollama}"
+  if [[ "$require_ollama" == "1" ]] && [[ "$provider" == "ollama" ]]; then
     if ! ollama_model_available "$model"; then
       warn "Ollama model unavailable: $model (set RMA_OLLAMA_HOST or run: ollama pull $model)"
       return 1
     fi
   fi
-  if ! command -v ollama >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1; then
-    warn "agent mode needs ollama CLI or curl for HTTP to Ollama."
-    return 1
-  fi
+  case "$provider" in
+    ollama)
+      if ! command -v ollama >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1; then
+        warn "agent mode with RMA_LLM_PROVIDER=ollama needs the ollama CLI or curl to reach RMA_OLLAMA_HOST."
+        return 1
+      fi
+      ;;
+    openllama)
+      if ! command -v python >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+        warn "agent mode with RMA_LLM_PROVIDER=openllama needs Python for HTTP chat/completions."
+        return 1
+      fi
+      ;;
+    claude)
+      if [[ -z "${ANTHROPIC_API_KEY:-}" ]]; then
+        warn "agent mode with RMA_LLM_PROVIDER=claude needs ANTHROPIC_API_KEY in .env or the environment."
+        return 1
+      fi
+      if ! command -v python >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+        warn "agent mode with RMA_LLM_PROVIDER=claude needs Python for the Anthropic API client."
+        return 1
+      fi
+      ;;
+    *)
+      warn "agent mode: unsupported RMA_LLM_PROVIDER='$provider' (use ollama, openllama, or claude)."
+      return 1
+      ;;
+  esac
   py="$(resolve_python_cmd 2>/dev/null || true)"
   if [[ -z "$py" ]]; then
     warn "Python is required to parse JSON agent responses."
@@ -2779,7 +2904,7 @@ EOF
     prior="$(agent_tail_log_excerpt 35)"
     raw="$(call_agent_llm_json "$goal" "$prior")"
     if [[ -z "${raw// }" ]]; then
-      warn "Empty LLM response (step $step). Check Ollama and RMA_OLLAMA_MODEL."
+      warn "Empty LLM response (step $step). Check RMA_LLM_PROVIDER and provider settings (see .env.example)."
       agent_append_log "step $step ERROR empty LLM response"
       return 1
     fi

@@ -203,7 +203,7 @@ Establish data model and API skeleton for lists, items, categories, and membersh
 - Public list abuse — rate limits later
 ```
 
-**Expectation:** Your real output depends on the LLM, MemPalace context, and `.rma` files. Aim for **much more detail** than the snippet when context is mature. If MemPalace is unavailable and you have not set **`RMA_ALLOW_PLAN_FALLBACK=1`**, **`plan`** fails fast — that is by design in v0.4.0+.
+**Expectation:** Your real output depends on the LLM, MemPalace context, and `.rma` files. Aim for **much more detail** than the snippet when context is mature. If MemPalace is unavailable and you have not set **`RMA_ALLOW_PLAN_FALLBACK=1`**, **`plan`** fails fast — that is by design in v1.0.0+.
 
 **Refinements:** Use your **IDE agent** to expand sections or list unresolved decisions as multiple-choice; capture answers in `.rma/*.md` and re-run **`plan`**.
 

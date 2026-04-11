@@ -10,11 +10,16 @@
 # A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 # -------------------------------------------------------------------------------------------
 # Summary: Windows helper script for local MemPalace model setup.
-# Last updated: 2026-04-10 | Version: v0.4.0
+# Last updated: 2026-04-10 | Version: v1.0.0
 
 $ErrorActionPreference = "Continue"
 
-$RootDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
+$ToolkitRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path))
+if ($env:ROADMAP_AGENT_PROJECT_ROOT -and (Test-Path -LiteralPath $env:ROADMAP_AGENT_PROJECT_ROOT)) {
+    $RootDir = (Resolve-Path -LiteralPath $env:ROADMAP_AGENT_PROJECT_ROOT).Path
+} else {
+    $RootDir = $ToolkitRoot
+}
 $LogDir = Join-Path $RootDir ".rma/logs"
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 $LogFile = Join-Path $LogDir "setup-local-models.log"
@@ -35,11 +40,12 @@ function Write-Log([string]$Level, [string]$Message) {
 function Install-RmaVenvLaunchers {
     param(
         [string]$ProjectRoot,
-        [string]$VenvDir
+        [string]$VenvDir,
+        [string]$ToolkitRoot
     )
     $scriptsOut = Join-Path $VenvDir "Scripts"
     if (-not (Test-Path -LiteralPath $scriptsOut)) { return }
-    $bridge = Join-Path $ProjectRoot "scripts\windows\roadmap-agent.ps1"
+    $bridge = Join-Path $ToolkitRoot "scripts\windows\roadmap-agent.ps1"
     if (-not (Test-Path -LiteralPath $bridge)) {
         Write-Log "WARN" "Skipping venv launchers: missing $bridge"
         return
@@ -169,7 +175,7 @@ if (-not $pythonCmd) {
     }
 
     if (Test-Path -LiteralPath (Join-Path $venvDir "Scripts\python.exe")) {
-        Install-RmaVenvLaunchers -ProjectRoot $RootDir -VenvDir $venvDir
+        Install-RmaVenvLaunchers -ProjectRoot $RootDir -VenvDir $venvDir -ToolkitRoot $ToolkitRoot
     }
 }
 

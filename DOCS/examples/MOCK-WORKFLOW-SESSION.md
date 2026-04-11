@@ -1,6 +1,6 @@
 # Mock workflow session (illustrative)
 
-These transcripts are **fictional** examples of what you might see end-to-end: install ROADMAP-AGENT globally on Windows, prepare a project, run **`init`**, run **`doctor`**, use the **interactive hub**, then **roadmap** commands. As of v0.4.0, **`plan`** and **mine** require a real MemPalace stack — align the **[MemPalace]** lines with your environment. Timestamps and paths are representative, not captured from a single real run.
+These transcripts are **fictional** examples of what you might see end-to-end: install ROADMAP-AGENT globally on Windows, prepare a project, run **`init`**, run **`doctor`**, use the **interactive hub**, then **roadmap** commands. As of v1.0.0, **`plan`** and **mine** require a real MemPalace stack — align the **[MemPalace]** lines with your environment. Timestamps and paths are representative, not captured from a single real run.
 
 ---
 
@@ -67,8 +67,8 @@ PS C:\Users\dev\Projects\InvoiceApp> rma init
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 Roadmap Agent
 A DTRHnet Project https://dtrh.net
-App Version : v0.4.0
-Last Release: v0.4.0
+App Version : v1.0.0
+Last Release: v1.0.0
 Release Date: 2026-04-10
 
 WARN: .rma/ already exists. Overwrite scaffolding? [y/N]: n
@@ -108,8 +108,8 @@ doctor: complete (exit 0)
 PS C:\Users\dev\Projects\InvoiceApp> $env:RMA_DISABLE_FZF="1"; rma
 
 ROADMAP-AGENT HUB
-App Version: v0.4.0
-Last Release: v0.4.0
+App Version: v1.0.0
+Last Release: v1.0.0
 Release Date: 2026-04-10
 Press Enter to continue:
 

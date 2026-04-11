@@ -25,9 +25,11 @@ secrets*.json
 # ROADMAP-AGENT local runtime state
 ############################################
 .rma/
+**/.rma/
 *.log
 *.tmp
 *.bak
+roadmaps/*
 
 ############################################
 # Python caches / virtual envs

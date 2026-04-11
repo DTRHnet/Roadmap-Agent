@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-v0.4.0-8b5cf6" alt="version">
+  <img src="https://img.shields.io/badge/version-v1.0.0-8b5cf6" alt="version">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue" alt="platform">
   <img src="https://img.shields.io/badge/runtime-bash%20%2B%20powershell-green" alt="runtime">
   <img src="https://img.shields.io/badge/interface-fzf-orange" alt="interface">
@@ -28,7 +28,8 @@
 | **[`DOCS/examples/rma-context-samples/`](DOCS/examples/rma-context-samples/)** | **Sample `.rma` context** — three folders (`weather-app`, `list-sharing`, `devtools-cli`) with `description.md`, `ui.md`, `stack.md`, `other.md`; copy into `.rma/` after `init`. See README there for **MCP** integration notes. |
 | **[`DOCS/examples/END-TO-END-LIST-SHARING-APP.md`](DOCS/examples/END-TO-END-LIST-SHARING-APP.md)** | **End-to-end walkthrough** — import, MemPalace + `.rma` driving **detailed** roadmaps, **agent prompts** for open decisions, **`execute-one`** loop toward a **real shipped app** (mock transcripts). |
 | **[`DOCS/examples/MOCK-WORKFLOW-SESSION.md`](DOCS/examples/MOCK-WORKFLOW-SESSION.md)** | **Illustrative session** — fictional terminal output from persistence install through `init`, `doctor`, menus, `plan` / `analyze` / `execute-one`, and sample log lines. |
-| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v0.4.0`, …). |
+| **[`CHANGELOG.md`](CHANGELOG.md)** | **Release history** — what changed per version; pair with the root **`VERSION`** file and git tags (`v1.0.0`, …). |
+| **[`DOCS/RELEASING.md`](DOCS/RELEASING.md)** | **Shipping a release** — tags, GitHub releases, source archives, Docker image; why there is no required compiled “binary”. |
 
 **ROADMAP-AGENT** keeps project memory in **`.rma/`**, drives plans and one-step execution from the terminal, and plugs into **local LLMs** (Ollama by default) when you want project-aware scaffolding—not a hosted dashboard, not another SaaS login.
 
@@ -105,9 +106,10 @@ RoadmapAgent/
   rma.ps1                       # Alias PowerShell launcher
   rma.sh                        # Alias shell launcher
 
-  setup-rma.ps1                 # Windows: install/check global persistence (wraps installer)
+  RUN.sh / RUN.ps1 / RUN.cmd # Bootstrap: venv + .env in cwd, then hand off to roadmap-agent
+  setup-rma.ps1                 # Thin wrapper -> scripts/windows/setup-rma.ps1 (persistence + PATH refresh)
   setup-rma.cmd
-  refresh-rma-path.ps1          # Windows: reload PATH in current PowerShell session
+  refresh-rma-path.ps1          # Thin wrapper -> scripts/windows/refresh-rma-path.ps1
 
   scripts/
     unix/
@@ -116,8 +118,9 @@ RoadmapAgent/
     windows/
       roadmap-agent.ps1         # Windows runtime
       setup-local-models-mempalace.ps1
+      setup-rma.ps1             # Windows persistence wrapper (canonical; repo root forwards here)
       install-persistence.ps1   # Windows persistence installer
-      refresh-rma-path.ps1      # Windows: PATH refresh helper (used by installer/setup)
+      refresh-rma-path.ps1      # PATH refresh helper (used by installer/setup)
 
   docker/
     entrypoint.sh               # Docker runtime entrypoint
@@ -514,9 +517,11 @@ The runtime works without custom environment variables, but supports useful over
 
 ## Versioning
 
-- **Canonical release number** lives in the root **`VERSION`** file (for example `0.4.0`). The Unix runtime prints it in the banner as `v0.4.0` when present.
+- **Canonical release number** lives in the root **`VERSION`** file (for example `1.0.0`). The Unix runtime prints it in the banner as `v1.0.0` when present.
 - **`CHANGELOG.md`** follows [Keep a Changelog](https://keepachangelog.com/) with dated sections per release.
-- **Git tags** use the `v` prefix (for example `v0.4.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v0.4.0` checks out that tag.
+- **Git tags** use the `v` prefix (for example `v1.0.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v1.0.0` checks out that tag.
+
+This project is **script-first** (bash + PowerShell). There is no official single-file executable; “shipping” usually means a **tagged source tree**, **zip/tarball** on GitHub Releases, optional **Docker image**, and/or the **Windows persistence** mirror under `%LOCALAPPDATA%\Roadmap-Agent`. Step-by-step: **[`DOCS/RELEASING.md`](DOCS/RELEASING.md)**.
 
 ---
 
@@ -543,3 +548,4 @@ The runtime works without custom environment variables, but supports useful over
 **Releases**
 
 - [`CHANGELOG.md`](CHANGELOG.md) — version-by-version notes (see also **Versioning** above)
+- [`DOCS/RELEASING.md`](DOCS/RELEASING.md) — tagging, GitHub Release assets, Docker build

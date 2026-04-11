@@ -10,7 +10,7 @@ REM
 REM A DTRHnet Project                                              2026 <admin[at]dtrh[dot]net>
 REM -------------------------------------------------------------------------------------------
 REM Summary: Windows CMD launcher that routes to PowerShell runtime.
-REM Last updated: 2026-04-10 | Version: v0.4.0
+REM Last updated: 2026-04-10 | Version: v1.0.0
 
 @echo off
 setlocal

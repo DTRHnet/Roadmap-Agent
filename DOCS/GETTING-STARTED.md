@@ -84,3 +84,7 @@ If you want global command access:
 - **Windows:** from the cloned repo run `.\setup-rma.ps1 -Scope User` (no Administrator) or `-Scope Machine` from an elevated shell. See **QUICKSTART.md** for PATH refresh (`refresh-rma-path.ps1`) if `rma` is not found in the current window.
 
 Installers mirror the full app tree and deduplicate PATH entries where applicable.
+
+## 10) Shipping / versioning
+
+To tag a release, publish GitHub Release archives, or build the Docker image, see **[RELEASING.md](RELEASING.md)**.

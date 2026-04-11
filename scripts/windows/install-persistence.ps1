@@ -1,7 +1,7 @@
 # -------------------------------------------------------------------------------------------
 # ROADMAP-AGENT | A DTRHnet Project (2026 <admin[at]dtrh[dot]net>)
 # Summary: Windows persistence installer for global ROADMAP-AGENT access.
-# Last updated: 2026-04-10 | Version: v0.4.0
+# Last updated: 2026-04-10 | Version: v1.0.0
 # -------------------------------------------------------------------------------------------
 
 param(
@@ -80,7 +80,7 @@ function Sync-UnixShellScriptsToLf([string]$InstallRoot) {
             [IO.File]::WriteAllText($dockerEntry, $fixed, $utf8NoBom)
         }
     }
-    foreach ($name in @("roadmap-agent", "rma", "rma.sh")) {
+    foreach ($name in @("roadmap-agent", "rma", "rma.sh", "RUN.sh")) {
         $p = Join-Path $InstallRoot $name
         if (Test-Path $p -PathType Leaf) {
             $text = [IO.File]::ReadAllText($p)
@@ -111,6 +111,7 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
         "scripts\\windows\\roadmap-agent.ps1",
         "scripts\\windows\\install-persistence.ps1",
         "scripts\\windows\\refresh-rma-path.ps1",
+        "scripts\\windows\\setup-rma.ps1",
         "scripts\\windows\\setup-local-models-mempalace.ps1",
         "roadmap-agent",
         "roadmap-agent.cmd",
@@ -118,6 +119,11 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
         "rma.cmd",
         "rma.ps1",
         "rma.sh",
+        "setup-rma.ps1",
+        "setup-rma.cmd",
+        "RUN.sh",
+        "RUN.ps1",
+        "RUN.cmd",
         "VERSION"
     )
     foreach ($rel in $files) {
