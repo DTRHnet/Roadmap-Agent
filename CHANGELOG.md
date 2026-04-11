@@ -6,6 +6,8 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-04-11
+
 ### Added
 
 - **`release`** CLI and **hub option VI**: run [`scripts/unix/release-rma.sh`](scripts/unix/release-rma.sh) to build release notes from **`CHANGELOG.md`**, create **`VERSION`** git tag, **`docker build`**, **`git push`**, and **`gh release create`** (when `gh` is available). See **`docs/RELEASING.md`**.
@@ -26,6 +28,8 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ### Documentation
 
 - **Companion web UI**: expanded **[`web/README.md`](web/README.md)** (prerequisites, `RMA_WEB_*`, dev vs single-port vs Docker, security, Guided/Advanced editor, bulk rules, **`VITE_DOCS_BASE`**); **[`web/frontend/README.md`](web/frontend/README.md)** — SPA dev and build-time doc URLs. Linked from **[`README.md`](README.md)**, **[`docs/MANUAL.md`](docs/MANUAL.md)** (*Companion web UI*), **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (including **init embed** / project-local **`rma.ps1`**), **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)**, **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**, **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** (including **§9** WSL vs Windows venv); **`.env.example`** comments for **`RMA_WEB_*`**. Root **[`README.md`](README.md)** summarizes SPA modes and footer docs.
+- **Root README**: navigation, flat-square badges (including Docker → **`docker-compose.yml`**), tables for product overview, corrected **`docs/…`** links, TUI/web screenshots, expanded security notes for releases.
+- **`.gitignore`**: optional **`web/rma-web.yaml`**, **`.envrc`**, coverage/tox paths, **`.cursor/`**.
 
 ## [1.0.0] - 2026-04-10
 
