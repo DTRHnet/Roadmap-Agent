@@ -10,6 +10,17 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 - (none)
 
+### Added
+
+- **GitHub Actions CI** (`.github/workflows/ci.yml`): Python 3.12, `pytest` for `tests/` and `web/backend/tests/`, `bash -n` on `roadmap-agent.sh`, `npm ci` + `npm run build` for the SPA, Docker builds for **`Dockerfile`** and **`docker/Dockerfile.web`** (Buildx cache, no push).
+- **Web UI**: **Roadmap actions** section with one-click presets (`status`, `doctor --json`, `tools --json`, `plan --no-interactive`, `analyze`, `analyze-init --dry-run`, `unlock`, `mcp-start --detach`) via **`GET /api/roadmap/presets`** and smarter timeouts for **`POST /api/run/rma`** (`timeout_sec` optional; longer defaults for `plan`, `analyze-init`, `mcp-start`, etc.). Larger log tail in API responses.
+- **Tests**: `tests/test_bash_syntax.py` (bash `-n`, skipped on Windows and without bash), `web/backend/tests/test_roadmap_api.py`, layout checks for **`LICENSE`**, **`NOTICE`**, and CI workflow.
+- **Docker**: **`docker/Dockerfile.web`** honors **`PORT`** env (`CMD` shell form); **`docker-compose.yml`** healthcheck via **`urllib`** to **`/api/health`**.
+
+### Changed
+
+- **`docs/TESTING.md`**: Documents the CI workflow and current commands.
+
 ## [1.1.1-b] - 2026-04-11
 
 ### Changed

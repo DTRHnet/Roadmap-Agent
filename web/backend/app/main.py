@@ -487,6 +487,12 @@ def api_test_connection(body: ConnectionTestBody) -> dict:
 
 class RunCmdBody(BaseModel):
     args: list[str]
+    timeout_sec: float | None = Field(
+        default=None,
+        ge=30.0,
+        le=3600.0,
+        description="Subprocess timeout; default depends on command (plan/analyze-init up to 20 min).",
+    )
 
 
 class InitBody(BaseModel):
@@ -538,6 +544,85 @@ def api_project_setup_venv(
     }
 
 
+def _default_rma_timeout(args: list[str], override: float | None) -> float:
+    if override is not None:
+        return float(override)
+    if not args:
+        return 600.0
+    head = args[0].lower()
+    long_cmds = frozenset(
+        {
+            "plan",
+            "analyze-init",
+            "setup-venv",
+            "agent",
+            "run-agent",
+            "mcp-start",
+            "release",
+        }
+    )
+    if head in long_cmds:
+        return 1200.0
+    return 600.0
+
+
+@app.get("/api/roadmap/presets")
+def api_roadmap_presets() -> dict:
+    """Curated CLI invocations for the web console (non-interactive where required)."""
+    return {
+        "presets": [
+            {
+                "id": "status",
+                "label": "Status",
+                "args": ["status"],
+                "hint": "Project and roadmap summary",
+            },
+            {
+                "id": "doctor-json",
+                "label": "Doctor (JSON)",
+                "args": ["doctor", "--json"],
+                "hint": "Same as Diagnostics card; useful log snapshot",
+            },
+            {
+                "id": "tools-json",
+                "label": "Tools manifest",
+                "args": ["tools", "--json"],
+                "hint": "Machine-readable command list",
+            },
+            {
+                "id": "plan",
+                "label": "Plan (dry-run)",
+                "args": ["plan", "--no-interactive"],
+                "hint": "Regenerate .rma/roadmaps/plan.md via LLM; may take several minutes",
+            },
+            {
+                "id": "analyze",
+                "label": "Analyze",
+                "args": ["analyze"],
+                "hint": "Sync tasks.md and run.md from the repo",
+            },
+            {
+                "id": "analyze-init-dry",
+                "label": "Analyze-init (dry-run)",
+                "args": ["analyze-init", "--dry-run"],
+                "hint": "Preview proposed .rma context files without writing",
+            },
+            {
+                "id": "unlock",
+                "label": "Unlock",
+                "args": ["unlock"],
+                "hint": "Clear stale roadmap lock",
+            },
+            {
+                "id": "mcp-detach",
+                "label": "MCP start (detach)",
+                "args": ["mcp-start", "--detach"],
+                "hint": "Background MCP HTTP server; see .rma/mcp/runtime.json",
+            },
+        ]
+    }
+
+
 @app.post("/api/run/rma")
 def api_run_rma(
     project: str,
@@ -545,11 +630,15 @@ def api_run_rma(
     _: None = Depends(require_write_token),
 ) -> dict:
     root = Path(project).expanduser().resolve()
-    proc = run_rma(root, body.args, timeout=600.0)
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    timeout = _default_rma_timeout(body.args, body.timeout_sec)
+    proc = run_rma(root, body.args, timeout=timeout)
     return {
         "returncode": proc.returncode,
-        "stdout": proc.stdout[-12000:] if proc.stdout else "",
-        "stderr": proc.stderr[-12000:] if proc.stderr else "",
+        "stdout": proc.stdout[-24000:] if proc.stdout else "",
+        "stderr": proc.stderr[-24000:] if proc.stderr else "",
+        "timeout_sec": timeout,
     }
 
 

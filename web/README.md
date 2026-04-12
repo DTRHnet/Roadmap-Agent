@@ -53,6 +53,8 @@ The **Environment (.env)** card supports two modes:
 
 The **Project** card also runs **`init -y`** (optional **`--no-embed`**), **`setup-venv`**, **Scan Python envs** (then **Set as RMA_PYTHON_VENV_DIR** writes `.env`), and keeps **Reload** / **Doctor** / arbitrary **`rma`** args.
 
+The **Roadmap actions** card loads **`GET /api/roadmap/presets`** and runs one-click workflows (**`plan --no-interactive`**, **`analyze`**, **`analyze-init --dry-run`**, **`mcp-start --detach`**, **`unlock`**, **`status`**, **`tools --json`**, **`doctor --json`**) via **`POST /api/run/rma`** with longer server-side timeouts for heavy commands. **`execute-one`** and the full TUI menu remain terminal-first (interactive **`fzf`**).
+
 At the bottom of the page, **Documentation** links open the matching files in the repo (default base: `https://github.com/DTRHnet/Roadmap-Agent/blob/main`). To point those links at your fork or another base URL, set a Vite env at **build** time:
 
 ```bash
@@ -103,6 +105,8 @@ docker compose up --build
 ```
 
 - Maps **127.0.0.1:8765** → container (**`docker-compose.yml`**).
+- **`PORT`** (default **8765**) is passed to uvicorn in **`docker/Dockerfile.web`** so PaaS hosts can override the listen port without editing the image.
+- Includes a **healthcheck** hitting **`/api/health`** (Python **`urllib`** inside the slim image).
 - Sets **`RMA_WEB_HOST=0.0.0.0`** inside the container. Treat as **trusted network only**; prefer localhost binding on the host.
 - **`Dockerfile.web`** copies the repo; the SPA is served only if **`web/frontend/dist`** exists in the build context. Build the frontend **before** `docker compose build`:
 

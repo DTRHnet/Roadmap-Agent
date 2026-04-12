@@ -46,6 +46,8 @@
 | [Troubleshooting](#troubleshooting) | Common failures |
 | [Security and operational notes](#security-and-operational-notes) | Secrets, web token, execution safety |
 | [Versioning](#versioning) | `VERSION`, tags, releases |
+| [License](#license) | Apache 2.0, attribution, `NOTICE` |
+| [Credits](#credits) | Upstream projects (MemPalace, MCP, etc.) |
 | [Documentation index](#documentation-index) | Extra links not listed above |
 
 ---
@@ -69,6 +71,7 @@ Handbooks and examples live under **[`docs/`](docs/)**. Use this table to jump t
 | **Examples & walkthroughs** | **[`docs/examples/README.md`](docs/examples/README.md)** — hub for **[`rma-context-samples/`](docs/examples/rma-context-samples/)**, **[`END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)**, **[`END-TO-END-AUTOPART-LEADS-APP.md`](docs/examples/END-TO-END-AUTOPART-LEADS-APP.md)**, **[`MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** |
 | **Troubleshooting** | **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** |
 | **Meta / releases** | **[`CHANGELOG.md`](CHANGELOG.md)** · **[`docs/RELEASING.md`](docs/RELEASING.md)** · **[`docs/TESTING.md`](docs/TESTING.md)** · **[`.env.example`](.env.example)** · **[`docs/man/roadmap-agent.1`](docs/man/roadmap-agent.1)** (man page source) |
+| **License** | **[`LICENSE`](LICENSE)** (Apache 2.0) · **[`NOTICE`](NOTICE)** (attribution and third-party credits) |
 
 ### By role
 
@@ -97,7 +100,7 @@ ROADMAP-AGENT is a **terminal-first workflow** for turning a codebase—**new or
 
 ### MemPalace (optional)
 
-**MemPalace** (`mempalace` CLI + **ChromaDB** in the project venv) **indexes** a directory into a **local vector store** for retrieval on your machine. This repo exposes **safe `mempalace mine … --dry-run`** from the menu; full ingest is an explicit `mempalace mine` when you choose. With **`.rma/mempalace`**, **`plan`** can add **`mempalace wake-up`** text so the model sees retrieval-aware context **and** your `.rma` Markdown—**contract** (Markdown) plus **searchable memory** (vectors).
+**MemPalace** (`mempalace` CLI + **ChromaDB** in the project venv) **indexes** a directory into a **local vector store** for retrieval on your machine. This repo exposes **safe `mempalace mine … --dry-run`** from the menu; full ingest is an explicit `mempalace mine` when you choose. With **`.rma/mempalace`**, **`plan`** can add **`mempalace wake-up`** text so the model sees retrieval-aware context **and** your `.rma` Markdown—**contract** (Markdown) plus **searchable memory** (vectors). Palace data lives under **`.rma/mempalace/`**; the repository **[`.gitignore`](.gitignore)** excludes **`.rma/`** runtime state (including MemPalace vectors) so local indexes are **not** tracked by Git—use **`setup-venv`** / the MemPalace setup scripts to recreate tooling, and run **`mempalace mine`** where appropriate after clone.
 
 ### LLM providers
 
@@ -370,6 +373,8 @@ RoadmapAgent/
       rma-context-samples/       # Example description/ui/stack/other per app type (+ MCP notes)
         README.md
         weather-app/   list-sharing/   devtools-cli/
+  LICENSE                    # Apache License 2.0 (terms)
+  NOTICE                     # Copyright, attribution, third-party summary
   CHANGELOG.md
 ```
 
@@ -864,6 +869,35 @@ This project is **script-first** (bash + PowerShell). There is no official singl
 
 ---
 
+## License
+
+ROADMAP-AGENT is licensed under the **Apache License, Version 2.0** — see **[`LICENSE`](LICENSE)** for the full terms.
+
+- **Redistribution and forks:** You must keep the **copyright and license** notices, supply a copy of the license to recipients, and include the **attribution** content from **[`NOTICE`](NOTICE)** (or equivalent readable credit) when you distribute source or binaries. Section 4(d) of the Apache 2.0 license requires a readable copy of attribution notices from the `NOTICE` file where third-party notices normally appear (for example in your product README, About dialog, or packaged legal notices).
+- **Derivative works:** You may add your own copyright statement for your modifications; additional license terms for your patches are allowed if they do not contradict the Apache 2.0 conditions for the original work.
+- **No trademark grant:** The license does not grant use of **DTRH.net** or **ROADMAP-AGENT** as trademarks beyond what is needed to describe the origin of the software.
+
+SPDX-License-Identifier: **Apache-2.0**
+
+---
+
+## Credits
+
+ROADMAP-AGENT is maintained by **[DTRH.net](https://dtrh.net)**. This project builds on and integrates with many open-source components, including:
+
+| Component | Role |
+|-----------|------|
+| **[MemPalace](https://pypi.org/project/mempalace/)** | Optional local “memory palace” CLI and Python integration; **`mempalace mine`** and **`wake-up`** for retrieval-aware context. |
+| **[ChromaDB](https://www.trychroma.com/)** | Vector store used with the MemPalace stack in the project venv. |
+| **[Model Context Protocol](https://modelcontextprotocol.io/)** | Wire protocol; **`mcp`** / FastMCP Python tooling for **`rma_mcp`**. |
+| **[Ollama](https://ollama.com/)** | Default local LLM runtime (user-installed). |
+| **[FastAPI](https://fastapi.tiangolo.com/)**, **[Uvicorn](https://www.uvicorn.org/)** | Optional companion web API. |
+| **[React](https://react.dev/)**, **[Vite](https://vitejs.dev/)** | Optional companion web frontend. |
+
+Upstream licenses apply to each dependency; see their distributions for full text. A short summary of third-party mention also appears in **[`NOTICE`](NOTICE)**.
+
+---
+
 ## Documentation index
 
 For the **curated link set**, see **[Documentation reference](#documentation-reference)** above. Below are **extra** references not repeated there.
@@ -872,3 +906,8 @@ For the **curated link set**, see **[Documentation reference](#documentation-ref
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime layout and cross-subsystem behavior
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — common failures and fixes
 - [`docs/man/roadmap-agent.1`](docs/man/roadmap-agent.1) — Unix man page source
+- [`LICENSE`](LICENSE), [`NOTICE`](NOTICE) — Apache 2.0 terms and attribution
+
+---
+
+<p align="center"><strong>A DTRH.net Project (2026) &lt;admin[at]dtrh[dot]net&gt; - <a href="https://dtrh.net">DTRH.net</a></strong></p>

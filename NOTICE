@@ -1,0 +1,21 @@
+ROADMAP-AGENT
+Copyright 2026 DTRH.net
+
+This product includes software developed as part of the ROADMAP-AGENT project.
+
+Attribution: If you fork, redistribute, or ship a derivative of this work, you must
+retain this NOTICE (or its contents in your own NOTICE), preserve copyright and
+license notices in source files where present, and include readable credit to
+"ROADMAP-AGENT" and "DTRH.net" in documentation or an equivalent user-visible
+location (for example README, About screen, or packaged legal notices).
+
+Third-party components (subject to their respective licenses; see each upstream
+project for full terms):
+
+  MemPalace — optional local memory / retrieval CLI and Python integration.
+  ChromaDB — embedded vector store (typically used with MemPalace).
+  Model Context Protocol (MCP) — Python SDK / server tooling for IDE integration.
+  FastAPI, Uvicorn, Starlette — optional companion web API.
+  React, Vite — optional companion web frontend.
+
+End of NOTICE

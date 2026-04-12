@@ -31,6 +31,13 @@ web/rma-web.yaml
 ############################################
 .rma/
 **/.rma/
+# MemPalace: vectors and palace data live under .rma/mempalace/ (already excluded by .rma/).
+# Do not force-add; keep local index out of version control.
+.rma/mempalace/
+**/.rma/mempalace/
+# sysinfo: local OS/toolchain audit output (rma_sysinfo / MCP)
+.sysinfo/
+**/.sysinfo/
 *.log
 *.tmp
 *.bak
