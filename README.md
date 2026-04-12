@@ -149,6 +149,119 @@ ROADMAP-AGENT is designed for **iterated implementation**: **`.rma/*.md`** is th
 
 ![MemPalace mining and roadmap loop](img/roadmap-mining-and-loop.svg)
 
+
+# 🧠 Roadmap-Agent Architecture — Component Breakdown
+
+## 🧾 User Input
+**Goal / Prompt**
+
+This is the entry point of the system. The user provides a high-level objective, request, or instruction (e.g., generate a roadmap, analyze a repo, improve UI).
+
+- Can be vague or detailed  
+- Drives the entire execution pipeline  
+- Often requires interpretation and refinement before action  
+
+---
+
+## 🧩 Planner Agent
+**Task Decomposition**
+
+Responsible for breaking the user’s input into structured, actionable steps.
+
+- Splits complex goals into smaller sub-tasks  
+- Determines execution order and dependencies  
+- Identifies which tools or processes are required  
+- Acts as the “strategist” of the system  
+
+---
+
+## 📦 Context Builder
+**Repo & Code Analysis**
+
+Builds the working context that the system uses to reason.
+
+- Scans repository files and structure  
+- Extracts relevant code, configs, and documentation  
+- Filters noise and focuses on useful data  
+- Constructs a “working memory” for downstream processing  
+
+---
+
+## 🧠 LLM Reasoning Engine
+**Understanding & Insights**
+
+Core intelligence layer where interpretation and reasoning happen.
+
+- Analyzes context and task requirements  
+- Identifies patterns, issues, and opportunities  
+- Produces intermediate reasoning and decisions  
+- Bridges raw data → meaningful understanding  
+
+---
+
+## ⚙️ Tool Execution Layer
+**Actions & Code Operations**
+
+Handles all concrete actions taken by the agent.
+
+- Reads/writes files  
+- Executes commands or scripts  
+- Generates or modifies code  
+- Interfaces with external tools or APIs  
+
+This is where the system stops thinking and starts *doing*.
+
+---
+
+## 🧪 Synthesis Engine
+**Generate Results**
+
+Combines outputs into structured, usable deliverables.
+
+- Aggregates results from tools and reasoning  
+- Formats outputs (docs, plans, code, etc.)  
+- Ensures consistency and readability  
+- Produces the first “complete” version of the result  
+
+---
+
+## 🔁 Validation Loop
+**Review & Refine**
+
+Ensures quality through iteration.
+
+- Evaluates output against the original goal  
+- Detects gaps, errors, or weak areas  
+- Triggers re-processing or refinement  
+- Can loop multiple times until acceptable quality is reached  
+
+This is what makes the system *intelligent*, not just procedural.
+
+---
+
+## 📤 Final Output
+**Docs / Roadmap**
+
+The finalized result delivered to the user.
+
+- Clean, structured, and usable  
+- Aligned with the original objective  
+- May include documentation, plans, or code changes  
+- Represents the outcome of multiple refinement passes  
+
+---
+
+# 🔁 Key System Behavior (Important)
+
+- This is **not a linear pipeline**  
+- The **Validation Loop feeds back into earlier stages**  
+- The system improves results **iteratively**  
+- Intelligence emerges from:  
+  - decomposition  
+  - context awareness  
+  - repeated refinement  
+
+
 **Step-by-step product example:** [`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md) (importing the tool into an app repo, commands, mock output). **Sample context Markdown:** [`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/).
 
 ---
@@ -360,7 +473,7 @@ Windows PowerShell:
 .\launchers\rma.ps1
 ```
 
-**More detail:** **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (by OS), **[`web/README.md`](web/README.md)** (optional web UI), **[`docs/MANUAL.md`](docs/MANUAL.md)** (full reference), **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg)** (mining vs roadmap diagram), **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** (sample `.rma` Markdown), **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** (full product example), **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
+**More detail:** **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (by OS), **[`web/README.md`](web/README.md)** (optional web UI), **[`docs/MANUAL.md`](docs/MANUAL.md)** (full reference), **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`img/flowchart.png`](img/flowchart.png)** (mining vs roadmap diagram), **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** (sample `.rma` Markdown), **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** (full product example), **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
 
 ---
 
