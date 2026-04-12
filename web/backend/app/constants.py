@@ -17,6 +17,7 @@ ENV_FILE_KEYS: frozenset[str] = frozenset(
         "RMA_MEMPALACE_MINE_DIR",
         "RMA_PLAN_INTERACTIVE",
         "RMA_PLAN_INTERACTIVE_MAX",
+        "RMA_ANALYZE_USE_LLM",
         "ANTHROPIC_API_KEY",
         "OPENAI_API_KEY",
         "GITHUB_TOKEN",

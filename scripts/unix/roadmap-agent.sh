@@ -17,26 +17,61 @@
 set -u
 
 SCRIPT_APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# Default project root when ROADMAP_AGENT_PROJECT_ROOT is unset: walk up from $PWD for
+# `.rma/` (strongest), then `.git`, else use $PWD — so running the toolkit from another
+# directory does not write into the toolkit checkout by mistake.
+discover_default_project_root() {
+  local start cur parent
+  start="${PWD:-.}"
+  cur="$(cd "$start" 2>/dev/null && pwd)" || cur="$start"
+  parent=""
+  while [[ -n "$cur" ]]; do
+    if [[ -d "$cur/.rma" ]]; then
+      ( cd "$cur" && pwd )
+      return 0
+    fi
+    parent="$(dirname "$cur")"
+    [[ "$parent" == "$cur" ]] && break
+    cur="$parent"
+  done
+  cur="$(cd "$start" 2>/dev/null && pwd)" || cur="$start"
+  while [[ -n "$cur" ]]; do
+    if [[ -e "$cur/.git" ]]; then
+      ( cd "$cur" && pwd )
+      return 0
+    fi
+    parent="$(dirname "$cur")"
+    [[ "$parent" == "$cur" ]] && break
+    cur="$parent"
+  done
+  ( cd "$start" 2>/dev/null && pwd ) || printf "%s" "$start"
+}
+
+rebind_rma_paths() {
+  RMA_DIR="$ROOT_DIR/.rma"
+  ROADMAP_DIR="$RMA_DIR/roadmaps"
+  STATE_DIR="$RMA_DIR/state"
+  LOG_DIR="$RMA_DIR/logs"
+  MEMPALACE_DIR="$RMA_DIR/mempalace"
+  LOCK_FILE="$STATE_DIR/locked"
+  PLAN_FILE="$ROADMAP_DIR/plan.md"
+  TASKS_FILE="$ROADMAP_DIR/tasks.md"
+  RUN_FILE="$ROADMAP_DIR/run.md"
+  EXEC_LOG="$LOG_DIR/roadmap-agent-execution.log"
+}
+
 if [[ -n "${ROADMAP_AGENT_PROJECT_ROOT:-}" ]] && [[ -d "${ROADMAP_AGENT_PROJECT_ROOT}" ]]; then
   ROOT_DIR="$(cd "${ROADMAP_AGENT_PROJECT_ROOT}" && pwd)"
 else
-  ROOT_DIR="$SCRIPT_APP_DIR"
+  ROOT_DIR="$(discover_default_project_root)"
 fi
 if [[ -n "${ROADMAP_AGENT_APP_ROOT:-}" ]] && [[ -d "${ROADMAP_AGENT_APP_ROOT}" ]]; then
   APP_DIR="$(cd "${ROADMAP_AGENT_APP_ROOT}" && pwd)"
 else
   APP_DIR="$SCRIPT_APP_DIR"
 fi
-RMA_DIR="$ROOT_DIR/.rma"
-ROADMAP_DIR="$RMA_DIR/roadmaps"
-STATE_DIR="$RMA_DIR/state"
-LOG_DIR="$RMA_DIR/logs"
-MEMPALACE_DIR="$RMA_DIR/mempalace"
-LOCK_FILE="$STATE_DIR/locked"
-PLAN_FILE="$ROADMAP_DIR/plan.md"
-TASKS_FILE="$ROADMAP_DIR/tasks.md"
-RUN_FILE="$ROADMAP_DIR/run.md"
-EXEC_LOG="$LOG_DIR/roadmap-agent-execution.log"
+rebind_rma_paths
 HAVE_FZF=0
 
 # Local LLM defaults (overridable via environment or .env)
@@ -58,6 +93,8 @@ RMA_MEMPALACE_MINE_DIR="${RMA_MEMPALACE_MINE_DIR:-}"
 # Before LLM plan generation: prompt for answers to open questions (TTY only; skip in CI).
 RMA_PLAN_INTERACTIVE="${RMA_PLAN_INTERACTIVE:-1}"
 RMA_PLAN_INTERACTIVE_MAX="${RMA_PLAN_INTERACTIVE_MAX:-15}"
+# analyze: when 1, run LLM synthesis after heuristic task/run sync (also use --with-llm).
+RMA_ANALYZE_USE_LLM="${RMA_ANALYZE_USE_LLM:-0}"
 
 # Use real escape bytes so routed shells (e.g. PowerShell -> bash)
 # do not render literal "\033[...m" sequences.
@@ -90,7 +127,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|RMA_WEB_HOST|RMA_WEB_PORT|RMA_WEB_VITE_PORT|RMA_WEB_FREE_PORT_ASK|RMA_WEB_VITE_PROXY_TARGET|RMA_MCP_TRANSPORT|RMA_MCP_HOST|RMA_MCP_PORT|RMA_MCP_NAME|RMA_MCP_MAX_STEPS|RMA_MCP_ALLOW_SHELL|RMA_MCP_PROJECT_ROOT|RMA_MCP_LOG|RMA_MCP_DETACH|RMA_MCP_FORCE|RMA_AGENT_LEGACY|RMA_AGENT_SKIP_REFLECT|RMA_AGENT_REFLECT_RETRIES|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|RMA_ANALYZE_USE_LLM|RMA_WEB_HOST|RMA_WEB_PORT|RMA_WEB_VITE_PORT|RMA_WEB_FREE_PORT_ASK|RMA_WEB_VITE_PROXY_TARGET|RMA_MCP_TRANSPORT|RMA_MCP_HOST|RMA_MCP_PORT|RMA_MCP_NAME|RMA_MCP_MAX_STEPS|RMA_MCP_ALLOW_SHELL|RMA_MCP_PROJECT_ROOT|RMA_MCP_LOG|RMA_MCP_DETACH|RMA_MCP_FORCE|RMA_AGENT_LEGACY|RMA_AGENT_SKIP_REFLECT|RMA_AGENT_REFLECT_RETRIES|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -115,6 +152,7 @@ load_rma_env_file() {
   RMA_ALLOW_PLAN_FALLBACK="${RMA_ALLOW_PLAN_FALLBACK:-0}"
   RMA_PLAN_INTERACTIVE="${RMA_PLAN_INTERACTIVE:-1}"
   RMA_PLAN_INTERACTIVE_MAX="${RMA_PLAN_INTERACTIVE_MAX:-15}"
+  RMA_ANALYZE_USE_LLM="${RMA_ANALYZE_USE_LLM:-0}"
   RMA_WEB_HOST="${RMA_WEB_HOST:-127.0.0.1}"
   RMA_WEB_PORT="${RMA_WEB_PORT:-8765}"
   RMA_WEB_VITE_PORT="${RMA_WEB_VITE_PORT:-5173}"
@@ -405,14 +443,14 @@ COMMANDS
   status           Show roadmap/project status summary
   doctor           Run environment/provider/persistence diagnostics
   plan             Generate roadmap dry-run plan (optional interactive open questions)
-  analyze          Analyze codebase/docs and sync tasks + run files
+  analyze          Sync tasks.md + run.md (optional: --with-llm or RMA_ANALYZE_USE_LLM=1 for LLM synthesis)
   analyze-init     Analyze repo and propose .rma/*.md generation
   execute-one      Execute exactly one selected planned task
   agent            Autonomous ReAct loop (LLM chooses plan/analyze/status/tools)
   run-agent        Alias of agent
   tools            Print machine-oriented tool/command manifest (for external agents)
   unlock           Clear roadmap lock state
-  persistence      Install global launcher/manpages (admin/root)
+  persistence      Install launcher on PATH (see PERSISTENCE: --user or system)
   persistance      Alias of persistence
   persistence-check Check persistence status and offer install
   setup-venv       Create/refresh .rma Python venv + mempalace/chromadb (OS setup script)
@@ -438,8 +476,11 @@ AGENT logs and memory:
   - Session log: .rma/logs/agent.log
   - Long-form history: .rma/mempalace/agent-history.md
 
-INIT OPTIONS (roadmap-agent init [flags])
-  -y, --yes Non-interactive: overwrite existing .rma without fzf prompt
+INIT OPTIONS (roadmap-agent init [options] [project-dir])
+  project-dir     Optional. Initialize this directory as the project root (absolute or relative to $PWD).
+                  If omitted, the current resolved root is used (see ROADMAP_AGENT_PROJECT_ROOT or discovery).
+                  If the path does not exist: use -y to create it (mkdir -p), or create the directory first.
+  -y, --yes Non-interactive: overwrite existing .rma without fzf prompt; also creates missing project-dir
   --embed         Copy the toolkit into <project>/.roadmap-agent/ even when init runs inside the toolkit clone
   --no-embed      Only create .rma templates; do not copy the toolkit (overrides default when roots differ)
   Default: if the toolkit checkout (APP_DIR) differs from the project root (ROOT_DIR), init also syncs the full
@@ -496,16 +537,19 @@ MCP OPTIONS (roadmap-agent mcp-start [--detach] [--foreground] [--force])
 
 PERSISTENCE MODE
   Linux/macOS:
-    - Detects active shell and suggests rc file (.bashrc/.zshrc/etc)
-    - Installs global launchers in /usr/local/bin (requires sudo/root)
-    - Installs core runtime in /usr/local/lib/roadmap-agent
-    - Installs manpage in /usr/local/share/man/man1
-    - Updates rc PATH only once using managed markers (no duplicates)
+    roadmap-agent persistence --user
+      Per-user install (no sudo): ~/.local/lib/roadmap-agent, ~/.local/bin, man under ~/.local/share/man
+      Typical PATH already includes ~/.local/bin on many distros; otherwise the rc snippet adds it.
+    roadmap-agent persistence
+      System-wide install (sudo): /usr/local/lib/roadmap-agent and /usr/local/bin
+    Both copy the toolkit and install roadmap-agent + rma; project root stays $PWD when you run commands.
+    After install: cd to your app repo and run: roadmap-agent init
 
-  Windows:
-    - Run from PowerShell as Administrator
-    - Uses Program Files install root and machine PATH updates
-    - See `roadmap-agent.ps1 persistence --help` behavior
+  Windows (PowerShell — install does not use WSL):
+    rma persistence --user
+      Same as -Scope User: %LOCALAPPDATA%\\Roadmap-Agent and ...\\bin on PATH (no Administrator).
+    See also: .\\launchers\\setup-rma.ps1 -Scope User
+    Full help: roadmap-agent.ps1 persistence --help (from repo or after install)
 
 MORE DOCUMENTATION
   README.md
@@ -525,7 +569,18 @@ compare_file_if_exists() {
 }
 
 persistence_scripts_in_sync() {
-  local install_root="/usr/local/lib/roadmap-agent"
+  local install_root=""
+  local candidate
+  for candidate in "${HOME}/.local/lib/roadmap-agent" "/usr/local/lib/roadmap-agent"; do
+    if [[ -d "$candidate/scripts/unix" ]]; then
+      install_root="$candidate"
+      break
+    fi
+  done
+  [[ -n "$install_root" ]] || {
+    printf "no"
+    return 0
+  }
   local out_of_sync=0
   local rel
   local files=(
@@ -722,17 +777,35 @@ mempalace_assert_ready() {
 
 write_plan_fallback_template() {
   cat > "$PLAN_FILE" <<EOF
-# Current Plan (Dry Run)
+# Current Plan (Dry Run) — template fallback
 
-- [ ] Review \`.rma/description.md\` and verify project scope alignment.
+> LLM unavailable (\`RMA_ALLOW_PLAN_FALLBACK=1\`). Replace this file with \`roadmap-agent plan\` when your provider is configured. Structure below mirrors the product-roadmap rubric in \`docs/prompts/PRODUCT_ROADMAP_FRAMEWORK.md\`.
+
+## Strategic alignment & outcomes
+- [ ] Re-read \`.rma/description.md\` and confirm the problem statement matches current priorities.
+- [ ] Align next slice of work with measurable user or business outcomes (not feature churn).
+
+## Scope — In / Not now / Out
+- [ ] List what is explicitly **not** in the next milestone to prevent scope creep.
+
+## Prioritization & phasing (Now / Next / Later)
+- [ ] Rank themes by value vs effort; move "later" items out of the critical path.
+
+## Milestones & success criteria
+- [ ] Define "done" for the next milestone (acceptance checks, smoke tests).
+
+## Dependencies & risks
+- [ ] Update \`.rma/other.md\` with operational constraints, integrations, and open risks.
+
+## Technical & operational work
+- [ ] Validate \`.rma/stack.md\` vs installed deps; schedule tech debt / NFR work explicitly.
+
+## Suggested execution sequence
 - [ ] Compare \`.rma/ui.md\` against current UX flows and capture gaps.
-- [ ] Validate \`.rma/stack.md\` versions against installed dependencies.
-- [ ] Update \`.rma/other.md\` with operational constraints and risks.
-- [ ] Define next implementation task with explicit acceptance criteria.
+- [ ] Define the next implementation task with explicit acceptance criteria.
 
 Context snapshot: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 Goal signal: $(analyze_project_goal)
-Note: template written because RMA_ALLOW_PLAN_FALLBACK=1 (LLM unavailable).
 EOF
 }
 
@@ -742,16 +815,39 @@ build_plan_llm_prompt() {
   local context_file="$1"
   local wakeup_file="${2:-}"
   cat <<'EOF'
-You are generating the roadmap dry-run file for a software project at .rma/roadmaps/plan.md.
+You are generating the roadmap dry-run file for a software project. It will be saved as .rma/roadmaps/plan.md.
 
-Rules:
+Follow the PRODUCT ROADMAP FRAMEWORK (rubric below). Produce a strategic, outcome-oriented engineering / product roadmap — not a microscopic task dump.
+
+Output rules:
 - Return markdown only (no code fences, no preamble).
-- Start with a single "# " title line for the plan.
-- Include sections ## Current focus, ## Suggested sequence (numbered steps), and ## Risks (if any).
-- Include concrete next actions as markdown task lines starting with "- [ ] " (unchecked boxes).
-- Ground everything in the project context below. Do not invent secrets, API keys, or deployment URLs.
+- Start with a single "# " title line.
+- Include these sections (use ## headings; omit a section only if there is truly nothing to say):
+  - ## Strategic alignment & outcomes — tie work to goals and user value from the context.
+  - ## Scope — In scope / Not now / Out — prevent scope creep explicitly.
+  - ## Prioritization & phasing — Now / Next / Later (or Committed / Planned / Exploration); avoid fake precision on dates.
+  - ## Milestones & success criteria — MVP/beta/major cuts where relevant.
+  - ## Dependencies & assumptions — integrations, infra, compliance, prerequisites.
+  - ## Risks & mitigations — technical and delivery; owners when inferable.
+  - ## Metrics & KPIs — measurable outcomes where the context supports them.
+  - ## Technical & operational work — tech debt, NFRs (security, perf, observability), CI/CD, quality.
+  - ## Review cadence — how often to refresh this roadmap (e.g. quarterly).
+  - ## Anti-patterns to avoid — call out what this plan deliberately does NOT do (micromanagement, date theater, etc.).
+  - ## Suggested execution sequence — numbered steps with concrete "- [ ] " checklist lines for next actions.
+- Every "- [ ] " item must be verifiable against the project context; do not invent secrets, API keys, or URLs.
 
-Project context bundle:
+--- PRODUCT ROADMAP FRAMEWORK (rubric) ---
+EOF
+  if [[ -f "$APP_DIR/docs/prompts/PRODUCT_ROADMAP_FRAMEWORK.md" ]]; then
+    cat "$APP_DIR/docs/prompts/PRODUCT_ROADMAP_FRAMEWORK.md"
+  else
+    cat <<'EOF'
+(Shipped rubric missing from toolkit; use best-practice product roadmap structure: outcomes, prioritization, scope, phasing, risks, metrics, technical realism.)
+EOF
+  fi
+  cat <<'EOF'
+
+--- Project context bundle ---
 EOF
   cat "$context_file"
   if [[ -n "${wakeup_file:-}" ]] && [[ -f "$wakeup_file" ]] && [[ -s "$wakeup_file" ]]; then
@@ -761,84 +857,77 @@ EOF
   fi
 }
 
-generate_plan_with_ollama() {
-  local context_file="$1"
-  local wakeup_file="${2:-}"
-  local model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
-  local prompt output py
-  prompt="$(build_plan_llm_prompt "$context_file" "${wakeup_file:-}")"
-  if command -v ollama >/dev/null 2>&1; then
-    output="$(ollama run "$model" "$prompt" 2>/dev/null || true)"
-  elif command -v curl >/dev/null 2>&1; then
-    py="$(resolve_python_cmd || true)"
-    [[ -z "${py:-}" ]] && { printf ""; return 0; }
-    output="$(curl -fsS "${RMA_OLLAMA_HOST%/}/api/generate" \
-      -H "Content-Type: application/json" \
-      -d "{\"model\":\"$model\",\"prompt\":$("$py" -c 'import json,sys; print(json.dumps(sys.stdin.read()))' <<< "$prompt"),\"stream\":false}" 2>/dev/null | \
-      "$py" -c 'import json,sys; d=json.load(sys.stdin); print(d.get("response",""))' 2>/dev/null || true)"
-  fi
-  clean_llm_output "$output"
-}
-
-generate_plan_with_openllama() {
-  local context_file="$1"
-  local wakeup_file="${2:-}"
-  local model="${RMA_OPENAI_MODEL:-openllama}"
-  local prompt output
-  prompt="$(build_plan_llm_prompt "$context_file" "${wakeup_file:-}")"
-  local py
-  py="$(resolve_python_cmd || true)"
-  [[ -z "${py:-}" ]] && { printf ""; return 0; }
-  output="$("$py" - <<'PY'
+# Reads full prompt from a temp file (avoids ARG_MAX). Prints cleaned LLM text to stdout; exit 1 if empty/unavailable.
+llm_invoke_prompt_file() {
+  local pf="$1"
+  local provider="${RMA_LLM_PROVIDER:-ollama}"
+  local model out="" py
+  [[ -f "$pf" ]] || return 1
+  case "$provider" in
+    ollama)
+      model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
+      if ! ollama_model_available "$model"; then
+        return 1
+      fi
+      if command -v ollama >/dev/null 2>&1; then
+        out="$(ollama run "$model" "$(cat "$pf")" 2>/dev/null || true)"
+      elif command -v curl >/dev/null 2>&1; then
+        py="$(resolve_python_cmd || true)"
+        [[ -z "${py:-}" ]] && return 1
+        out="$(curl -fsS "${RMA_OLLAMA_HOST%/}/api/generate" \
+          -H "Content-Type: application/json" \
+          -d "{\"model\":\"$model\",\"prompt\":$("$py" -c 'import json,sys; print(json.dumps(open(sys.argv[1],encoding="utf-8").read()))' "$pf"),\"stream\":false}" 2>/dev/null | \
+          "$py" -c 'import json,sys; d=json.load(sys.stdin); print(d.get("response",""))' 2>/dev/null || true)"
+      else
+        return 1
+      fi
+      ;;
+    openllama)
+      py="$(resolve_python_cmd || true)"
+      [[ -z "${py:-}" ]] && return 1
+      out="$(PROMPT_FILE="$pf" "$py" <<'PY'
 import json, os, sys, urllib.request
 base = os.getenv("RMA_OPENAI_BASE_URL", "http://127.0.0.1:11434/v1").rstrip("/")
 key = os.getenv("RMA_OPENAI_API_KEY", "local-no-key")
 model = os.getenv("RMA_OPENAI_MODEL", "openllama")
-prompt = sys.stdin.read()
+pf = os.environ["PROMPT_FILE"]
+prompt = open(pf, encoding="utf-8").read()
 body = {
     "model": model,
-    "messages": [{"role":"user","content":prompt}],
-    "temperature": 0.2
+    "messages": [{"role": "user", "content": prompt}],
+    "temperature": 0.2,
 }
 req = urllib.request.Request(
     base + "/chat/completions",
     data=json.dumps(body).encode("utf-8"),
-    headers={"Content-Type": "application/json","Authorization":f"Bearer {key}"}
+    headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
 )
 try:
-    with urllib.request.urlopen(req, timeout=180) as r:
+    with urllib.request.urlopen(req, timeout=300) as r:
         data = json.loads(r.read().decode("utf-8"))
         print(data["choices"][0]["message"]["content"])
 except Exception:
     pass
 PY
-<<< "$prompt")"
-  clean_llm_output "$output"
-}
-
-generate_plan_with_claude() {
-  local context_file="$1"
-  local wakeup_file="${2:-}"
-  local model="${RMA_CLAUDE_MODEL:-claude-3-5-sonnet-latest}"
-  local key="${ANTHROPIC_API_KEY:-}"
-  local prompt output
-  [[ -z "$key" ]] && { printf ""; return 0; }
-  prompt="$(build_plan_llm_prompt "$context_file" "${wakeup_file:-}")"
-  local py
-  py="$(resolve_python_cmd || true)"
-  [[ -z "${py:-}" ]] && { printf ""; return 0; }
-  output="$("$py" - <<'PY'
+)"
+      ;;
+    claude)
+      [[ -z "${ANTHROPIC_API_KEY:-}" ]] && return 1
+      py="$(resolve_python_cmd || true)"
+      [[ -z "${py:-}" ]] && return 1
+      out="$(PROMPT_FILE="$pf" "$py" <<'PY'
 import json, os, sys, urllib.request
-key = os.getenv("ANTHROPIC_API_KEY","")
+key = os.getenv("ANTHROPIC_API_KEY", "")
 model = os.getenv("RMA_CLAUDE_MODEL", "claude-3-5-sonnet-latest")
-prompt = sys.stdin.read()
+pf = os.environ.get("PROMPT_FILE", "")
 if not key:
-    raise SystemExit(0)
+    raise SystemExit(1)
+prompt = open(pf, encoding="utf-8").read()
 body = {
     "model": model,
     "max_tokens": 4096,
     "temperature": 0.2,
-    "messages": [{"role":"user","content":prompt}]
+    "messages": [{"role": "user", "content": prompt}],
 }
 req = urllib.request.Request(
     "https://api.anthropic.com/v1/messages",
@@ -847,60 +936,131 @@ req = urllib.request.Request(
         "x-api-key": key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
-    }
+    },
 )
 try:
-    with urllib.request.urlopen(req, timeout=180) as r:
+    with urllib.request.urlopen(req, timeout=300) as r:
         data = json.loads(r.read().decode("utf-8"))
         chunks = data.get("content", [])
-        text = "".join(c.get("text","") for c in chunks if c.get("type")=="text")
+        text = "".join(c.get("text", "") for c in chunks if c.get("type") == "text")
         print(text)
 except Exception:
     pass
 PY
-<<< "$prompt")"
-  clean_llm_output "$output"
+)"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+  out="$(clean_llm_output "$out")"
+  [[ -n "${out// }" ]] || return 1
+  printf "%s\n" "$out"
+  return 0
 }
 
 # Writes PLAN_FILE from LLM using ctx path and optional wake-up text file. Returns 0 on success.
 roadmap_plan_generate_llm() {
   local ctx_path="$1"
   local wakeup_path="${2:-}"
-  local provider="${RMA_LLM_PROVIDER:-ollama}"
-  local model out
-  out=""
-  case "$provider" in
-    ollama)
-      model="${RMA_OLLAMA_MODEL:-llama3.1:latest}"
-      if ollama_model_available "$model"; then
-        out="$(generate_plan_with_ollama "$ctx_path" "$wakeup_path")"
-      else
-        return 1
-      fi
-      ;;
-    openllama)
-      if command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
-        out="$(generate_plan_with_openllama "$ctx_path" "$wakeup_path")"
-      else
-        return 1
-      fi
-      ;;
-    claude)
-      if [[ -n "${ANTHROPIC_API_KEY:-}" ]] && (command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1); then
-        out="$(generate_plan_with_claude "$ctx_path" "$wakeup_path")"
-      else
-        return 1
-      fi
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-  if [[ -n "${out// }" ]]; then
-    printf "%s\n" "$out" > "$PLAN_FILE"
-    return 0
+  local pf out
+  pf="$(mktemp)"
+  build_plan_llm_prompt "$ctx_path" "$wakeup_path" >"$pf"
+  if ! out="$(llm_invoke_prompt_file "$pf")"; then
+    rm -f "$pf"
+    return 1
   fi
-  return 1
+  rm -f "$pf"
+  printf "%s\n" "$out" >"$PLAN_FILE"
+  return 0
+}
+
+# Optional second phase for `analyze`: LLM layers strategic themes on top of heuristic tasks/run sync.
+roadmap_analyze_llm_enrich() {
+  local ctx snap pf out ts
+  analyze_workspace_snapshot
+  snap="$(collect_project_context_for_llm)"
+  ctx="$snap"
+  [[ -f "$ctx" ]] || {
+    warn "analyze: could not build workspace snapshot for LLM."
+    return 1
+  }
+  pf="$(mktemp)"
+  {
+    cat <<'EOF'
+You augment `roadmap-agent analyze`. The runtime already wrote a heuristic tasks.md and run.md from the repository. Add a strategic, human-reviewable layer grounded ONLY in the snapshot and .rma context below.
+
+Rules:
+- Return markdown only (no code fences, no preamble).
+- Start with "## Roadmap synthesis (LLM)" as the top heading.
+- Include subsections: Strategic themes & outcomes; Prioritized backlog additions (use "- [ ] " for new actionable items); Now / Next / Later; Scope (In / Not now / Out); Dependencies & risks; Metrics or validation ideas; Notes for human review.
+- Do not duplicate every heuristic task — extend and prioritize. Avoid inventing secrets, keys, or URLs.
+
+--- Rubric (reference) ---
+EOF
+    if [[ -f "$APP_DIR/docs/prompts/PRODUCT_ROADMAP_FRAMEWORK.md" ]]; then
+      cat "$APP_DIR/docs/prompts/PRODUCT_ROADMAP_FRAMEWORK.md"
+    fi
+    echo ""
+    echo "--- Workspace & repository snapshot ---"
+    cat "$ctx"
+    echo ""
+    echo "--- Current tasks.md (truncated) ---"
+    head -n 160 "$TASKS_FILE"
+  } >"$pf"
+  if ! out="$(llm_invoke_prompt_file "$pf")"; then
+    rm -f "$pf"
+    warn "analyze: LLM enrichment skipped (provider unavailable or empty response)."
+    return 1
+  fi
+  rm -f "$pf"
+  ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  {
+    echo ""
+    echo "<!-- LLM roadmap synthesis appended by analyze --with-llm at $ts -->"
+    echo ""
+    printf "%s\n" "$out"
+  } >>"$TASKS_FILE"
+  {
+    echo ""
+    echo "## LLM strategic notes ($ts)"
+    echo "Extended roadmap synthesis is appended under **Roadmap synthesis (LLM)** in tasks.md."
+  } >>"$RUN_FILE"
+  info "analyze: appended LLM roadmap synthesis to $TASKS_FILE (see also $RUN_FILE)."
+  return 0
+}
+
+cmd_analyze() {
+  local use_llm=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --with-llm) use_llm=1 ;;
+      -h|--help)
+        cat <<'EOF'
+Usage: roadmap-agent analyze [--with-llm]
+
+  Syncs .rma/roadmaps/tasks.md and run.md using heuristics (Markdown TODOs, framework, branch metadata).
+
+  --with-llm   After sync, call the configured LLM to append a strategic "Roadmap synthesis" section
+               to tasks.md (and a pointer in run.md). Same provider/env as `plan`.
+               Or set RMA_ANALYZE_USE_LLM=1 in .env to always run the LLM pass.
+EOF
+        return 0
+        ;;
+      *)
+        warn "analyze: unknown option: $1"
+        return 1
+        ;;
+    esac
+    shift
+  done
+  ensure_core_dirs
+  ensure_rma_required_files
+  sync_tasks_and_run_files
+  if [[ "$use_llm" -eq 1 ]] || [[ "${RMA_ANALYZE_USE_LLM:-0}" == "1" ]]; then
+    roadmap_analyze_llm_enrich || true
+  fi
+  return 0
 }
 
 generate_rma_file_with_ollama() {
@@ -1418,10 +1578,13 @@ EOF
 show_manpage() {
   local manfile="$APP_DIR/docs/man/roadmap-agent.1"
   local fallback="/usr/local/share/man/man1/roadmap-agent.1"
+  local user_fallback="${HOME}/.local/share/man/man1/roadmap-agent.1"
   if [[ -f "$manfile" ]]; then
     sed 's/^\.\\".*$//g' "$manfile"
   elif [[ -f "$fallback" ]]; then
     sed 's/^\.\\".*$//g' "$fallback"
+  elif [[ -f "$user_fallback" ]]; then
+    sed 's/^\.\\".*$//g' "$user_fallback"
   else
     show_help
   fi
@@ -1454,101 +1617,214 @@ append_rc_path_block_once() {
   info "Added PATH block to $rcfile"
 }
 
-cmd_persistence_unix() {
-  local shell_name rc_file use_rc ans sudo_cmd
-  local install_root="/usr/local/lib/roadmap-agent"
-  local bin_dir="/usr/local/bin"
-  local man_dir="/usr/local/share/man/man1"
-  local source_app_dir="$APP_DIR"
+# User-scope persistence (~/.local/bin); no sudo.
+append_rc_user_local_bin_once() {
+  local rcfile="$1"
+  local block
+  mkdir -p "$(dirname "$rcfile")"
+  touch "$rcfile"
+  if grep -Fq "# >>> ROADMAP-AGENT USER PATH >>>" "$rcfile"; then
+    info "User PATH block already present in $rcfile"
+    return 0
+  fi
+  block=$'\n# >>> ROADMAP-AGENT USER PATH >>>\nexport PATH="${HOME}/.local/bin:$PATH"\n# <<< ROADMAP-AGENT USER PATH <<<\n'
+  printf "%s" "$block" >> "$rcfile"
+  info "Added ~/.local/bin PATH block to $rcfile"
+}
+
+persistence_default_user_lib() {
+  printf "%s" "${HOME}/.local/lib/roadmap-agent"
+}
+
+persistence_default_user_bin() {
+  printf "%s" "${HOME}/.local/bin"
+}
+
+persistence_default_user_man() {
+  printf "%s" "${HOME}/.local/share/man/man1"
+}
+
+# Sync toolkit tree + launchers. install_root must be absolute. sudo_prefix is empty or "sudo " (with trailing space).
+_persistence_install_unix() {
+  local source_app_dir="$1"
+  local install_root="$2"
+  local bin_dir="$3"
+  local man_dir="$4"
+  local sudo_prefix="${5:-}"
   local this_sh="$source_app_dir/scripts/unix/roadmap-agent.sh"
   local man_src="$source_app_dir/docs/man/roadmap-agent.1"
-
-  shell_name="$(basename "${SHELL:-unknown}")"
-  rc_file="$(detect_shell_rc_file)"
-
-  printf "Persistence mode (global install)\n"
-  printf "Detected shell: %s\n" "$shell_name"
-  printf "Suggested rc file: %s\n" "$rc_file"
-  printf "Install target: %s and %s\n" "$install_root" "$bin_dir"
 
   if [[ ! -f "$this_sh" ]]; then
     warn "Missing runtime script: $this_sh"
     return 1
   fi
 
-  sudo_cmd=""
-  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-    if command -v sudo >/dev/null 2>&1; then
-      sudo_cmd="sudo"
-    else
-      warn "Root privileges required and sudo not available."
-      return 1
-    fi
-  fi
-
-  ans="n"
-  printf "Proceed with privileged install? (y/N): "
-  read -r ans
-  if [[ ! "$ans" =~ ^[Yy]$ ]]; then
-    info "Persistence mode cancelled."
-    return 0
-  fi
-
-  $sudo_cmd mkdir -p "$install_root" "$bin_dir" "$man_dir" || return 1
+  ${sudo_prefix}mkdir -p "$install_root" "$bin_dir" "$man_dir" || return 1
   if command -v rsync >/dev/null 2>&1; then
-    $sudo_cmd rsync -a --delete \
+    ${sudo_prefix}rsync -a --delete \
       --exclude '.git' \
       --exclude '.rma' \
       --exclude '.cursor' \
       "$source_app_dir"/ "$install_root"/ || return 1
   else
-    $sudo_cmd rm -rf "$install_root" || true
-    $sudo_cmd mkdir -p "$install_root" || return 1
-    (cd "$source_app_dir" && tar --exclude='.git' --exclude='.rma' --exclude='.cursor' -cf - .) | $sudo_cmd tar -xf - -C "$install_root" || return 1
+    ${sudo_prefix}rm -rf "$install_root" || true
+    ${sudo_prefix}mkdir -p "$install_root" || return 1
+    (cd "$source_app_dir" && tar --exclude='./.git' --exclude='./.rma' --exclude='./.cursor' -cf - .) | ${sudo_prefix}tar -xf - -C "$install_root" || return 1
   fi
   if [[ -f "$man_src" ]]; then
-    $sudo_cmd cp "$man_src" "$man_dir/roadmap-agent.1" || true
+    ${sudo_prefix}cp "$man_src" "$man_dir/roadmap-agent.1" || true
   fi
 
-  cat <<'EOF' | $sudo_cmd tee "$bin_dir/roadmap-agent" >/dev/null
+  cat <<EOF | ${sudo_prefix}tee "$bin_dir/roadmap-agent" >/dev/null
 #!/usr/bin/env bash
 set -u
-if [[ -f "$PWD/scripts/unix/roadmap-agent.sh" ]]; then
-  export ROADMAP_AGENT_APP_ROOT="$PWD"
-  export ROADMAP_AGENT_PROJECT_ROOT="$PWD"
-  exec bash "$PWD/scripts/unix/roadmap-agent.sh" "$@"
+if [[ -f "\$PWD/scripts/unix/roadmap-agent.sh" ]]; then
+  export ROADMAP_AGENT_APP_ROOT="\$PWD"
+  export ROADMAP_AGENT_PROJECT_ROOT="\$PWD"
+  exec bash "\$PWD/scripts/unix/roadmap-agent.sh" "\$@"
 fi
-export ROADMAP_AGENT_PROJECT_ROOT="$PWD"
-export ROADMAP_AGENT_APP_ROOT="/usr/local/lib/roadmap-agent"
-exec bash "/usr/local/lib/roadmap-agent/scripts/unix/roadmap-agent.sh" "$@"
+export ROADMAP_AGENT_PROJECT_ROOT="\$PWD"
+export ROADMAP_AGENT_APP_ROOT="$install_root"
+exec bash "$install_root/scripts/unix/roadmap-agent.sh" "\$@"
 EOF
 
-  cat <<'EOF' | $sudo_cmd tee "$bin_dir/rma" >/dev/null
+  cat <<EOF | ${sudo_prefix}tee "$bin_dir/rma" >/dev/null
 #!/usr/bin/env bash
 set -u
-exec /usr/local/bin/roadmap-agent "$@"
+exec "$bin_dir/roadmap-agent" "\$@"
 EOF
 
-  $sudo_cmd chmod +x "$bin_dir/roadmap-agent" "$bin_dir/rma" "$install_root/scripts/unix/roadmap-agent.sh" || true
-  if command -v mandb >/dev/null 2>&1; then
-    $sudo_cmd mandb >/dev/null 2>&1 || true
+  ${sudo_prefix}chmod +x "$bin_dir/roadmap-agent" "$bin_dir/rma" "$install_root/scripts/unix/roadmap-agent.sh" || true
+  if [[ -n "${sudo_prefix// }" ]] && command -v mandb >/dev/null 2>&1; then
+    ${sudo_prefix}mandb >/dev/null 2>&1 || true
+  fi
+  return 0
+}
+
+cmd_persistence_unix() {
+  local shell_name rc_file use_rc ans
+  local mode="system"
+  local assume_yes=0
+  local install_root bin_dir man_dir
+  local source_app_dir="$APP_DIR"
+  local sudo_prefix=""
+  local path_hint="/usr/local/bin"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --user|-u)
+        mode="user"
+        ;;
+      --system|--global)
+        mode="system"
+        ;;
+      -y|--yes)
+        assume_yes=1
+        ;;
+      -h|--help)
+        cat <<'EOF'
+Usage: roadmap-agent persistence [--user | --system] [-y]
+
+  Copies this toolkit to a fixed location and installs roadmap-agent / rma on PATH so you
+  can run from any project directory (project files go under that project’s .rma/).
+
+  --user, -u    Per-user: ~/.local/lib/roadmap-agent and ~/.local/bin (no sudo).
+  --system      System-wide: /usr/local/... (requires sudo). Default when neither flag is set.
+
+  -y, --yes     Non-interactive (no prompts for install or rc PATH).
+
+  Then: cd /path/to/your-app && roadmap-agent init
+EOF
+        return 0
+        ;;
+      *)
+        warn "persistence: unknown option: $1"
+        return 1
+        ;;
+    esac
+    shift
+  done
+
+  if [[ "$mode" == "user" ]]; then
+    install_root="$(persistence_default_user_lib)"
+    bin_dir="$(persistence_default_user_bin)"
+    man_dir="$(persistence_default_user_man)"
+    path_hint="$bin_dir"
+  else
+    install_root="/usr/local/lib/roadmap-agent"
+    bin_dir="/usr/local/bin"
+    man_dir="/usr/local/share/man/man1"
+  fi
+
+  shell_name="$(basename "${SHELL:-unknown}")"
+  rc_file="$(detect_shell_rc_file)"
+
+  if [[ "$mode" == "user" ]]; then
+    printf "Persistence mode (user install — no sudo)\n"
+  else
+    printf "Persistence mode (system install — requires sudo)\n"
+  fi
+  printf "Detected shell: %s\n" "$shell_name"
+  printf "Suggested rc file: %s\n" "$rc_file"
+  printf "Install target: %s and %s\n" "$install_root" "$bin_dir"
+
+  if [[ "$mode" == "system" ]]; then
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+      if command -v sudo >/dev/null 2>&1; then
+        sudo_prefix="sudo "
+      else
+        warn "Root privileges required and sudo not available. Try: roadmap-agent persistence --user"
+        return 1
+      fi
+    fi
+    if [[ "$assume_yes" -eq 0 ]]; then
+      ans="n"
+      printf "Proceed with privileged install? (y/N): "
+      read -r ans
+      if [[ ! "$ans" =~ ^[Yy]$ ]]; then
+        info "Persistence mode cancelled."
+        return 0
+      fi
+    fi
+  else
+    if [[ "$assume_yes" -eq 0 ]]; then
+      ans="n"
+      printf "Proceed with user install under %s? (y/N): " "$install_root"
+      read -r ans
+      if [[ ! "$ans" =~ ^[Yy]$ ]]; then
+        info "Persistence mode cancelled."
+        return 0
+      fi
+    fi
+  fi
+
+  if ! _persistence_install_unix "$source_app_dir" "$install_root" "$bin_dir" "$man_dir" "$sudo_prefix"; then
+    return 1
   fi
 
   use_rc="n"
-  printf "Update shell rc file to ensure /usr/local/bin in PATH? (y/N): "
-  read -r use_rc
+  if [[ "$assume_yes" -eq 1 ]]; then
+    use_rc="y"
+  else
+    printf "Update shell rc file to ensure %s is on PATH? (y/N): " "$path_hint"
+    read -r use_rc
+  fi
   if [[ "$use_rc" =~ ^[Yy]$ ]]; then
-    append_rc_path_block_once "$rc_file"
+    if [[ "$mode" == "user" ]]; then
+      append_rc_user_local_bin_once "$rc_file"
+    else
+      append_rc_path_block_once "$rc_file"
+    fi
   fi
 
   info "Persistence install complete."
-  printf "Global commands: roadmap-agent, rma\n"
-  printf "Open a new terminal or run: source %s\n" "$rc_file"
+  printf "Commands: roadmap-agent, rma (open a new shell or: source %s)\n" "$rc_file"
+  printf "Workflow: cd /path/to/your-project && roadmap-agent init\n"
 }
 
 cmd_persistence() {
   case "$(uname -s)" in
-    Linux|Darwin) cmd_persistence_unix ;;
+    Linux|Darwin) cmd_persistence_unix "$@" ;;
     *) warn "Persistence mode for this platform is handled by roadmap-agent.ps1 on Windows." ;;
   esac
 }
@@ -1577,6 +1853,14 @@ version_is_older() {
   else
     [[ "$installed" < "$current" ]]
   fi
+}
+
+write_init_toolkit_version_stamp() {
+  local ver
+  ver="$(read_version_file 2>/dev/null)"
+  [[ -n "$ver" ]] || ver="$(app_version)"
+  ver="${ver//$'\r'/}"
+  printf "%s\n" "$ver" > "$STATE_DIR/init-toolkit-version.txt" 2>/dev/null || true
 }
 
 # Hub / CLI: create .rma venv and install mempalace + chromadb (Unix script or Windows .ps1 path from mempalace_setup_local_models).
@@ -2135,7 +2419,14 @@ cmd_persistence_check() {
   shell_name="$(basename "${SHELL:-unknown}")"
   rc_file="$(detect_shell_rc_file)"
   cmd_path="$(command -v roadmap-agent 2>/dev/null || true)"
-  install_root="/usr/local/lib/roadmap-agent"
+  install_root=""
+  if [[ -d "${HOME}/.local/lib/roadmap-agent" ]]; then
+    install_root="${HOME}/.local/lib/roadmap-agent"
+  elif [[ -d "/usr/local/lib/roadmap-agent" ]]; then
+    install_root="/usr/local/lib/roadmap-agent"
+  else
+    install_root="/usr/local/lib/roadmap-agent"
+  fi
   has_cmd="no"
   has_rc_block="no"
   stale="no"
@@ -2149,7 +2440,7 @@ cmd_persistence_check() {
   fi
 
   [[ -n "${cmd_path:-}" ]] && has_cmd="yes"
-  if [[ -f "$rc_file" ]] && grep -Fq "# >>> ROADMAP-AGENT PATH >>>" "$rc_file"; then
+  if [[ -f "$rc_file" ]] && { grep -Fq "# >>> ROADMAP-AGENT PATH >>>" "$rc_file" || grep -Fq "# >>> ROADMAP-AGENT USER PATH >>>" "$rc_file"; }; then
     has_rc_block="yes"
   fi
 
@@ -2165,6 +2456,7 @@ cmd_persistence_check() {
   printf "Installed app version: %s\n" "${installed_ver:-unknown}"
   printf "Installed older than current: %s\n" "$stale"
   printf "Installed scripts in sync: %s\n" "$scripts_sync"
+  printf "Persistence install root (if present): %s\n" "$install_root"
   if [[ "$has_cmd" == "yes" ]]; then
     printf "Resolved command path: %s\n" "$cmd_path"
   fi
@@ -2719,14 +3011,73 @@ EOF
 cmd_init() {
   local init_yes=0
   local embed_pref=""
-  local a
-  for a in "$@"; do
-    case "$a" in
+  local init_dir=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
       -y|--yes) init_yes=1 ;;
       --embed) embed_pref="1" ;;
       --no-embed) embed_pref="0" ;;
+      -h|--help)
+        cat <<'EOF'
+Usage: roadmap-agent init [options] [project-dir]
+
+  Initialize .rma/ under the project root (metadata, templates, optional embedded toolkit).
+
+  project-dir   Target project directory. If omitted, uses the already-resolved root
+                ($PWD with upward discovery for .rma / .git, or ROADMAP_AGENT_PROJECT_ROOT).
+
+  Options:
+    -y, --yes     Non-interactive: overwrite existing .rma without prompting; create missing project-dir
+    --embed       Force copying the toolkit into <project>/.roadmap-agent/
+    --no-embed    Do not embed the toolkit
+    -h, --help    Show this help
+
+  Hint: from another shell, point commands at the same project:
+    export ROADMAP_AGENT_PROJECT_ROOT="/path/to/project"
+EOF
+        return 0
+        ;;
+      -*)
+        warn "init: unknown option: $1"
+        return 1
+        ;;
+      *)
+        if [[ -n "$init_dir" ]]; then
+          warn "init: unexpected extra argument: $1"
+          return 1
+        fi
+        init_dir="$1"
+        ;;
     esac
+    shift
   done
+
+  if [[ -n "$init_dir" ]]; then
+    if [[ ! -e "$init_dir" ]]; then
+      if [[ "$init_yes" -eq 1 ]]; then
+        if ! mkdir -p "$init_dir"; then
+          warn "init: could not create directory: $init_dir"
+          return 1
+        fi
+      else
+        warn "init: directory does not exist: $init_dir"
+        warn "Create it first, or run: roadmap-agent init -y -- $init_dir"
+        return 1
+      fi
+    fi
+    if [[ ! -d "$init_dir" ]]; then
+      warn "init: not a directory: $init_dir"
+      return 1
+    fi
+    ROOT_DIR="$(cd "$init_dir" && pwd)" || {
+      warn "init: could not resolve path: $init_dir"
+      return 1
+    }
+    export ROADMAP_AGENT_PROJECT_ROOT="$ROOT_DIR"
+    rebind_rma_paths
+    load_rma_env_file
+    configure_python_runtime
+  fi
 
   local app_abs root_abs embed_root running_from_embedded
   app_abs="$(cd "$APP_DIR" && pwd)"
@@ -2755,6 +3106,16 @@ cmd_init() {
       fi
       ;;
   esac
+
+  if [[ -d "$RMA_DIR" ]] && [[ -f "$RMA_DIR/state/init-toolkit-version.txt" ]]; then
+    local stamped cur_sv
+    stamped="$(tr -d '\r' < "$RMA_DIR/state/init-toolkit-version.txt" | head -n1)"
+    cur_sv="$(read_version_file 2>/dev/null || true)"
+    [[ -n "$cur_sv" ]] || cur_sv="$(app_version)"
+    if [[ -n "$stamped" && -n "$cur_sv" ]] && version_is_older "$stamped" "$cur_sv"; then
+      warn "init: existing .rma/ was stamped with toolkit $stamped; current toolkit is $cur_sv. Back up .rma/ before overwrite, or refresh an embedded kit under .roadmap-agent/."
+    fi
+  fi
 
   local overwrite="No (default)"
   if [[ -d "$RMA_DIR" ]] && [[ -n "$(ls -A "$RMA_DIR" 2>/dev/null)" ]]; then
@@ -2800,6 +3161,9 @@ EOF
   else
     printf "ROADMAP-AGENT initialized. Run \`roadmap-agent\` from the toolkit to open the menu.\n"
   fi
+  write_init_toolkit_version_stamp
+  info "Project root: $ROOT_DIR"
+  printf "Hint (other shells): export ROADMAP_AGENT_PROJECT_ROOT=%q\n" "$ROOT_DIR"
 }
 
 mempalace_setup_local_models() {
@@ -2809,6 +3173,7 @@ mempalace_setup_local_models() {
   for candidate in \
     "$APP_DIR/scripts/unix/setup-local-models-mempalace.sh" \
     "$ROOT_DIR/scripts/unix/setup-local-models-mempalace.sh" \
+    "${HOME}/.local/lib/roadmap-agent/scripts/unix/setup-local-models-mempalace.sh" \
     "/usr/local/lib/roadmap-agent/scripts/unix/setup-local-models-mempalace.sh"; do
     if [[ -f "$candidate" ]]; then
       script="$candidate"
@@ -2824,7 +3189,7 @@ mempalace_setup_local_models() {
     }
     return 0
   fi
-  warn "Missing setup-local-models-mempalace.sh. Searched APP_DIR, project root, and /usr/local/lib/roadmap-agent. Install ROADMAP-AGENT from source or persistence copy."
+  warn "Missing setup-local-models-mempalace.sh. Searched APP_DIR, project root, ~/.local/lib/roadmap-agent, and /usr/local/lib/roadmap-agent. Install ROADMAP-AGENT from source or persistence copy."
   return 1
 }
 
@@ -3234,7 +3599,7 @@ render_submenu_roadmap() {
     "2  Plan — dry-run roadmap (LLM + context)"
     "3  Execute one task — interactive single-task run"
     "4  Unlock — clear roadmap lock file"
-    "5  Analyze — sync tasks.md & run.md from repo"
+    "5  Analyze — sync tasks.md & run.md (LLM synthesis if RMA_ANALYZE_USE_LLM=1)"
     "6  Analyze-init — propose .rma/*.md from codebase (interactive)"
     "7  Doctor — env, providers, persistence diagnostics"
     "0  Back to categories"
@@ -3258,7 +3623,7 @@ render_submenu_roadmap() {
     2\ \ *) ensure_core_dirs; ensure_rma_required_files; roadmap_plan_dry_run ;;
     3\ \ *) ensure_core_dirs; ensure_rma_required_files; roadmap_execute_one_task ;;
     4\ \ *) roadmap_unlock ;;
-    5\ \ *) ensure_core_dirs; ensure_rma_required_files; sync_tasks_and_run_files ;;
+    5\ \ *) cmd_analyze ;;
     6\ \ *) ensure_core_dirs; cmd_analyze_init ;;
     7\ \ *) cmd_doctor ;;
     0\ \ *) return 1 ;;
@@ -3315,7 +3680,7 @@ render_submenu_environment() {
   local options=(
     "1  Create / refresh Python venv (.rma/venv + MemPalace deps)"
     "2  Choose active .env — copy .env.* to .env (backup)"
-    "3  Check / add persistence — global rma on PATH"
+    "3  Check / add persistence — user (~/.local/bin) or system PATH"
     "0  Back to categories"
   )
   if [[ "${HAVE_FZF:-0}" -eq 1 ]]; then
@@ -3676,7 +4041,7 @@ cmd_tools() {
   local fmt="${1:-text}"
   case "$fmt" in
     --json)
-      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","web-api","web-backend","web-frontend","mcp-start","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","RMA_WEB_HOST","RMA_WEB_PORT","RMA_WEB_VITE_PORT","RMA_WEB_FREE_PORT_ASK","RMA_WEB_VITE_PROXY_TARGET","RMA_MCP_TRANSPORT","RMA_MCP_HOST","RMA_MCP_PORT","RMA_MCP_NAME","RMA_MCP_MAX_STEPS","RMA_MCP_ALLOW_SHELL","RMA_MCP_PROJECT_ROOT","RMA_MCP_LOG","RMA_MCP_DETACH","RMA_MCP_FORCE","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
+      printf '%s\n' '{"commands":["init","status","doctor","plan","analyze","analyze-init","execute-one","agent","run-agent","tools","unlock","menu","persistence","persistence-check","setup-venv","pick-env","web-api","web-backend","web-frontend","mcp-start","release","man","help"],"agent_actions":["plan","analyze","execute-one","status","unlock","shell","reflect","stop"],"env":["RMA_LLM_PROVIDER","RMA_OLLAMA_MODEL","RMA_OLLAMA_HOST","RMA_OPENAI_BASE_URL","RMA_OPENAI_MODEL","RMA_OPENAI_API_KEY","RMA_CLAUDE_MODEL","RMA_REQUIRE_OLLAMA","RMA_REQUIRE_MEMPALACE","RMA_MEMPALACE_BIN","RMA_MEMPALACE_MINE_DIR","RMA_ALLOW_PLAN_FALLBACK","RMA_PLAN_INTERACTIVE","RMA_PLAN_INTERACTIVE_MAX","RMA_ANALYZE_USE_LLM","RMA_PYTHON_VENV_DIR","RMA_DISABLE_FZF","RMA_RELEASE_IMAGE_NAME","RMA_WEB_HOST","RMA_WEB_PORT","RMA_WEB_VITE_PORT","RMA_WEB_FREE_PORT_ASK","RMA_WEB_VITE_PROXY_TARGET","RMA_MCP_TRANSPORT","RMA_MCP_HOST","RMA_MCP_PORT","RMA_MCP_NAME","RMA_MCP_MAX_STEPS","RMA_MCP_ALLOW_SHELL","RMA_MCP_PROJECT_ROOT","RMA_MCP_LOG","RMA_MCP_DETACH","RMA_MCP_FORCE","ANTHROPIC_API_KEY","OPENAI_API_KEY","GITHUB_TOKEN","ROADMAP_AGENT_PROJECT_ROOT","ROADMAP_AGENT_APP_ROOT"]}'
       ;;
     *)
       cat <<'EOF'
@@ -3839,8 +4204,8 @@ EOF
           ;;
         analyze)
           ensure_rma_required_files
-          sync_tasks_and_run_files
-          out="analyze complete; tasks and run synced"
+          cmd_analyze
+          out="analyze complete (see tasks.md / run.md; LLM synthesis if RMA_ANALYZE_USE_LLM=1 or --with-llm)"
           ;;
         execute-one)
           if [[ "$allow_execute_one" != "1" ]]; then
@@ -3951,9 +4316,7 @@ main() {
       roadmap_plan_dry_run "$@" || exit $?
       ;;
     analyze)
-      ensure_core_dirs
-      ensure_rma_required_files
-      sync_tasks_and_run_files
+      cmd_analyze "$@"
       ;;
     analyze-init)
       cmd_analyze_init "$@"
@@ -3973,7 +4336,7 @@ main() {
       roadmap_unlock
       ;;
     persistence|persistance)
-      cmd_persistence
+      cmd_persistence "$@"
       ;;
     persistence-check)
       cmd_persistence_check

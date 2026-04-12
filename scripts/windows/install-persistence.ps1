@@ -264,7 +264,7 @@ if ($added) {
     Write-Host "$pathScope PATH already contains: $binDir" -ForegroundColor Cyan
 }
 
-Write-Host "Persistence install complete." -ForegroundColor Green
+Write-Host "Persistence install complete (PowerShell only — WSL is not required for this step)." -ForegroundColor Green
 $refresh = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "refresh-rma-path.ps1"
 if (Test-Path $refresh) {
     & $refresh -Quiet

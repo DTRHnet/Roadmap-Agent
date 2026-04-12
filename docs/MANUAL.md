@@ -148,6 +148,8 @@ Below, `[flags]` means optional arguments documented in `--help`.
 
 Creates `.rma/` (if needed), required templates, and baseline roadmap paths. If `.rma/` already exists, you may be prompted about overwriting — answer according to whether you want to keep existing content.
 
+**Project root:** `roadmap-agent init [project-dir]` initializes **`project-dir`** (relative paths resolve against `$PWD`). If the directory is missing, create it first or pass **`-y`** / **`--yes`** so **`init`** runs **`mkdir -p`**. With no directory argument, the root is whatever the CLI already resolved: **`ROADMAP_AGENT_PROJECT_ROOT`** if set, otherwise the nearest ancestor of **`$PWD`** containing **`.rma/`**, else **`.git`**, else **`$PWD`**. After init, other shells can use **`export ROADMAP_AGENT_PROJECT_ROOT=/path`** (the command prints a **`export ...`** hint). An **`init-toolkit-version`** stamp under **`.rma/state/`** records the toolkit version used; **`init`** warns if an existing **`.rma/`** looks older than the current toolkit.
+
 **When to use**: First day on a repo, or after deleting `.rma/` intentionally.
 
 ### `status`
@@ -164,7 +166,7 @@ Runs diagnostics: tools on PATH, virtualenv, LLM provider readiness, persistence
 
 ### `plan`
 
-Generates or refreshes the **dry-run** roadmap plan at **`.rma/roadmaps/plan.md`** using your configured **LLM** (`RMA_LLM_PROVIDER`: Ollama, OpenAI-compatible, or Claude) and a **context bundle** built from `.rma/*.md` plus project signals. The upstream **`mempalace`** package does **not** provide a `plan` subcommand; ROADMAP-AGENT optionally runs **`mempalace wake-up --palace .rma/mempalace`** when that directory exists and appends the text to the LLM prompt for richer prioritization. Use **`plan`** when scope changes.
+Generates or refreshes the **dry-run** roadmap plan at **`.rma/roadmaps/plan.md`** using your configured **LLM** (`RMA_LLM_PROVIDER`: Ollama, OpenAI-compatible, or Claude) and a **context bundle** built from `.rma/*.md` plus project signals. The model is instructed to follow a **product / engineering roadmap rubric** (strategic alignment, scope, phasing, risks, metrics, technical realism, anti-patterns) defined in **`docs/prompts/PRODUCT_ROADMAP_FRAMEWORK.md`** — output should read as a living strategic outline, not a microscopic task list. The upstream **`mempalace`** package does **not** provide a `plan` subcommand; ROADMAP-AGENT optionally runs **`mempalace wake-up --palace .rma/mempalace`** when that directory exists and appends the text to the LLM prompt for richer prioritization. Use **`plan`** when scope changes.
 
 **Interactive open questions (built in):** When **`RMA_PLAN_INTERACTIVE=1`** (default) and **stdin is a TTY**, `plan` **first** prompts you for any unresolved decisions:
 
@@ -184,6 +186,8 @@ If no questions are found, `plan` prints a short hint and continues.
 ### `analyze`
 
 Scans the codebase and Markdown docs to **sync** canonical `tasks.md` / `run.md` (and related state) without interactive scaffolding. Use it to reconcile repo reality with roadmap files.
+
+**LLM enrichment (optional):** `roadmap-agent analyze --with-llm`, or set **`RMA_ANALYZE_USE_LLM=1`** in `.env`, runs a second pass with your configured provider. It appends a **Roadmap synthesis (LLM)** section to `tasks.md` (and a pointer in `run.md`) using the same product-roadmap rubric as **`plan`** — see **`docs/prompts/PRODUCT_ROADMAP_FRAMEWORK.md`**. Review before treating output as committed truth.
 
 ### `analyze-init`
 
@@ -221,11 +225,18 @@ Clears **locked** state that can block repeated execution when a previous run di
 
 ### `persistence` / `persistance` (alias)
 
-Installs or repairs **global** launchers and PATH integration. On Unix this may require `sudo`; on Windows use `setup-rma.ps1` or `install-persistence.ps1` for granular control.
+Installs a **full copy** of the toolkit and puts **`roadmap-agent`** / **`rma`** on your **PATH** so you can run commands from any directory. Behavior is **OS-specific**; see **[Persistence (global commands)](#persistence-global-commands)** below and the README table **[Persistence on PATH (by operating system)](../README.md#persistence-on-path-by-operating-system)**.
+
+| Platform | Typical commands | Install locations |
+|----------|------------------|-------------------|
+| **Linux / macOS** | **`roadmap-agent persistence --user`** (no sudo) or **`roadmap-agent persistence`** (sudo → `/usr/local`); **`persistence --help`** | **`~/.local/lib/roadmap-agent`**, **`~/.local/bin`** (user) or **`/usr/local/lib/roadmap-agent`**, **`/usr/local/bin`** (system) |
+| **Windows** | **`rma persistence --user`** or **`.\launchers\setup-rma.ps1 -Scope User`** (PowerShell; install does **not** require WSL); **`rma persistence --help`** | **`%LOCALAPPDATA%\Roadmap-Agent`** (user) or **`%ProgramFiles%\Roadmap-Agent`** (machine); launchers in **`…\Roadmap-Agent\bin`** |
+
+**Flags (Unix):** **`--user`** / **`-u`** — user install; **`--system`** / **`--global`** — system install; **`-y`** / **`--yes`** — fewer prompts. **Windows:** **`--user`** is accepted by **`roadmap-agent.ps1`** and mapped to **`-Scope User`**.
 
 ### `persistence-check`
 
-Checks whether global install exists, version/sync status, and may prompt to upgrade or install.
+**Unix:** Runs **`persistence_scripts_in_sync`**-style checks against **`~/.local/lib/roadmap-agent`** (if present) or **`/usr/local/lib/roadmap-agent`**, compares **CHANGELOG** versions, and may prompt to re-run **`persistence`**. **Windows:** Invokes **`install-persistence.ps1 -CheckOnly`** (optional **`-Scope`**). Use after **git pull** to confirm the global mirror matches your clone.
 
 ### `web-api` / `web-backend` (alias)
 
@@ -473,7 +484,7 @@ The Unix runtime reads supported `RMA_*` and related keys from `.env` when prese
 | `RMA_ALLOW_PLAN_FALLBACK` | Default `0`; set `1` for dev-only markdown plan if **LLM** plan generation fails |
 | `ROADMAP_AGENT_PROJECT_ROOT` | Force project root |
 
-See also the **README** environment table for a fuller list and examples.
+**Full whitelist tables** (all `RMA_*`, Web, MCP, agent keys): **[`ENVIRONMENT-VARIABLES.md`](ENVIRONMENT-VARIABLES.md)**. The primary **[`README.md`](../README.md)** also summarizes **`.env`**; **[`README2.md`](../README2.md)** is a shorter overview with links to this reference.
 
 ### Shell exports (Unix)
 
@@ -607,22 +618,47 @@ See [MENU-REFERENCE.md](MENU-REFERENCE.md) for menu labels.
 
 ### Why
 
-Install once; run `rma` / `roadmap-agent` from any directory without typing full paths.
+Install once; run **`rma`** / **`roadmap-agent`** from any directory. Your **application** **`.rma/`** still lives under **each project’s root** (see project root discovery in **`init`** and **`ROADMAP_AGENT_PROJECT_ROOT`** in **[Environment variables and `.env`](#environment-variables-and-env)**).
 
-### Windows
+Canonical **per-OS** command matrix: **[README.md — Persistence on PATH (by operating system)](../README.md#persistence-on-path-by-operating-system)**.
 
-- **`launchers/setup-rma.ps1`** (forwards to **`scripts/windows/setup-rma.ps1`**): preferred wrapper (`-Scope User` or `-Scope Machine`).
-- **`install-persistence.ps1`**: lower-level installer; mirrors full tree into `%LOCALAPPDATA%\Roadmap-Agent` or `%ProgramFiles%\Roadmap-Agent`.
-- **`refresh-rma-path.ps1`**: reload PATH in the **current** PowerShell after install.
+### Windows (PowerShell)
 
-### Linux / macOS
+| Step | Command or path |
+|------|-----------------|
+| **Install (user, no Administrator)** | **`.\launchers\setup-rma.ps1 -Scope User`** or **`rma persistence --user`** (from clone or after partial install). |
+| **Install (all users)** | Elevated PowerShell: **`.\launchers\setup-rma.ps1 -Scope Machine`**. |
+| **Toolkit copy** | **`%LOCALAPPDATA%\Roadmap-Agent`** (user) or **`%ProgramFiles%\Roadmap-Agent`** (machine). |
+| **PATH** | **`…\Roadmap-Agent\bin`** contains **`roadmap-agent.cmd`**, **`rma.cmd`**. |
+| **Help** | **`rma persistence --help`**. |
+| **Refresh PATH in this window** | **`.\scripts\windows\refresh-rma-path.ps1`** (also run automatically after install). |
+| **Check / upgrade prompt** | **`.\launchers\setup-rma.ps1 -CheckOnly -Scope Auto`** or **`rma persistence-check`**. |
 
-- **`persistence`** / **`persistence-check`** from the Unix runtime.
-- May install under `/usr/local/lib/roadmap-agent` and link `/usr/local/bin`; may update shell RC — open a **new** shell after changes.
+The **installer** is **PowerShell-only** (no WSL). After install, **`rma`** may still call **Git Bash** or **WSL** **`bash`** to run **`scripts/unix/roadmap-agent.sh`** — that is the **runtime**, not the installer.
+
+### Linux
+
+| Step | Command or path |
+|------|-----------------|
+| **User install (no `sudo`)** | **`./launchers/roadmap-agent persistence --user`** |
+| **System install** | **`sudo ./launchers/roadmap-agent persistence`** (prompts for privileged paths). |
+| **Toolkit copy** | **`~/.local/lib/roadmap-agent`** (user) or **`/usr/local/lib/roadmap-agent`** (system). |
+| **Wrappers** | **`~/.local/bin`** or **`/usr/local/bin`** (`roadmap-agent`, **`rma`**). |
+| **Non-interactive** | **`persistence --user -y`** or **`persistence -y`** where supported. |
+| **Check** | **`roadmap-agent persistence-check`**. |
+| **Shell PATH** | Optional managed blocks **`# >>> ROADMAP-AGENT USER PATH >>>`** or **`# >>> ROADMAP-AGENT PATH >>>`** in **`~/.bashrc`**, **`~/.zshrc`**, etc. |
+
+### macOS
+
+Same as **Linux** for paths and commands. Ensure **`~/.local/bin`** is on your **PATH** in **Terminal** (the installer can append a block to your shell rc).
+
+### Docker / CI
+
+Images do not use host **PATH** persistence. Mount the project directory, run **`roadmap-agent`** inside the container, or embed the toolkit in a derived image. See **[README.md — Deployment (Docker)](../README.md#c-docker)**.
 
 ### After upgrade
 
-If you installed persistence once, **re-run** the installer when you pull a new ROADMAP-AGENT version so global copies stay in sync. **`persistence-check`** compares versions and file hashes when implemented.
+When you **`git pull`** a newer **Roadmap-Agent** checkout, **re-run** the same persistence command so the **mirrored** tree under **`%LOCALAPPDATA%\Roadmap-Agent`**, **`~/.local/lib/roadmap-agent`**, or **`/usr/local/lib/roadmap-agent`** matches. **`persistence-check`** (Unix) and **`install-persistence.ps1 -CheckOnly`** / **`setup-rma.ps1 -CheckOnly`** (Windows) compare **CHANGELOG** versions and **file hashes** for a curated file list.
 
 ---
 
@@ -682,7 +718,9 @@ No code changes: edit Markdown, run **`plan`** / **`analyze`**, commit as usual.
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common failures |
 | [MCP-SERVER.md](MCP-SERVER.md) | Model Context Protocol server: `mcp-start`, tools, host config |
 | [web/README.md](../web/README.md) | Optional local web UI: setup, `RMA_WEB_*`, Docker |
-| [README.md](../README.md) | Overview, env table, deployment |
+| [README.md](../README.md) | Overview, env table, deployment, **[Persistence on PATH by OS](../README.md#persistence-on-path-by-operating-system)** |
+| [README2.md](../README2.md) | Alternate overview: components, Docker, Web UI, RUN.* |
+| [ENVIRONMENT-VARIABLES.md](ENVIRONMENT-VARIABLES.md) | Complete **`.env`** whitelist tables by subsystem |
 | [CHANGELOG.md](../CHANGELOG.md) | Release notes |
 | [examples/MOCK-WORKFLOW-SESSION.md](examples/MOCK-WORKFLOW-SESSION.md) | Illustrative mock logs (install → init → hub → roadmap) |
 | [examples/rma-context-samples/README.md](examples/rma-context-samples/README.md) | Sample `.rma` context files by project type; MCP (Model Context Protocol) notes |

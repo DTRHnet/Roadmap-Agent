@@ -80,6 +80,8 @@ Status dashboard + same bootstrap as **`RUN.ps1`**: **`.\rma_cli.ps1`** (or **`.
 
 ### 6. (Optional) Install `rma` globally (persistence)
 
+Full **per-OS** table: **[README.md — Persistence on PATH (by operating system)](../README.md#persistence-on-path-by-operating-system)**.
+
 From the Roadmap-Agent repo root:
 
 ```powershell
@@ -157,13 +159,17 @@ Flags: **`init -y`** (overwrite `.rma` without prompt), **`init --no-embed`** (t
 
 ### 5. (Optional) Global install
 
+See **[README.md — Persistence on PATH (by operating system)](../README.md#persistence-on-path-by-operating-system)** (Linux uses **`persistence --user`** for a **`sudo`**-free install).
+
 ```bash
 ./launchers/roadmap-agent persistence-check
-# or
+# or (user scope, no sudo)
+./launchers/roadmap-agent persistence --user
+# or (system-wide; sudo)
 ./launchers/roadmap-agent persistence
 ```
 
-Follow prompts; you may need `sudo`. Open a **new** terminal after install so PATH and shell RC changes apply.
+Follow prompts; system install may need **`sudo`**. Open a **new** terminal after install so PATH and shell RC changes apply.
 
 ---
 
