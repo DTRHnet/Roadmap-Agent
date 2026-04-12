@@ -498,9 +498,9 @@ User-wide variables can be set via **System Properties** or `setx`; changes appl
 
 ## Companion web UI (optional)
 
-The repo includes a **local** web stack under **`web/`**: a FastAPI backend and a Vite + React SPA. It helps you edit the **project** `.env` (only keys whitelisted for `load_rma_env_file()`), run **`rma doctor --json`**, inspect the **`rma tools --json`** manifest, probe LLM HTTP endpoints, and stream **`ollama pull`**. It is **not** a hosted product: it runs on your machine and shells out to the same runtime as the CLI.
+The repo includes a **local** web stack under **`web/`**: a FastAPI backend and a Vite + React SPA. It helps you edit the **project** `.env` (only keys whitelisted for `load_rma_env_file()`), run **`rma doctor --json`**, inspect the **`rma tools --json`** manifest, probe LLM HTTP endpoints, stream **`ollama pull`**, **import** extra MCP server definitions (Cursor-style JSON) and **export** a merged IDE config, and run a long **`roadmap-agent agent`** (“autopilot”) session from the browser. It is **not** a hosted product: it runs on your machine and shells out to the same runtime as the CLI.
 
-Canonical setup detail: **[`web/README.md`](../web/README.md)**. Summary:
+Canonical setup detail: **[`web/README.md`](../web/README.md)**. MCP import/export & autopilot API: **[`docs/WEB-MCP-IMPORT.md`](../docs/WEB-MCP-IMPORT.md)**. Summary:
 
 ### How it invokes `rma`
 

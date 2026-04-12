@@ -4,12 +4,25 @@ const WEB_SECTIONS = [
   { id: 'web-section-project', label: 'Project' },
   { id: 'web-section-diagnostics', label: 'Doctor' },
   { id: 'web-section-roadmap', label: 'Roadmap' },
+  { id: 'web-section-mcp-autopilot', label: 'MCP & Autopilot' },
   { id: 'web-section-env', label: 'Env' },
   { id: 'web-section-cli', label: 'CLI' },
   { id: 'web-section-docs', label: 'Docs' },
 ] as const
 
 type RoadmapPreset = { id: string; label: string; args: string[]; hint: string }
+
+type McpImportedServer = {
+  id: string
+  name: string
+  enabled: boolean
+  command: string | null
+  args: string[]
+  env: Record<string, string>
+  url: string | null
+  imported_at?: string
+  source_note?: string
+}
 
 function scrollToWebSection(id: string) {
   const el = document.getElementById(id)
@@ -125,6 +138,22 @@ export default function App() {
   const [roadmapPresets, setRoadmapPresets] = useState<RoadmapPreset[]>([])
   const [roadmapBusy, setRoadmapBusy] = useState<string | null>(null)
   const [roadmapOut, setRoadmapOut] = useState('')
+  const [mcpServers, setMcpServers] = useState<McpImportedServer[]>([])
+  const [mcpStorePath, setMcpStorePath] = useState('')
+  const [mcpImportText, setMcpImportText] = useState('')
+  const [mcpReplace, setMcpReplace] = useState(false)
+  const [mcpBusy, setMcpBusy] = useState(false)
+  const [mcpErr, setMcpErr] = useState('')
+  const [mcpExportPreview, setMcpExportPreview] = useState('')
+  const [autopilotGoal, setAutopilotGoal] = useState(
+    'Use .rma context: run plan and analyze when useful; small steps; stop when roadmap goals are met or blocked.',
+  )
+  const [autopilotMaxSteps, setAutopilotMaxSteps] = useState(15)
+  const [autopilotYes, setAutopilotYes] = useState(true)
+  const [autopilotConfirmExec, setAutopilotConfirmExec] = useState(false)
+  const [autopilotRequireOllama, setAutopilotRequireOllama] = useState(false)
+  const [autopilotBusy, setAutopilotBusy] = useState(false)
+  const [autopilotOut, setAutopilotOut] = useState('')
 
   const q = useMemo(
     () => new URLSearchParams({ project: project.trim() }).toString(),
@@ -397,6 +426,172 @@ export default function App() {
       setRoadmapOut(String(e))
     } finally {
       setRoadmapBusy(null)
+    }
+  }
+
+  useEffect(() => {
+    void (async () => {
+      setMcpErr('')
+      if (!project.trim()) {
+        setMcpServers([])
+        setMcpStorePath('')
+        return
+      }
+      try {
+        const r = await fetch(`/api/mcp/imported?${q}`)
+        if (!r.ok) throw new Error(await r.text())
+        const j = (await r.json()) as { path: string; store: { servers: McpImportedServer[] } }
+        setMcpStorePath(j.path)
+        setMcpServers(Array.isArray(j.store?.servers) ? j.store.servers : [])
+      } catch (e) {
+        setMcpErr(String(e))
+      }
+    })()
+  }, [q, project])
+
+  const postMcpImport = async () => {
+    setMcpErr('')
+    setMcpBusy(true)
+    try {
+      const r = await fetch(`/api/mcp/import?${q}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...apiHeaders(adminToken) },
+        body: JSON.stringify({ text: mcpImportText, replace_existing: mcpReplace }),
+      })
+      if (r.status === 401) {
+        setMcpErr('Unauthorized — set admin token')
+        return
+      }
+      if (!r.ok) {
+        setMcpErr(await r.text())
+        return
+      }
+      const j = (await r.json()) as { store: { servers: McpImportedServer[] } }
+      setMcpServers(j.store?.servers || [])
+      setMcpImportText('')
+      setMsg(`Imported MCP servers (${j.store?.servers?.length ?? 0} total in store)`)
+    } catch (e) {
+      setMcpErr(String(e))
+    } finally {
+      setMcpBusy(false)
+    }
+  }
+
+  const patchMcpServer = async (id: string, body: { enabled?: boolean; label?: string }) => {
+    setMcpErr('')
+    try {
+      const r = await fetch(`/api/mcp/imported/${encodeURIComponent(id)}?${q}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...apiHeaders(adminToken) },
+        body: JSON.stringify(body),
+      })
+      if (r.status === 401) {
+        setMcpErr('Unauthorized')
+        return
+      }
+      if (!r.ok) {
+        setMcpErr(await r.text())
+        return
+      }
+      const j = (await r.json()) as { server: McpImportedServer }
+      setMcpServers((prev) => prev.map((s) => (s.id === id ? j.server : s)))
+    } catch (e) {
+      setMcpErr(String(e))
+    }
+  }
+
+  const deleteMcpServer = async (id: string) => {
+    setMcpErr('')
+    try {
+      const r = await fetch(`/api/mcp/imported/${encodeURIComponent(id)}?${q}`, {
+        method: 'DELETE',
+        headers: { ...apiHeaders(adminToken) },
+      })
+      if (r.status === 401) {
+        setMcpErr('Unauthorized')
+        return
+      }
+      if (!r.ok) {
+        setMcpErr(await r.text())
+        return
+      }
+      setMcpServers((prev) => prev.filter((s) => s.id !== id))
+    } catch (e) {
+      setMcpErr(String(e))
+    }
+  }
+
+  const loadMcpExportPreview = async () => {
+    setMcpErr('')
+    setMcpExportPreview('')
+    if (!project.trim()) return
+    try {
+      const r = await fetch(`/api/mcp/export/cursor?${q}&include_roadmap_agent=true`)
+      if (!r.ok) throw new Error(await r.text())
+      const j = await r.json()
+      setMcpExportPreview(JSON.stringify(j, null, 2))
+    } catch (e) {
+      setMcpErr(String(e))
+    }
+  }
+
+  const copyMcpExport = async () => {
+    if (!project.trim()) return
+    try {
+      const r = await fetch(`/api/mcp/export/cursor?${q}&include_roadmap_agent=true`)
+      if (!r.ok) throw new Error(await r.text())
+      const j = await r.json()
+      const text = JSON.stringify(j, null, 2)
+      setMcpExportPreview(text)
+      await navigator.clipboard.writeText(text)
+      setMsg('Copied merged mcpServers JSON to clipboard')
+    } catch (e) {
+      setMcpErr(String(e))
+    }
+  }
+
+  const runAutopilotAgent = async () => {
+    setAutopilotOut('')
+    setMcpErr('')
+    if (!project.trim()) {
+      setMcpErr('Set project root')
+      return
+    }
+    const g = autopilotGoal.trim()
+    if (!g) {
+      setMcpErr('Set autopilot goal')
+      return
+    }
+    setAutopilotBusy(true)
+    try {
+      const r = await fetch(`/api/autopilot/agent?${q}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...apiHeaders(adminToken) },
+        body: JSON.stringify({
+          goal: g,
+          max_steps: autopilotMaxSteps,
+          yes: autopilotYes,
+          confirm_execute_one: autopilotConfirmExec,
+          require_ollama: autopilotRequireOllama,
+        }),
+      })
+      if (r.status === 401) {
+        setAutopilotOut('Unauthorized — set admin token')
+        return
+      }
+      if (!r.ok) {
+        setAutopilotOut(await r.text())
+        return
+      }
+      const j = (await r.json()) as { stdout: string; stderr: string; returncode: number; args: string[] }
+      setAutopilotOut(
+        `args: ${j.args?.join(' ') ?? ''}\nexit ${j.returncode}\n${j.stderr}\n${j.stdout}`,
+      )
+      await loadAll()
+    } catch (e) {
+      setAutopilotOut(String(e))
+    } finally {
+      setAutopilotBusy(false)
     }
   }
 
@@ -978,6 +1173,214 @@ export default function App() {
             <pre className="pre pre-compact" style={{ marginTop: '0.75rem' }}>
               {roadmapOut.slice(-32000)}
             </pre>
+          )}
+        </div>
+
+        <div className="card card-sharp web-section" id="web-section-mcp-autopilot">
+          <h2>MCP &amp; Autopilot</h2>
+          <p className="field-hint" style={{ marginTop: 0 }}>
+            <strong>Import</strong> Cursor / Claude-style <code className="inline-code">mcpServers</code> JSON into{' '}
+            <code className="inline-code">.rma/mcp/imported-servers.json</code> (project-local).{' '}
+            <strong>Export</strong> merges enabled entries with a generated{' '}
+            <code className="inline-code">roadmap-agent</code> stdio block (this toolkit + selected project) so your IDE
+            can call ROADMAP-AGENT tools <em>and</em> your extra MCP servers. Full story:{' '}
+            <a href={docUrl('docs/WEB-MCP-IMPORT.md')} target="_blank" rel="noopener noreferrer">
+              WEB-MCP-IMPORT.md
+            </a>
+            .
+          </p>
+          {!project.trim() ? (
+            <p className="msg">Set project root to manage MCP imports.</p>
+          ) : (
+            <>
+              {mcpStorePath ? (
+                <p className="field-hint">
+                  Store file: <code className="inline-code">{mcpStorePath}</code>
+                </p>
+              ) : null}
+              {mcpErr ? <p className="msg err">{mcpErr}</p> : null}
+              <h3 className="subcard-title">Import MCP servers</h3>
+              <p className="field-hint" style={{ marginTop: 0 }}>
+                Paste JSON with top-level <code className="inline-code">mcpServers</code> (or a bare map of name → config
+                with <code className="inline-code">command</code> / <code className="inline-code">url</code>).
+              </p>
+              <div className="field checkbox-field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={mcpReplace}
+                    onChange={(e) => setMcpReplace(e.target.checked)}
+                  />
+                  Replace entire import list with this paste (otherwise append)
+                </label>
+              </div>
+              <textarea
+                className="bulk-textarea"
+                value={mcpImportText}
+                onChange={(e) => setMcpImportText(e.target.value)}
+                spellCheck={false}
+                rows={8}
+                placeholder='{ "mcpServers": { "my-server": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path"] } } }'
+              />
+              <div className="row row-tight" style={{ marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={mcpBusy || !mcpImportText.trim()}
+                  onClick={() => void postMcpImport()}
+                >
+                  {mcpBusy ? 'Importing…' : 'Import JSON'}
+                </button>
+              </div>
+
+              <h3 className="subcard-title" style={{ marginTop: '1.25rem' }}>
+                Imported servers
+              </h3>
+              {mcpServers.length === 0 ? (
+                <p className="field-hint">None yet — import a config or use Export for roadmap-agent only.</p>
+              ) : (
+                <ul className="mcp-server-list" style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0' }}>
+                  {mcpServers.map((s) => (
+                    <li
+                      key={s.id}
+                      style={{
+                        border: '1px solid var(--border, #333)',
+                        borderRadius: 6,
+                        padding: '0.65rem 0.75rem',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      <div className="row row-wrap" style={{ alignItems: 'center', gap: '0.5rem' }}>
+                        <strong>{s.name}</strong>
+                        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <input
+                            type="checkbox"
+                            checked={s.enabled}
+                            onChange={(e) => void patchMcpServer(s.id, { enabled: e.target.checked })}
+                          />
+                          enabled
+                        </label>
+                        <button
+                          type="button"
+                          className="btn ghost btn-tiny"
+                          onClick={() => void deleteMcpServer(s.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <p className="field-hint" style={{ margin: '0.35rem 0 0' }}>
+                        {s.url ? (
+                          <>
+                            url <code className="inline-code">{s.url}</code>
+                          </>
+                        ) : (
+                          <>
+                            <code className="inline-code">{s.command}</code>{' '}
+                            {s.args?.length ? s.args.join(' ') : ''}
+                          </>
+                        )}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <h3 className="subcard-title" style={{ marginTop: '1.25rem' }}>
+                Export for Cursor / Claude
+              </h3>
+              <p className="field-hint" style={{ marginTop: 0 }}>
+                Generates <code className="inline-code">{'{ "mcpServers": { ... } }'}</code> with{' '}
+                <code className="inline-code">roadmap-agent</code> + enabled imports. Adjust paths in your client if you use
+                WSL vs native Windows Python.
+              </p>
+              <div className="row row-tight">
+                <button type="button" className="btn secondary" onClick={() => void loadMcpExportPreview()}>
+                  Preview merged JSON
+                </button>
+                <button type="button" className="btn" onClick={() => void copyMcpExport()}>
+                  Copy to clipboard
+                </button>
+              </div>
+              {mcpExportPreview ? (
+                <pre className="pre pre-compact" style={{ marginTop: '0.65rem', maxHeight: 280, overflow: 'auto' }}>
+                  {mcpExportPreview.slice(-24000)}
+                </pre>
+              ) : null}
+
+              <h3 className="subcard-title" style={{ marginTop: '1.5rem' }}>
+                Terminal agent (autopilot)
+              </h3>
+              <p className="field-hint" style={{ marginTop: 0 }}>
+                Runs <code className="inline-code">roadmap-agent agent</code> via the modular{' '}
+                <code className="inline-code">rma_agent</code> loop (needs working LLM in project{' '}
+                <code className="inline-code">.env</code>). This is <strong>not</strong> the IDE MCP — pair export above
+                with Cursor for tool-rich autonomy. Long-running (up to 1h server timeout).
+              </p>
+              <div className="field">
+                <label htmlFor="ap-goal">Goal (natural language)</label>
+                <textarea
+                  id="ap-goal"
+                  className="bulk-textarea"
+                  rows={4}
+                  value={autopilotGoal}
+                  onChange={(e) => setAutopilotGoal(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="ap-steps">Max steps</label>
+                <input
+                  id="ap-steps"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={autopilotMaxSteps}
+                  onChange={(e) => setAutopilotMaxSteps(Number(e.target.value) || 15)}
+                />
+              </div>
+              <div className="field checkbox-field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={autopilotYes}
+                    onChange={(e) => setAutopilotYes(e.target.checked)}
+                  />
+                  <code className="inline-code">-y</code> (no pause between steps)
+                </label>
+              </div>
+              <div className="field checkbox-field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={autopilotConfirmExec}
+                    onChange={(e) => setAutopilotConfirmExec(e.target.checked)}
+                  />
+                  <code className="inline-code">--confirm-execute-one</code> (still interactive in many shells)
+                </label>
+              </div>
+              <div className="field checkbox-field">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={autopilotRequireOllama}
+                    onChange={(e) => setAutopilotRequireOllama(e.target.checked)}
+                  />
+                  <code className="inline-code">--require-ollama</code> (fail if model unreachable)
+                </label>
+              </div>
+              <button
+                type="button"
+                className="btn"
+                disabled={autopilotBusy}
+                onClick={() => void runAutopilotAgent()}
+              >
+                {autopilotBusy ? 'Running agent…' : 'Run autopilot agent'}
+              </button>
+              {autopilotOut ? (
+                <pre className="pre pre-compact" style={{ marginTop: '0.75rem' }}>
+                  {autopilotOut.slice(-48000)}
+                </pre>
+              ) : null}
+            </>
           )}
         </div>
 

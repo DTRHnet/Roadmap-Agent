@@ -10,6 +10,7 @@ export const DOC_LINKS = [
   { label: 'Operator manual', path: 'docs/MANUAL.md', hint: 'Commands, .rma files, persistence' },
   { label: 'Quickstart', path: 'docs/QUICKSTART.md', hint: 'Install by OS' },
   { label: 'Web UI (this stack)', path: 'web/README.md', hint: 'RMA_WEB_* · Docker · security' },
+  { label: 'Web MCP import', path: 'docs/WEB-MCP-IMPORT.md', hint: 'IDE merge · autopilot API' },
   { label: 'Troubleshooting', path: 'docs/TROUBLESHOOTING.md', hint: 'venv, PyPI, WSL' },
   { label: 'Architecture', path: 'docs/ARCHITECTURE.md', hint: 'Runtime layout' },
   { label: 'Menu reference', path: 'docs/MENU-REFERENCE.md', hint: 'Hub & AI submenu' },

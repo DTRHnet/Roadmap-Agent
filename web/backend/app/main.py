@@ -16,6 +16,13 @@ from pydantic import BaseModel, Field
 
 from .constants import ENV_FILE_KEYS
 from .env_service import apply_masks_for_client, mask_values, merge_env_file, parse_env_blob, parse_env_file
+from .mcp_import import (
+    delete_server,
+    export_cursor_bundle,
+    load_store,
+    merge_import_text,
+    update_server,
+)
 from .python_envs import discover_python_envs
 from .path_display import clip_rma_streams
 from .rma_runner import doctor_json, run_rma, tools_manifest
@@ -58,6 +65,27 @@ class EnvUpdateBody(BaseModel):
 
 class EnvImportBody(BaseModel):
     text: str = Field(default="", description="Pasted .env or KEY=value lines")
+
+
+class McpImportBody(BaseModel):
+    text: str = Field(default="", description="Cursor / Claude style JSON with mcpServers")
+    replace_existing: bool = Field(default=False, description="If true, replace all imported entries with this file only")
+
+
+class McpServerPatchBody(BaseModel):
+    enabled: bool | None = None
+    label: str | None = Field(default=None, max_length=80)
+
+
+class AutopilotAgentBody(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=8000)
+    max_steps: int = Field(15, ge=1, le=100)
+    yes: bool = Field(default=True, description="Pass -y (no pause between agent steps)")
+    confirm_execute_one: bool = Field(
+        default=False,
+        description="Allow agent to invoke interactive execute-one (still terminal-limited)",
+    )
+    require_ollama: bool = Field(default=False, description="Fail fast if Ollama model unreachable")
 
 
 @app.get("/api/env/keys")
@@ -328,6 +356,107 @@ def api_doctor(project: str) -> dict:
         raise HTTPException(502, f"doctor JSON parse error: {e}") from e
     except Exception as e:
         raise HTTPException(502, str(e)) from e
+
+
+@app.get("/api/mcp/imported")
+def api_mcp_imported(project: str) -> dict:
+    """List MCP server definitions stored under .rma/mcp/imported-servers.json (Web UI imports)."""
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    store = load_store(root)
+    return {"path": str(root / ".rma" / "mcp" / "imported-servers.json"), "store": json.loads(store.model_dump_json())}
+
+
+@app.post("/api/mcp/import")
+def api_mcp_import(
+    project: str,
+    body: McpImportBody,
+    _: None = Depends(require_write_token),
+) -> dict:
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    try:
+        store = merge_import_text(root, body.text, replace_existing=body.replace_existing)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except json.JSONDecodeError as e:
+        raise HTTPException(400, f"Invalid JSON: {e}") from e
+    return {"ok": True, "count": len(store.servers), "store": json.loads(store.model_dump_json())}
+
+
+@app.put("/api/mcp/imported/{server_id}")
+def api_mcp_imported_patch(
+    project: str,
+    server_id: str,
+    body: McpServerPatchBody,
+    _: None = Depends(require_write_token),
+) -> dict:
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    try:
+        s = update_server(root, server_id, enabled=body.enabled, label=body.label)
+    except KeyError:
+        raise HTTPException(404, "server id not found") from None
+    return {"ok": True, "server": json.loads(s.model_dump_json())}
+
+
+@app.delete("/api/mcp/imported/{server_id}")
+def api_mcp_imported_delete(
+    project: str,
+    server_id: str,
+    _: None = Depends(require_write_token),
+) -> dict:
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    try:
+        delete_server(root, server_id)
+    except KeyError:
+        raise HTTPException(404, "server id not found") from None
+    return {"ok": True}
+
+
+@app.get("/api/mcp/export/cursor")
+def api_mcp_export_cursor(project: str, include_roadmap_agent: bool = True) -> dict:
+    """Merged Cursor-style { mcpServers } for this project + toolkit (paste into client config)."""
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    app_root = get_settings().app_root.resolve()
+    store = load_store(root)
+    bundle = export_cursor_bundle(root, app_root, store, include_roadmap_agent=include_roadmap_agent)
+    return bundle
+
+
+@app.post("/api/autopilot/agent")
+def api_autopilot_agent(
+    project: str,
+    body: AutopilotAgentBody,
+    _: None = Depends(require_write_token),
+) -> dict:
+    """Run `roadmap-agent agent` with a goal (modular rma_agent loop); long timeout."""
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    args: list[str] = ["agent", "--max-steps", str(body.max_steps)]
+    if body.yes:
+        args.append("-y")
+    if body.confirm_execute_one:
+        args.append("--confirm-execute-one")
+    if body.require_ollama:
+        args.append("--require-ollama")
+    args.append(body.goal.strip())
+    proc = run_rma(root, args, timeout=3600.0)
+    out, err = clip_rma_streams(proc.stdout, proc.stderr)
+    return {
+        "returncode": proc.returncode,
+        "stdout": out,
+        "stderr": err,
+        "args": args,
+    }
 
 
 class OllamaTagsResponse(BaseModel):
@@ -621,6 +750,18 @@ def api_roadmap_presets() -> dict:
                 "label": "MCP start (detach)",
                 "args": ["mcp-start", "--detach"],
                 "hint": "Background MCP HTTP server; see .rma/mcp/runtime.json",
+            },
+            {
+                "id": "agent-autopilot",
+                "label": "Agent (autopilot preset)",
+                "args": [
+                    "agent",
+                    "--max-steps",
+                    "12",
+                    "-y",
+                    "Use plan and analyze to align with .rma context; prefer small steps; stop when plan tasks are done or blocked.",
+                ],
+                "hint": "Modular rma_agent loop (needs working LLM). For custom goals use MCP & Autopilot in the Web UI.",
             },
         ]
     }

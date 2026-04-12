@@ -71,8 +71,13 @@ All `RMA_MCP_*` keys are whitelisted in **`load_rma_env_file()`** (see `.env.exa
 - **HTTP** transport depends on MCP SDK version; **`mcp-start`** defaults to **streamable-http** + background. **stdio** remains the most portable option for **command-based** desktop hosts (`python -m rma_mcp` with **`RMA_MCP_TRANSPORT=stdio`** or unset).
 - Shell tools require **bash** for `roadmap-agent.sh`.
 
+## Web UI — import & merged export
+
+The companion **Web UI** can **import** Cursor-style **`mcpServers`** JSON into **`.rma/mcp/imported-servers.json`** and **export** a merged config that includes **`roadmap-agent`** (stdio) plus your enabled imports — paste into Cursor / Claude Desktop. See **[`docs/WEB-MCP-IMPORT.md`](WEB-MCP-IMPORT.md)** and the **MCP & Autopilot** section in **`web/README.md`**.
+
 ## References
 
 - Root **`README.md`** (documentation index)  
 - **`.env.example`** — MCP section  
 - **`rma_mcp/client-config.example.json`** — Cursor / Claude-style snippet  
+- **`docs/WEB-MCP-IMPORT.md`** — Web UI import/export & autopilot API  

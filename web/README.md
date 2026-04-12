@@ -40,6 +40,21 @@ A separate page (link in the main console header) that lists **every** whitelist
 
 **API (project lifecycle):** `POST /api/project/init` runs `rma init` (JSON body `{ "flags": ["-y", "--no-embed"] }` optional); `POST /api/project/setup-venv` runs `rma setup-venv`; `GET /api/python-envs` lists interpreters / venv roots for **`RMA_PYTHON_VENV_DIR`**. Mutating routes honor **`RMA_WEB_ADMIN_TOKEN`** like **`PUT /api/env`**.
 
+### MCP & Autopilot (import / export / agent)
+
+The main console includes **MCP & Autopilot**:
+
+| Feature | Behavior |
+|---------|-----------|
+| **Import MCP JSON** | Parses Cursor-style `{ "mcpServers": { ... } }` (or a compatible bare map) into **`.rma/mcp/imported-servers.json`** via **`POST /api/mcp/import`**. Optional **replace** wipes previous imports. |
+| **List / toggle / delete** | **`GET /api/mcp/imported`**, **`PUT /api/mcp/imported/{id}`**, **`DELETE /api/mcp/imported/{id}`**. |
+| **Export merged config** | **`GET /api/mcp/export/cursor`** returns `{ "mcpServers": { "roadmap-agent": …, … } }` for paste into IDE MCP settings. |
+| **Autopilot** | **`POST /api/autopilot/agent`** runs **`roadmap-agent agent`** (`rma_agent` loop) with a natural-language **goal** and step cap — requires working LLM + agent deps; long timeout (1h). |
+
+Full protocol and safety notes: **[`docs/WEB-MCP-IMPORT.md`](../docs/WEB-MCP-IMPORT.md)** (cross-links **[`docs/MCP-SERVER.md`](../docs/MCP-SERVER.md)**).
+
+**Roadmap presets:** **`GET /api/roadmap/presets`** also includes an **Agent (autopilot preset)** one-click that runs a stock goal string (custom goals: Autopilot panel or CLI).
+
 ---
 
 ## Editor UI (React)
