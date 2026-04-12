@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Rebuilds $env:Path in the current PowerShell from Machine + User registry (post-install helper).
 # Notes: Does not persist changes; open a new terminal if other shells need the same PATH.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 param(
     [switch]$Quiet

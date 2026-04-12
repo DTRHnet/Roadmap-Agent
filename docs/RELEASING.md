@@ -4,16 +4,16 @@ ROADMAP-AGENT is **script-first**: the product is the repository (launchers, `sc
 
 ## 1. Prepare the version
 
-1. Set the root **`VERSION`** file to the semver you are shipping (e.g. `1.1.0-beta` or `1.0.0`).
+1. Set the root **`VERSION`** file to the semver you are shipping (e.g. `1.1.1-b` or `1.0.0`).
 2. Update **`CHANGELOG.md`**: move items from `[Unreleased]` into a dated section `[x.y.z] - YYYY-MM-DD`.
 3. Align **banner / docs** that cite the current version (README badge, examples if needed).
-4. Commit on your release branch (e.g. `release/1.1.0-beta`, `main`).
+4. Commit on your release branch (e.g. `release/1.1.1-b`, `main`).
 
 ## 2. Tag in Git
 
 ```bash
-git tag -a v1.1.0-beta -m "ROADMAP-AGENT 1.1.0-beta"
-git push origin v1.1.0-beta
+git tag -a v1.1.1-b -m "ROADMAP-AGENT 1.1.1-b"
+git push origin v1.1.1-b
 ```
 
 Tags use the **`v` prefix** so `git describe` and the CLI “last release” hints stay consistent.
@@ -33,8 +33,8 @@ This runs [`scripts/unix/release-rma.sh`](../scripts/unix/release-rma.sh): reads
 ## 3. GitHub Release (recommended)
 
 1. On GitHub: **Releases → Draft a new release**.
-2. Choose tag **`v1.1.0-beta`** (must match **`VERSION`** / **`CHANGELOG.md`**).
-3. Title e.g. `ROADMAP-AGENT 1.1.0-beta`.
+2. Choose tag **`v1.1.1-b`** (must match **`VERSION`** / **`CHANGELOG.md`**).
+3. Title e.g. `ROADMAP-AGENT 1.1.1-b`.
 4. Paste the relevant **`CHANGELOG.md`** section into the description.
 5. **Source code**: GitHub auto-attaches **Source code (zip)** and **tar.gz**; that is the normal “artifact” for this project.
 6. Optional: attach a **manual** zip of the repo at that tag if you need a fixed bundle outside GitHub.
@@ -46,7 +46,7 @@ Users install by **cloning** or **extracting the archive**, then `RUN.sh` / `RUN
 If you publish a container:
 
 ```bash
-docker build -t roadmap-agent:1.1.0-beta -f Dockerfile .
+docker build -t roadmap-agent:1.1.1-b -f Dockerfile .
 ```
 
 Tag and push to your registry as needed. The Dockerfile copies the tree and sets the entrypoint; version inside the image follows **`VERSION`** at build time.

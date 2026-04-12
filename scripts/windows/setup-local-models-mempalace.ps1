@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Windows helper — venv under project, pip install mempalace/chromadb, venv Scripts launchers for rma.
 # Notes: ROOT_DIR from ROADMAP_AGENT_PROJECT_ROOT when set; TOOLKIT_ROOT from script path. Launchers call scripts/windows/roadmap-agent.ps1 with project cd.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 $ErrorActionPreference = "Continue"
 if (-not $env:PIP_DEFAULT_TIMEOUT) { $env:PIP_DEFAULT_TIMEOUT = "120" }

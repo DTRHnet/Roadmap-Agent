@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Container entrypoint — cd /workspace and exec Unix roadmap-agent CLI.
 # Notes: Dockerfile copies repo to /workspace; all paths assume that layout.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 set -u
 cd /workspace
