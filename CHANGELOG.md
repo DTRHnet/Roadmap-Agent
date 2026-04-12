@@ -20,6 +20,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ### Changed
 
 - **`docs/TESTING.md`**: Documents the CI workflow and current commands.
+- **`RUN.sh` / `RUN.ps1`**: After bootstrap, an interactive **handoff menu** appears when no roadmap-agent arguments are passed: option **[1]** (green) opens **Web API**, **Web UI (Vite)**, and **Core hub** each in a **separate terminal window**; **[2]** runs the hub in the current window; **[3]** exits. **`-y`** / non-interactive / non-TTY skips the menu and keeps the previous default (Core hub in the current session).
 
 ## [1.1.1-b] - 2026-04-11
 

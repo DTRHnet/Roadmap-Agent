@@ -54,6 +54,9 @@ Examples:
   .\RUN.ps1 mcp-start
   .\RUN.ps1 mcp-start --detach
   .\RUN.ps1 -y menu
+
+Handoff (no arguments): shows a short menu — option [1] in green launches Web API, Vite, and Core hub in separate windows.
+  Use -y to skip that menu and open the Core hub in this window only.
 "@
     exit 0
 }
@@ -189,11 +192,72 @@ Write-Host "  Venv and Python dependencies are ready." -ForegroundColor Green
 
 Write-Section "Handoff"
 $main = Join-Path $ToolkitRoot "scripts\windows\roadmap-agent.ps1"
-if ($pass.Count -eq 0) {
-    Write-Host "  Starting: roadmap-agent menu (default)" -ForegroundColor DarkGray
-    & $main menu
-} else {
+
+if ($pass.Count -gt 0) {
     Write-Host ("  Starting: roadmap-agent {0}" -f ($pass -join " ")) -ForegroundColor DarkGray
     & $main @pass
+    exit $LASTEXITCODE
+}
+
+if ($RunYes) {
+    Write-Host "  (-y) Starting: roadmap-agent menu (default)" -ForegroundColor DarkGray
+    & $main menu
+    exit $LASTEXITCODE
+}
+
+Write-Host ""
+Write-Host "  How do you want to start?" -ForegroundColor Cyan
+Write-Host "  [1] " -NoNewline -ForegroundColor Green
+Write-Host "Launch full stack — Web API, Web UI (Vite), and Core hub in separate windows" -ForegroundColor Green
+Write-Host "  [2] Core hub only in this window (interactive menu)"
+Write-Host "  [3] Exit"
+$sel = Read-Host "  Choose 1–3"
+
+function Start-RmaStackWindow {
+    param(
+        [string]$WindowTitle,
+        [string]$Subcommand
+    )
+    $shell = $null
+    if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+        $shell = (Get-Command pwsh).Source
+    } else {
+        $shell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    }
+    $tr = $ToolkitRoot.Replace("'", "''")
+    $pr = $ProjectRoot.Replace("'", "''")
+    $mn = $main.Replace("'", "''")
+    $inner = "`$Host.UI.RawUI.WindowTitle = '$WindowTitle'; " +
+        "`$env:ROADMAP_AGENT_APP_ROOT = '$tr'; " +
+        "`$env:ROADMAP_AGENT_PROJECT_ROOT = '$pr'; " +
+        "Set-Location -LiteralPath '$pr'; " +
+        "& '$mn' $Subcommand"
+    Start-Process -FilePath $shell -ArgumentList @(
+        "-NoExit", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $inner
+    ) | Out-Null
+}
+
+switch -Regex ($sel.Trim()) {
+    "^1$" {
+        Write-Host "  Opening Web API, Web UI, and Core hub in new windows…" -ForegroundColor Green
+        Start-RmaStackWindow -WindowTitle "ROADMAP-AGENT — Web API" -Subcommand "web-api"
+        Start-Sleep -Milliseconds 500
+        Start-RmaStackWindow -WindowTitle "ROADMAP-AGENT — Web UI (Vite)" -Subcommand "web-frontend"
+        Start-Sleep -Milliseconds 500
+        Start-RmaStackWindow -WindowTitle "ROADMAP-AGENT — Core hub" -Subcommand "menu"
+        Write-Host "  Done — three windows opened (API, Web UI, Core hub). You can close this window." -ForegroundColor Green
+        exit 0
+    }
+    "^3$" {
+        exit 0
+    }
+    Default {
+        if ($sel.Trim() -ne "2" -and $sel.Trim() -ne "") {
+            Write-Host "  Unrecognized choice; starting Core hub in this window." -ForegroundColor Yellow
+        } else {
+            Write-Host "  Starting: roadmap-agent menu" -ForegroundColor DarkGray
+        }
+        & $main menu
+    }
 }
 exit $LASTEXITCODE

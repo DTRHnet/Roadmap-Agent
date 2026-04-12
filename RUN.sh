@@ -44,6 +44,10 @@ Examples:
   RUN.sh mcp-start --detach
   RUN.sh -y menu
   RUN.sh agent "stabilize the roadmap loop"
+
+Handoff (no arguments, interactive TTY): a short menu — [1] in green launches Web API, Web UI, and Core hub in separate
+ terminals (macOS Terminal, gnome-terminal, konsole, xterm, or x-terminal-emulator). Use -y to skip that menu and open
+  the Core hub in this shell only.
 EOF
       exit 0
       ;;
@@ -180,10 +184,114 @@ if ! bash "$TOOLKIT_ROOT/scripts/unix/setup-local-models-mempalace.sh"; then
 fi
 ok "Venv and Python dependencies are ready."
 
+# Spawn roadmap-agent subcommand in a new terminal when possible (full stack handoff).
+rma_run_in_new_terminal() {
+  local title="$1"
+  shift
+  local rc=1
+  local args_q="" a
+  for a in "$@"; do
+    args_q+=" $(printf '%q' "$a")"
+  done
+  local cmd
+  cmd="export ROADMAP_AGENT_APP_ROOT=$(printf '%q' "$TOOLKIT_ROOT"); export ROADMAP_AGENT_PROJECT_ROOT=$(printf '%q' "$PROJECT_ROOT"); cd $(printf '%q' "$PROJECT_ROOT") && exec bash $(printf '%q' "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh")$args_q"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    local tmp
+    tmp="$(mktemp "${TMPDIR:-/tmp}/rma-run-window.XXXXXX")"
+    {
+      printf '%s\n' '#!/usr/bin/env bash'
+      printf 'export ROADMAP_AGENT_APP_ROOT=%q\n' "$TOOLKIT_ROOT"
+      printf 'export ROADMAP_AGENT_PROJECT_ROOT=%q\n' "$PROJECT_ROOT"
+      printf 'cd %q\n' "$PROJECT_ROOT"
+      printf 'exec bash %q' "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh"
+      for a in "$@"; do printf ' %q' "$a"; done
+      printf '\n'
+    } >"$tmp"
+    chmod +x "$tmp"
+    if osascript >/dev/null 2>&1 <<OSA
+tell application "Terminal"
+    activate
+    do script "exec bash '$tmp'"
+end tell
+OSA
+then
+      rc=0
+    fi
+  elif command -v gnome-terminal >/dev/null 2>&1; then
+    gnome-terminal --title="$title" -- bash -lc "$cmd" >/dev/null 2>&1 && rc=0 || true
+  elif command -v konsole >/dev/null 2>&1; then
+    konsole --title "$title" -e bash -lc "$cmd" >/dev/null 2>&1 && rc=0 || true
+  elif command -v xterm >/dev/null 2>&1; then
+    xterm -title "$title" -e bash -lc "$cmd" >/dev/null 2>&1 && rc=0 || true
+  elif command -v x-terminal-emulator >/dev/null 2>&1; then
+    x-terminal-emulator -T "$title" -e bash -lc "$cmd" >/dev/null 2>&1 && rc=0 || true
+  fi
+  return "$rc"
+}
+
+rma_handoff_full_stack() {
+  local ok=0
+  section "Launch full stack (separate terminals)"
+  if rma_run_in_new_terminal "ROADMAP-AGENT — Web API" web-api; then
+    ok=$((ok + 1))
+    sleep 0.5
+  else
+    warn "Could not open a new terminal for Web API."
+  fi
+  if rma_run_in_new_terminal "ROADMAP-AGENT — Web UI (Vite)" web-frontend; then
+    ok=$((ok + 1))
+    sleep 0.5
+  else
+    warn "Could not open a new terminal for Web UI."
+  fi
+  if rma_run_in_new_terminal "ROADMAP-AGENT — Core hub" menu; then
+    ok=$((ok + 1))
+  else
+    warn "Could not open a new terminal for Core hub."
+  fi
+  if [[ "$ok" -eq 3 ]]; then
+    ok "Started three windows (API, Web UI, Core hub). You can close this shell."
+    exit 0
+  fi
+  warn "Automatic multi-terminal launch is not available in this environment."
+  printf "\n%sRun these in separate terminals:%s\n" "$YELLOW" "$RESET"
+  printf "1. %sweb-api%s\n" "$CYAN" "$RESET"
+  printf "  2. %sweb-frontend%s\n" "$CYAN" "$RESET"
+  printf "  3. %smenu%s\n" "$CYAN" "$RESET"
+  printf "  (from project root %s with ROADMAP_AGENT_* set as in this session)\n" "$PROJECT_ROOT"
+  exit 1
+}
+
 section "Handoff"
-if [[ ${#RUN_PASS[@]} -eq 0 ]]; then
-  info "Starting: roadmap-agent menu (default)"
+if [[ ${#RUN_PASS[@]} -gt 0 ]]; then
+  info "Starting: roadmap-agent ${RUN_PASS[*]}"
+  exec bash "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh" "${RUN_PASS[@]}"
+fi
+
+if [[ "$RUN_ASSUME_YES" -eq 1 ]]; then
+  info "(-y) Starting: roadmap-agent menu (default)"
   exec bash "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh" menu
 fi
-info "Starting: roadmap-agent ${RUN_PASS[*]}"
-exec bash "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh" "${RUN_PASS[@]}"
+
+if [[ ! -t 0 ]] || [[ ! -t 1 ]]; then
+  info "Non-interactive: starting roadmap-agent menu (default)"
+  exec bash "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh" menu
+fi
+
+printf "\n%s=== How do you want to start? ===%s\n" "$CYAN" "$RESET"
+printf "  %s[1]%s %sLaunch full stack — Web API, Web UI (Vite), and Core hub in separate windows%s\n" "$GREEN" "$RESET" "$GREEN" "$RESET"
+printf "  [2] Core hub only in this terminal (interactive menu)\n"
+printf "  [3] Exit\n"
+read -r -p "  Choose 1–3: " _handoff || true
+case "${_handoff:-}" in
+  1) rma_handoff_full_stack ;;
+  3) exit 0 ;;
+  2 | "")
+    info "Starting: roadmap-agent menu (default)"
+    exec bash "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh" menu
+    ;;
+  *)
+    warn "Unrecognized choice; starting Core hub in this terminal."
+    exec bash "$TOOLKIT_ROOT/scripts/unix/roadmap-agent.sh" menu
+    ;;
+esac
