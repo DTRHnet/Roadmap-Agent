@@ -8,6 +8,10 @@
 .rma/
 **/.rma/
 
+# Local sysinfo audit (paths, host); never ship in image context
+.sysinfo/
+**/.sysinfo/
+
 .git
 .github/
 

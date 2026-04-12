@@ -536,6 +536,25 @@ Windows PowerShell:
 .\launchers\rma.ps1
 ```
 
+### Docker (prebuilt images on GHCR)
+
+CI publishes containers to **GitHub Container Registry** under the **`dtrhnet`** org (lowercase). **Rolling / manual** workflow runs use the **`edge`** tag:
+
+```bash
+docker pull ghcr.io/dtrhnet/roadmap-agent:edge
+docker pull ghcr.io/dtrhnet/roadmap-agent-web:edge
+```
+
+**Versioned releases:** when maintainers push a **`v*`** git tag, the same workflow also tags images as **`:latest`**, **`:v…`**, and the bare semver (see **[`docs/RELEASING.md`](docs/RELEASING.md)**). A **`:stable`** tag is planned for a future release cadence; until then, pin **`:latest`** from a tagged release or use an explicit version tag from the registry.
+
+Example CLI container (mount your project at **`/workspace`**):
+
+```bash
+docker run --rm -it -v "$PWD:/workspace" ghcr.io/dtrhnet/roadmap-agent:edge
+```
+
+The **`-web`** image is the FastAPI app plus built SPA; ports and compose are covered in **[`web/README.md`](web/README.md)** and **`docker-compose.yml`**.
+
 **More detail:** **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (by OS), **[`web/README.md`](web/README.md)** (optional web UI), **[`docs/MANUAL.md`](docs/MANUAL.md)** (full reference), **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** (how to run the roadmap loop), **[`img/flowchart.png`](img/flowchart.png)** (mining vs roadmap diagram), **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** (sample `.rma` Markdown), **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** (full product example), **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** (sample transcript), **[`CHANGELOG.md`](CHANGELOG.md)** (releases).
 
 ---
@@ -860,12 +879,14 @@ These are still important for operators and CI; set them in the environment or w
 ## Security and operational notes
 
 - **Secrets:** Never commit **`.env`**, **`web/rma-web.yaml`** (if you create it), API keys, or tokens. The repository **`.gitignore`** excludes `.env`, env variants, optional web YAML, keys/certs, and **`.rma/`** runtime state. Use **`.env.example`** and **`web/rma-web.config.example.yaml`** only as templates with placeholders.
+- **Local audits:** **`sysinfo`** / **`rma_sysinfo`** write **`.sysinfo/`** (paths, host, toolchain). That directory is **gitignored** and must **not** be committed—remove it from the index with **`git rm -r --cached .sysinfo`** if it was ever added. See **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** (*Accidentally committed `.sysinfo/`*).
+- **Force-adds:** Do not **`git add -f`** **`.rma/`**, **`.sysinfo/`**, **`.env`**, or **`node_modules/`**. If they appear in **`git status`** as tracked, stop tracking them so **`.gitignore`** applies.
 - **Web UI:** The FastAPI app defaults to binding **`127.0.0.1`**. For mutating routes (`PUT /api/env`, init, pull, etc.), set **`RMA_WEB_ADMIN_TOKEN`** on the API process and send **`X-RMA-Web-Token`** from the browser—otherwise anyone who can reach the port could change project **`.env`**.
 - **Execution:** The CLI and web backend **spawn shell commands** (`rma`, `git`, `mempalace`, `pip`, …) from paths you configure. Treat the toolkit like any dev tool: review scripts for your environment, and do not point it at untrusted project roots with elevated privileges.
 - **Persistence mode** modifies **PATH** and may require elevated privileges on Windows (**Machine** scope).
 - **Generated output:** Validate **`plan.md`** and automated edits before trusting them in production repos; keep **`.rma/`** in version control when it is your source of truth.
 
-**Before a public release (maintainers):** Confirm no real keys in the tree (`git grep -i api_key`, search for `sk-`, `ghp_`, private key blocks), keep **`.env`** out of history, and prefer **example** configs over real URLs that leak internal infrastructure.
+**Before a public release (maintainers):** Confirm no real keys in the tree (`git grep -i api_key`, search for `sk-`, `ghp_`, private key blocks), **`git ls-files .sysinfo`** is empty, and personal paths did not land in tracked files; keep **`.env`** out of history, and prefer **example** configs over real URLs that leak internal infrastructure.
 
 ---
 

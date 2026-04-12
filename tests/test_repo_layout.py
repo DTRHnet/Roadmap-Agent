@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -101,3 +102,20 @@ def test_github_docker_publish_workflow_exists() -> None:
     raw = wf.read_text(encoding="utf-8", errors="replace")
     assert "ghcr.io" in raw
     assert "Dockerfile.web" in raw or "docker/Dockerfile.web" in raw
+
+
+def test_sysinfo_audit_output_not_tracked() -> None:
+    """`.sysinfo/` is machine-local; must never be committed (paths, host, user)."""
+    if not (ROOT / ".git").is_dir():
+        pytest.skip("not a git checkout")
+    r = subprocess.run(
+        ["git", "ls-files", "--", ".sysinfo"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if r.returncode != 0:
+        pytest.skip("git ls-files failed")
+    assert not (r.stdout or "").strip(), "remove .sysinfo from git: git rm -r --cached .sysinfo"

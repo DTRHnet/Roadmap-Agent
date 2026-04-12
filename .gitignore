@@ -35,7 +35,8 @@ web/rma-web.yaml
 # Do not force-add; keep local index out of version control.
 .rma/mempalace/
 **/.rma/mempalace/
-# sysinfo: local OS/toolchain audit output (rma_sysinfo / MCP)
+# sysinfo: local OS/toolchain audit (rma_sysinfo / MCP). Contains paths, host, and
+# environment details — never commit or force-add; keep out of forks and PRs.
 .sysinfo/
 **/.sysinfo/
 *.log

@@ -168,7 +168,24 @@ A line like `...1.1.1-b .cd web/frontend` is two commands accidentally joined; t
 
 **`error from sender: open .rma\venv\lib64: The file cannot be accessed by the system`:** Docker Desktop is uploading the whole repo; **`.rma/venv`** often contains **symlinks** (e.g. `lib64`) that Windows cannot read for the context tarball. The repo’s **`.dockerignore`** excludes **`.rma/`** so local venvs are not sent. Re-run **`docker build -f docker/Dockerfile.web -t … .`** from the root after pulling the latest tree (or ensure **`.dockerignore`** is present).
 
-## 12) What to collect before filing an issue
+## 12) Accidentally committed `.sysinfo/` (or other ignored files)
+
+**Cause:** **`git add -f`**, an old **`.gitignore`**, or copying a repo that had audit output tracked.
+
+**Why it matters:** **`.sysinfo/`** can contain **absolute paths**, hostname, usernames, and environment details you do not want on GitHub.
+
+**Fix (stop tracking, keep local files):**
+
+```bash
+git rm -r --cached .sysinfo
+git commit -m "Stop tracking .sysinfo (local audit output)"
+```
+
+If you **already pushed** those commits, remove the files from **history** on every clone (e.g. [`git filter-repo`](https://github.com/newren/git-filter-repo) or [BFG](https://rtyley.github.io/bfg-repo-cleaner/)), then **force-push** (coordinate with collaborators). Treat any secrets that appeared in reports as potentially exposed.
+
+For other paths that should stay local (**`.rma/`**, **`.env`**), use the same **`git rm -r --cached <path>`** pattern after fixing **`.gitignore`**.
+
+## 13) What to collect before filing an issue
 
 - command used
 - exact output/error
