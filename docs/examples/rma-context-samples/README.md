@@ -21,6 +21,10 @@ Each sample folder includes a **`README.md`** with a **from-scratch bootstrap** 
 
 See also: **[`END-TO-END-LIST-SHARING-APP.md`](../END-TO-END-LIST-SHARING-APP.md)** for a full workflow narrative.
 
+### Terminal `agent` vs these samples
+
+After you **`init`** and fill **`.rma/*.md`**, **`plan`** and **`analyze`** consume this Markdown contract. The **modular terminal agent** (**`roadmap-agent agent`**, **`python -m rma_agent`**) uses the same contract and **`RMA_*`** settings; install **`requirements-agent.txt`** and see **[`docs/agent/usage.md`](../../agent/usage.md)**. That is separate from **IDE agents** talking to **`rma_mcp`** (see **MCP** below) and from **`RMA_AGENT_LEGACY=1`**, which restores the older bash-only agent loop.
+
 ---
 
 ## MCP — Model Context Protocol (often confused with “MCR”)

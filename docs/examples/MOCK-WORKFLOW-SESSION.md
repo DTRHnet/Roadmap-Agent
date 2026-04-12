@@ -1,6 +1,6 @@
 # Mock workflow session (illustrative)
 
-These transcripts are **fictional** examples of what you might see end-to-end: install ROADMAP-AGENT globally on Windows, prepare a project, run **`init`**, run **`doctor`**, use the **interactive hub**, then **roadmap** commands. As of v1.1.0-beta, **`plan`** and **mine** require a real MemPalace stack — align the **[MemPalace]** lines with your environment. Timestamps and paths are representative, not captured from a single real run.
+These transcripts are **fictional** examples of what you might see end-to-end: install ROADMAP-AGENT globally on Windows, prepare a project, run **`init`**, run **`doctor`**, use the **interactive hub**, then **roadmap** commands. As of v1.1.1-b, **`plan`** and **mine** require a real MemPalace stack — align the **[MemPalace]** lines with your environment. Timestamps and paths are representative, not captured from a single real run.
 
 ---
 
@@ -67,8 +67,8 @@ PS C:\Users\dev\Projects\InvoiceApp> rma init
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 Roadmap Agent
 A DTRHnet Project https://dtrh.net
-App Version : v1.1.0-beta
-Last Release: v1.1.0-beta
+App Version : v1.1.1-b
+Last Release: v1.1.1-b
 Release Date: 2026-04-10
 
 WARN: .rma/ already exists. Overwrite scaffolding? [y/N]: n
@@ -109,8 +109,8 @@ doctor: complete (exit 0)
 PS C:\Users\dev\Projects\InvoiceApp> $env:RMA_DISABLE_FZF="1"; rma
 
 ROADMAP-AGENT HUB
-App Version: v1.1.0-beta
-Last Release: v1.1.0-beta
+App Version: v1.1.1-b
+Last Release: v1.1.1-b
 Release Date: 2026-04-10
 Press Enter to continue:
 
@@ -195,13 +195,15 @@ execute-one: completed step (dry guidance — adjust script for real commands)
 
 ---
 
-## 9 — Mock append to `.rma/logs/agent.log` (agency / agent-style notes)
+## 9 — Mock append to `.rma/logs/agent.log` (modular `rma_agent` path)
+
+**Note:** **`.rma/logs/agent.log`** is written when you use the **modular terminal agent** (**`roadmap-agent agent`** / **`python -m rma_agent`**), not the legacy bash-only loop (**`RMA_AGENT_LEGACY=1`**). The lines below are **illustrative**; real formats may differ by version.
 
 ```text
-2026-04-10T14:21:55Z  session_start  cwd=C:\Users\dev\Projects\InvoiceApp  user=dev
-2026-04-10T14:21:56Z  hub_menu       selection=quick_status
-2026-04-10T14:22:00Z  ai_submenu     action=health_check  mempalace=0.4.2  chromadb=0.5.15
-2026-04-10T14:22:01Z  roadmap        command=execute-one  task=2  outcome=confirmed
+2026-04-10T14:21:55Z  session_start  cwd=C:\Users\dev\Projects\InvoiceApp  user=dev  agent=rma_agent
+2026-04-10T14:21:56Z  planner        iteration=1  goal="Confirm task #2 scope"
+2026-04-10T14:22:00Z  executor       tool=roadmap_cli  command=execute-one  task=2
+2026-04-10T14:22:01Z  reflector      outcome=confirmed  mempalace=0.4.2  chromadb=0.5.15
 ```
 
 ---
@@ -210,6 +212,6 @@ execute-one: completed step (dry guidance — adjust script for real commands)
 
 - Treat these blocks as **documentation samples**, not fixtures for automated tests.
 - Real output varies by OS, `fzf` vs fallback, MemPalace presence, and LLM configuration.
-- For live behavior, run **`rma doctor`** and **`rma`** in your own project root after **`rma init`**.
+- For live behavior, run **`rma doctor`** and **`rma`** in your own project root after **`rma init`**. For the **terminal agent**, see **[`docs/agent/usage.md`](../agent/usage.md)**.
 
 See also: [QUICKSTART.md](../QUICKSTART.md), [MANUAL.md](../MANUAL.md).

@@ -159,10 +159,10 @@ docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 
 ```powershell
 cd C:\path\to\RoadmapAgent
-docker build -f docker/Dockerfile.web -t rma-web:1.1.0-beta .
+docker build -f docker/Dockerfile.web -t rma-web:1.1.1-b .
 ```
 
-A line like `...1.1.0-beta .cd web/frontend` is two commands accidentally joined; there must be a **space** after the **`.`** build context, and the **`cd`** is a separate step **before** `docker build` if you need it.
+A line like `...1.1.1-b .cd web/frontend` is two commands accidentally joined; there must be a **space** after the **`.`** build context, and the **`cd`** is a separate step **before** `docker build` if you need it.
 
 **`COPY requirements-web.txt` / not found:** the build context directory (the **`.`** at the end of `docker build`) must be the **repository root**, where **`requirements-web.txt`** lives. If you run from **`web/frontend`**, that file is outside the context—`cd` to the repo root first.
 

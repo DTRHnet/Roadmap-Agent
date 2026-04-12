@@ -21,7 +21,7 @@ from .rma_runner import doctor_json, run_rma, tools_manifest
 from .settings import get_settings, parse_cors_list
 from .web_yaml import read_web_yaml_stack_meta
 
-app = FastAPI(title="ROADMAP-AGENT Web", version="1.1.0-beta")
+app = FastAPI(title="ROADMAP-AGENT Web", version="1.1.1-b")
 _settings = get_settings()
 app.add_middleware(
     CORSMiddleware,

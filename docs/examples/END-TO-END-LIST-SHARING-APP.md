@@ -15,10 +15,12 @@ This walkthrough is **illustrative**. Commands, transcripts, and file excerpts a
 | **Roadmap state** | `.rma/roadmaps/plan.md`, `tasks.md`, and `run.md` stay aligned with real work: phases for auth, list CRUD, sharing, visibility, roles—**prefer depth** (dependencies, risks, acceptance hints) over one-line bullets. |
 | **Context files** | `.rma/description.md`, `ui.md`, `stack.md`, `other.md` are the **contract** the agent and MemPalace-backed **`plan`** interpret; keep them explicit so roadmaps are detailed and **questions** surface where you left gaps. |
 | **MemPalace** | After `setup-local-models-mempalace`, **`mempalace mine`** (often **`--dry-run`** from the menu) previews ingest; a **full** ingest updates the palace so **`plan`** and IDE agents retrieve **current** code and docs—not stale guesses. |
-| **Loop** | **`execute-one`** drives **implementation**; **`analyze`** reconciles repo reality with `tasks.md` / `run.md`. Use an **AI agent** (in Cursor or the terminal) to **read** `.rma/*.md`, **expand** plans, and **prompt you** on auth, visibility, or compliance when the Markdown is silent—do not let the model invent critical product law. |
+| **Loop** | **`execute-one`** drives **implementation**; **`analyze`** reconciles repo reality with `tasks.md` / `run.md`. Pair **terminal automation** (**`roadmap-agent agent`** / **`rma_agent`**, after **`pip install -r requirements-agent.txt`**) with **IDE agents** (e.g. Cursor) that use **[MCP](../MCP-SERVER.md)** to read `.rma/` and run tools—both should **read** `.rma/*.md`, **expand** plans, and **prompt you** on auth, visibility, or compliance when the Markdown is silent. Do not let any model invent critical product law. |
 
 ### How the agent should behave (intent)
 
+- **Terminal modular agent (`rma_agent`)** — Default path for **`roadmap-agent agent`**: uses the same **`RMA_*`** LLM settings as **`plan`** / **`analyze`**. Prefer this for a **repo-grounded** loop in the shell. **`RMA_AGENT_LEGACY=1`** restores the older **bash-only** agent loop for troubleshooting only.
+- **IDE / MCP** — Your editor’s agent calls **`rma_mcp`** tools and **`roadmap://context`**; it does **not** replace **`execute-one`** or your responsibility to merge product decisions into **`.rma/`**.
 - **Interpret** the four context files as source of truth; **use** MemPalace search over mined files to align tasks with filenames, routes, and schema.
 - **Produce very detailed roadmaps** in `plan.md` / `tasks.md` when context is rich—break work into reviewable slices with clear ordering and risks.
 - **Ask you** when something important is underspecified (e.g. “public list” vs “unlisted link,” or OAuth vs email-only)—record answers back into `.rma/other.md` or `description.md` so the next **`plan`** is sharper.
@@ -203,7 +205,7 @@ Establish data model and API skeleton for lists, items, categories, and membersh
 - Public list abuse — rate limits later
 ```
 
-**Expectation:** Your real output depends on the LLM, MemPalace context, and `.rma` files. Aim for **much more detail** than the snippet when context is mature. If MemPalace is unavailable and you have not set **`RMA_ALLOW_PLAN_FALLBACK=1`**, **`plan`** fails fast — that is by design in v1.1.0+.
+**Expectation:** Your real output depends on the LLM, MemPalace context, and `.rma` files. Aim for **much more detail** than the snippet when context is mature. If MemPalace is unavailable and you have not set **`RMA_ALLOW_PLAN_FALLBACK=1`**, **`plan`** fails fast — that is by design in v1.1.1+.
 
 **Refinements:** Use your **IDE agent** to expand sections or list unresolved decisions as multiple-choice; capture answers in `.rma/*.md` and re-run **`plan`**.
 

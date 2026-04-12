@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Windows bridge — invokes scripts/unix/roadmap-agent.sh via bash (WSL/Git Bash); persistence and tools subcommands stay native.
 # Notes: Resolves repo root two levels above this file; sets ROADMAP_AGENT_PROJECT_ROOT from cwd for WSL. Normalizes CRLF shims when needed.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $rootDir = Split-Path -Parent (Split-Path -Parent $scriptDir)

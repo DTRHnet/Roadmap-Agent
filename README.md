@@ -6,7 +6,9 @@
 
 **Terminal-first roadmap workflow** — plain Markdown in `.rma/`, local and remote LLMs, optional MemPalace, optional web UI.
 
-[![Version](https://img.shields.io/badge/release-v1.1.0--beta-5b4cdb?style=flat-square)](CHANGELOG.md)
+**How the pieces fit:** **CORE** (`roadmap-agent`, hub, `.rma/` Markdown) orchestrates **`plan`**, **`analyze`**, **`execute-one`**, and the modular terminal **`agent`** (**`rma_agent`**). **LLMs** are selected with **`RMA_*`** (Ollama by default). **MemPalace** optionally indexes your tree for retrieval-aware **`plan`**. **MCP** (**`rma_mcp`**) exposes tools and context to IDE hosts without replacing the CLI loop. **Web UI** (optional) edits whitelisted **`.env`** and runs **`doctor --json`**. Subsystems share the same project **`.env`** keys loaded by **`load_rma_env_file()`** — see **[Project components (subsystems)](#project-components-subsystems)** for the full map.
+
+[![Version](https://img.shields.io/badge/release-v1.1.1--b-5b4cdb?style=flat-square)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-495057?style=flat-square&logo=docker&logoColor=white)](#deployment-guide)
 [![Runtime](https://img.shields.io/badge/runtime-Bash%20%2B%20PowerShell-2f9e44?style=flat-square)](#runtime-model)
 [![Quick start](https://img.shields.io/badge/read-quick%20start-228be6?style=flat-square)](docs/QUICKSTART.md)
@@ -21,23 +23,15 @@
 
 ### Documentation
 
-| Resource | Description |
-|----------|-------------|
-| **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** | Fast path by OS — clone, Python/MemPalace, `.env`, `init`, `doctor`, Windows PATH (`launchers/setup-rma.ps1`). |
-| **[`docs/TESTING.md`](docs/TESTING.md)** | Tests — `pytest`, extending coverage (doctor JSON, web API, installers). |
-| **[`docs/MANUAL.md`](docs/MANUAL.md)** | Operator manual — commands, hub, `.rma` Markdown, `analyze` / `analyze-init`, LLM providers, persistence. |
-| **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** | Process — plan → review → `execute-one`, keeping context current. |
-| **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** | Sample `.rma` context (`weather-app`, `list-sharing`, `devtools-cli`); MCP notes in folder README. |
-| **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** | End-to-end walkthrough (mock transcripts): MemPalace + `.rma`, agent prompts, `execute-one`. |
-| **[`docs/examples/END-TO-END-AUTOPART-LEADS-APP.md`](docs/examples/END-TO-END-AUTOPART-LEADS-APP.md)** | End-to-end walkthrough (mock transcripts): inventory-backed lead discovery (Part 1), outreach as a planned phase (Part 2), compliance and integrations framed honestly. |
-| **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** | Illustrative session — install → `init` → hub → `plan` / `analyze` / `execute-one`. |
-| **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (e.g. `v1.1.0-beta`, `v1.0.1`). |
-| **[`.env.example`](.env.example)** | Full catalog of **whitelisted** project vars + process-only vars (comments, options, defaults). |
-| **[`docs/RELEASING.md`](docs/RELEASING.md)** | Shipping — tags, GitHub releases, archives, Docker; no required binary artifact. |
-| **[`web/README.md`](web/README.md)** | Optional web UI — FastAPI + React, guided/advanced `.env` editor, `doctor --json`, model probes, Docker, **`VITE_DOCS_BASE`**. |
-| **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** | **MCP** — default **streamable-http** (background) from the CLI; **stdio** for Cursor/Claude command config. `.rma/` context, `rma plan`/`analyze`, scoped file tools, optional shell. |
-| **[`docs/OPTILLM.md`](docs/OPTILLM.md)** | **OptiLLM** + **Ollama** — `openllama` `.env` pointing at the proxy; OptiLLM **MCP plugin** + **`rma_mcp`** via `~/.optillm/mcp_config.json`. |
-| **[`docs/agent/usage.md`](docs/agent/usage.md)** | **Modular terminal agent** — `roadmap-agent agent`, `python -m rma_agent`, **`requirements-agent.txt`**, **`RMA_AGENT_*`**, **`rma_cli`** status dashboard. |
+| Area | Links |
+|------|--------|
+| **Getting started** | **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** · **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)** |
+| **Operator** | **[`docs/MANUAL.md`](docs/MANUAL.md)** · **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** · **[`docs/MENU-REFERENCE.md`](docs/MENU-REFERENCE.md)** |
+| **Agent & automation** | **[`docs/agent/usage.md`](docs/agent/usage.md)** (primary) · **[`docs/agent/architecture.md`](docs/agent/architecture.md)** · **[`docs/agent/development.md`](docs/agent/development.md)** — modular **`rma_agent`** (`roadmap-agent agent`, **`requirements-agent.txt`**, **`RMA_AGENT_*`**, **`rma_cli`** dashboard). |
+| **Integration** | **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** · **[`docs/OPTILLM.md`](docs/OPTILLM.md)** |
+| **Optional web** | **[`web/README.md`](web/README.md)** — FastAPI + React, `.env` editor, **`doctor --json`**, Docker, **`VITE_DOCS_BASE`**. |
+| **Examples** | **[`docs/examples/README.md`](docs/examples/README.md)** — sample **`.rma/`** bundles (**[`rma-context-samples/`](docs/examples/rma-context-samples/)**), walkthroughs, mock session (**[`MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)**). |
+| **Meta** | **[`CHANGELOG.md`](CHANGELOG.md)** · **[`docs/RELEASING.md`](docs/RELEASING.md)** · **[`docs/TESTING.md`](docs/TESTING.md)** · **[`.env.example`](.env.example)** |
 
 Project memory lives in **`.rma/`**; plans and execution run from the **terminal** with **local LLMs** (Ollama by default) when you want repo-aware help — **no** hosted dashboard or vendor lock-in for the core workflow.
                                                                                                                                                                   
@@ -699,9 +693,9 @@ These are still important for operators and CI; set them in the environment or w
 
 ## Versioning
 
-- **Canonical release number** lives in the root **`VERSION`** file (for example `1.1.0-beta`). The Unix runtime prints it in the banner as `v1.1.0-beta` when present.
+- **Canonical release number** lives in the root **`VERSION`** file (for example `1.1.1-b`). The Unix runtime prints it in the banner as `v1.1.1-b` when present.
 - **`CHANGELOG.md`** follows [Keep a Changelog](https://keepachangelog.com/) with dated sections per release.
-- **Git tags** use the `v` prefix (for example `v1.1.0-beta`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v1.1.0-beta` checks out that tag.
+- **Git tags** use the `v` prefix (for example `v1.1.1-b`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v1.1.1-b` checks out that tag.
 
 This project is **script-first** (bash + PowerShell). There is no official single-file executable; “shipping” usually means a **tagged source tree**, **zip/tarball** on GitHub Releases, optional **Docker image**, and/or the **Windows persistence** mirror under `%LOCALAPPDATA%\Roadmap-Agent`. Step-by-step: **[`docs/RELEASING.md`](docs/RELEASING.md)**.
 
@@ -709,29 +703,9 @@ This project is **script-first** (bash + PowerShell). There is no official singl
 
 ## Documentation index
 
-**Onboarding & workflow**
+For the **curated link set**, see **[Documentation](#documentation)** above. Below are **extra** references not repeated there.
 
-- [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — fastest path by OS (Windows, Linux, macOS, Docker)
-- [`docs/TESTING.md`](docs/TESTING.md) — repository tests and how to grow the suite
-- [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md) — short first-run checklist
-- [`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md) — effective plan → execute-one operating model
-- [`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg) — diagram: MemPalace mining (directory, limit, dry-run) vs roadmap loop
-- [`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/) — example `description.md` / `ui.md` / `stack.md` / `other.md` for three app types; MCP integration notes
-- [`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md) — end-to-end example (list-sharing app: import tool, commands, mock output, expectations)
-- [`docs/examples/END-TO-END-AUTOPART-LEADS-APP.md`](docs/examples/END-TO-END-AUTOPART-LEADS-APP.md) — end-to-end example (autopart leads: Part 1 discovery vs Part 2 outreach, schedulers, connectors, shipping estimates, disclaimers)
-- [`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md) — fictional terminal log from install through hub, roadmap commands, and mock `.rma/logs` lines
-
-**Reference**
-
-- [`web/README.md`](web/README.md) — optional local web UI (FastAPI + React): install, `RMA_WEB_*`, Docker
-- [`docs/MANUAL.md`](docs/MANUAL.md) — full operator manual (commands, `.rma` files, env, persistence, web UI summary)
-- [`docs/OPTILLM.md`](docs/OPTILLM.md) — OptiLLM proxy in front of Ollama; ROADMAP-AGENT `openllama` settings; OptiLLM MCP + `rma_mcp`
-- [`docs/MENU-REFERENCE.md`](docs/MENU-REFERENCE.md) — hub / submenu labels and actions
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the runtime pieces fit together
+- [`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg) — diagram: MemPalace mining vs roadmap loop
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime layout and cross-subsystem behavior
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — common failures and fixes
 - [`docs/man/roadmap-agent.1`](docs/man/roadmap-agent.1) — Unix man page source
-
-**Releases**
-
-- [`CHANGELOG.md`](CHANGELOG.md) — version-by-version notes (see also **Versioning** above)
-- [`docs/RELEASING.md`](docs/RELEASING.md) — tagging, GitHub Release assets, Docker build

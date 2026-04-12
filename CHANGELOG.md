@@ -10,6 +10,14 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 - (none)
 
+## [1.1.1-b] - 2026-04-11
+
+### Changed
+
+- **README**: Grouped **Documentation** links (getting started, operator, agent, integration, web, examples, meta); added **`docs/examples/README.md`** as the examples hub; short **hero** blurb on how CORE, LLM, MemPalace, MCP, and Web UI fit together; **Documentation index** trimmed to extra references only.
+- **Examples**: **[`docs/examples/README.md`](docs/examples/README.md)** explains **rma-context-samples** vs walkthroughs vs mock session; walkthroughs and **[`rma-context-samples/README.md`](docs/examples/rma-context-samples/README.md)** distinguish **modular `rma_agent`** (**`roadmap-agent agent`**) from **MCP/IDE** agents and **`RMA_AGENT_LEGACY`**. **[`MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** clarifies **`.rma/logs/agent.log`** for the **`rma_agent`** path (illustrative lines).
+- Documentation emphasizes the **modular terminal agent** over the legacy bash-only loop for normal use.
+
 ## [1.1.0-beta] - 2026-04-11
 
 ### Added

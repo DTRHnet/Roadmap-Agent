@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Unix core ROADMAP-AGENT runtime (menu, roadmap, persistence, help).
 # Notes: ROOT_DIR follows ROADMAP_AGENT_PROJECT_ROOT when set; APP_DIR follows ROADMAP_AGENT_APP_ROOT (toolkit checkout). Loads only whitelisted keys from project .env.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 set -u
 

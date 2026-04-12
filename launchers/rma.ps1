@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Launcher — forwards to scripts/windows/roadmap-agent.ps1 (ROADMAP_AGENT_PROJECT_ROOT = cwd).
 # Notes: Repo-root helpers live in launchers/; only RUN.* stays at clone root.
-# Last updated: 2026-04-11 | Version: v1.1.0-beta
+# Last updated: 2026-04-11 | Version: v1.1.1-b
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 $LaunchersDir = Split-Path -Parent $MyInvocation.MyCommand.Path

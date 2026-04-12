@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Convenience wrapper around install-persistence.ps1 plus quiet PATH refresh in this session.
 # Notes: Repo root is two levels above this file. Repo-root setup-rma.ps1 forwards here for stable paths.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 param(
     [switch]$CheckOnly,

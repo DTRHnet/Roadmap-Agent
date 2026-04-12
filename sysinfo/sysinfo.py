@@ -29,7 +29,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-__version__ = "1.1.0-beta"
+__version__ = "1.1.1-b"
 
 # Explicit empty file: touch `.sysinfo-root` in the repo root if you have no `.git` / `.rma`.
 WORKSPACE_MARKER_FILE = ".sysinfo-root"

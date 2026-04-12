@@ -31,6 +31,8 @@ This walkthrough is **illustrative**. Commands, transcripts, and file excerpts a
 | Shipping cost API / rules | — | **Your** integration (carrier APIs, dim weight, geocoding) |
 | MCP / Web UI | Optional: **[`MCP-SERVER.md`](../MCP-SERVER.md)**, **[`web/README.md`](../../web/README.md)** | Same toolchain; optional for your team |
 
+**Agent terminology:** **`roadmap-agent agent`** runs the modular Python **`rma_agent`** (install **`requirements-agent.txt`**) — the default **terminal** automation path alongside **`plan`** / **`execute-one`**. **IDE agents** (Cursor, etc.) typically use **MCP** (**`rma_mcp`**) to reach the same **`.rma/`** contract and **`rma_*`** tools; they complement but do not replace your app code. **`RMA_AGENT_LEGACY=1`** forces the legacy **bash-only** agent loop—use only when debugging that path.
+
 ---
 
 ## 2 — Target architecture (conceptual)

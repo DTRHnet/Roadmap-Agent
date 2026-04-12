@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Mirrors toolkit into LocalAppData/ProgramFiles, updates PATH, normalizes LF on *.sh for WSL.
 # Notes: Uses robocopy /MIR; calls refresh-rma-path.ps1 in this folder after success. Scope User vs Machine.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 param(
     [switch]$CheckOnly,

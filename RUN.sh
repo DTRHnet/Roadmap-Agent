@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: One-shot bootstrap — seed .env, run MemPalace venv setup for current directory, then exec roadmap-agent (default menu).
 # Notes: TOOLKIT_ROOT is this script's directory; PROJECT_ROOT is pwd. Exports ROADMAP_AGENT_APP_ROOT and ROADMAP_AGENT_PROJECT_ROOT. Use RUN.ps1/RUN.cmd on native Windows.
-# Last updated: 2026-04-10 | Version: v1.1.0-beta
+# Last updated: 2026-04-10 | Version: v1.1.1-b
 
 set -euo pipefail
 
