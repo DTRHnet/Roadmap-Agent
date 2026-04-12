@@ -3,10 +3,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 const WEB_SECTIONS = [
   { id: 'web-section-project', label: 'Project' },
   { id: 'web-section-diagnostics', label: 'Doctor' },
+  { id: 'web-section-roadmap', label: 'Roadmap' },
   { id: 'web-section-env', label: 'Env' },
   { id: 'web-section-cli', label: 'CLI' },
   { id: 'web-section-docs', label: 'Docs' },
 ] as const
+
+type RoadmapPreset = { id: string; label: string; args: string[]; hint: string }
 
 function scrollToWebSection(id: string) {
   const el = document.getElementById(id)
@@ -119,6 +122,9 @@ export default function App() {
   const [pyEnvsErr, setPyEnvsErr] = useState('')
   const [pyEnvsLoading, setPyEnvsLoading] = useState(false)
   const [webStack, setWebStack] = useState<WebStackInfo | null>(null)
+  const [roadmapPresets, setRoadmapPresets] = useState<RoadmapPreset[]>([])
+  const [roadmapBusy, setRoadmapBusy] = useState<string | null>(null)
+  const [roadmapOut, setRoadmapOut] = useState('')
 
   const q = useMemo(
     () => new URLSearchParams({ project: project.trim() }).toString(),
@@ -185,6 +191,19 @@ export default function App() {
   useEffect(() => {
     void loadAll()
   }, [loadAll])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const r = await fetch('/api/roadmap/presets')
+        if (!r.ok) return
+        const j = (await r.json()) as { presets: RoadmapPreset[] }
+        setRoadmapPresets(j.presets || [])
+      } catch {
+        setRoadmapPresets([])
+      }
+    })()
+  }, [])
 
   const syncBulkFromForm = useCallback(() => {
     setBulkText(formToBulkLines(form, managedKeys))
@@ -334,6 +353,51 @@ export default function App() {
     }
     const j = (await r.json()) as { stdout: string; stderr: string; returncode: number }
     setRmaOut(`exit ${j.returncode}\n${j.stderr}\n${j.stdout}`)
+  }
+
+  const runRoadmapPreset = async (preset: RoadmapPreset) => {
+    setRoadmapOut('')
+    setErr('')
+    if (!project.trim()) {
+      setErr('Set project root first')
+      return
+    }
+    setRoadmapBusy(preset.id)
+    try {
+      const r = await fetch(`/api/run/rma?${q}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...apiHeaders(adminToken) },
+        body: JSON.stringify({ args: preset.args }),
+      })
+      if (r.status === 401) {
+        setRoadmapOut('Unauthorized — set admin token to match RMA_WEB_ADMIN_TOKEN')
+        return
+      }
+      if (!r.ok) {
+        setRoadmapOut(await r.text())
+        return
+      }
+      const j = (await r.json()) as {
+        stdout: string
+        stderr: string
+        returncode: number
+        timeout_sec?: number
+      }
+      setRoadmapOut(
+        `exit ${j.returncode} (timeout ${j.timeout_sec ?? '?'}s)\n${j.stderr}\n${j.stdout}`,
+      )
+      if (preset.id === 'plan' || preset.id === 'analyze' || preset.id === 'analyze-init-dry') {
+        setMsg(`Finished: ${preset.label} — reload manifest if needed`)
+        await loadAll()
+      }
+      if (preset.id === 'doctor-json') {
+        await refreshDoctor()
+      }
+    } catch (e) {
+      setRoadmapOut(String(e))
+    } finally {
+      setRoadmapBusy(null)
+    }
   }
 
   const runProjectInit = async () => {
@@ -874,6 +938,47 @@ export default function App() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="card card-sharp web-section" id="web-section-roadmap">
+          <h2>Roadmap actions</h2>
+          <p className="field-hint" style={{ marginTop: 0 }}>
+            One-click <code className="inline-code">rma</code> for common workflow steps. Uses{' '}
+            <code className="inline-code">plan --no-interactive</code> so the server is not blocked by TTY prompts.
+            Interactive flows (<code className="inline-code">execute-one</code>, menu) still belong in the terminal.
+          </p>
+          {!project.trim() ? (
+            <p className="msg">Set project root above to enable actions.</p>
+          ) : roadmapPresets.length === 0 ? (
+            <p className="field-hint">Loading presets…</p>
+          ) : (
+            <div className="roadmap-preset-grid">
+              {roadmapPresets.map((p) => (
+                <div className="roadmap-preset-card" key={p.id}>
+                  <div className="roadmap-preset-head">
+                    <strong>{p.label}</strong>
+                    <code className="inline-code roadmap-preset-cmd">{p.args.join(' ')}</code>
+                  </div>
+                  <p className="field-hint" style={{ margin: '0.35rem 0 0.5rem' }}>
+                    {p.hint}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn secondary btn-tiny"
+                    disabled={roadmapBusy !== null}
+                    onClick={() => void runRoadmapPreset(p)}
+                  >
+                    {roadmapBusy === p.id ? 'Running…' : 'Run'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {roadmapOut && (
+            <pre className="pre pre-compact" style={{ marginTop: '0.75rem' }}>
+              {roadmapOut.slice(-32000)}
+            </pre>
+          )}
         </div>
 
         <div className="card card-sharp env-card web-section" id="web-section-env">

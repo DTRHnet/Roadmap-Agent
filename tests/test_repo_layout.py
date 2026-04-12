@@ -77,3 +77,19 @@ def test_persistence_sync_lists_launchers() -> None:
 
 def test_img_has_diagram() -> None:
     assert (ROOT / "img" / "roadmap-mining-and-loop.svg").is_file()
+
+
+def test_license_and_notice_at_root() -> None:
+    assert (ROOT / "LICENSE").is_file()
+    text = (ROOT / "LICENSE").read_text(encoding="utf-8", errors="replace")
+    assert "Apache License" in text
+    assert (ROOT / "NOTICE").is_file()
+    assert "DTRH" in (ROOT / "NOTICE").read_text(encoding="utf-8", errors="replace")
+
+
+def test_github_ci_workflow_exists() -> None:
+    wf = ROOT / ".github" / "workflows" / "ci.yml"
+    assert wf.is_file()
+    raw = wf.read_text(encoding="utf-8", errors="replace")
+    assert "pytest" in raw
+    assert "docker" in raw.lower() or "Dockerfile" in raw

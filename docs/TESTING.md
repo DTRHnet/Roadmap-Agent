@@ -54,6 +54,25 @@ ROADMAP-AGENT does **not** stream an LLM’s chain-of-thought into repo files. W
 
 **Smoke:** `python -m pytest tests/test_mcp_log_tool.py -q` checks MCP logging without bash or a running server.
 
-## CI suggestion
+## CI (GitHub Actions)
 
-A minimal GitHub Actions job: checkout → Python3.12 → `pip install -r requirements-dev.txt -r requirements-web.txt` → `pytest tests web/backend/tests` → optional `npm ci` in `web/frontend` → `npm run build`.
+The repository ships **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)**. On push/PR to `main` or `master` it runs:
+
+1. **Python** — `pip install -r requirements-dev.txt -r requirements-agent.txt -r requirements-web.txt`
+2. **`pytest tests/`** — layout, agent, MCP logging, optional bash syntax (skipped on Windows without usable paths)
+3. **`pytest web/backend/tests/`** — env merge, settings, roadmap presets API
+4. **`bash -n scripts/unix/roadmap-agent.sh`**
+5. **Frontend** — `npm ci` and `npm run build` under `web/frontend`
+6. **Docker** — build (no push) **`Dockerfile`** and **`docker/Dockerfile.web`** with Buildx cache
+
+For a one-off local check that mirrors CI (Unix):
+
+```bash
+pip install -r requirements-dev.txt -r requirements-agent.txt -r requirements-web.txt
+python -m pytest tests/ -q
+( cd web/backend && python -m pytest tests/ -q )
+bash -n scripts/unix/roadmap-agent.sh
+( cd web/frontend && npm ci && npm run build )
+docker build -t roadmap-agent:local .
+docker build -f docker/Dockerfile.web -t rma-web:local .
+```

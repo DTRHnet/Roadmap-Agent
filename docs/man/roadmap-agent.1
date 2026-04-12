@@ -1,7 +1,7 @@
 .\" ROADMAP-AGENT manual page
-.TH ROADMAP-AGENT 1 "2026-04-10" "ROADMAP-AGENT" "User Commands"
+.TH ROADMAP-AGENT 1 "2026-04-12" "ROADMAP-AGENT" "User Commands"
 .SH NAME
-roadmap-agent \- cross-platform Local AI Memory Palace CLI
+roadmap-agent \- terminal-first roadmap workflow with optional MemPalace and MCP
 .SH SYNOPSIS
 .B roadmap-agent
 [\fICOMMAND\fR]
@@ -9,67 +9,124 @@ roadmap-agent \- cross-platform Local AI Memory Palace CLI
 .B rma
 [\fICOMMAND\fR]
 .SH DESCRIPTION
-ROADMAP-AGENT is a script-first local CLI that manages a roadmap workflow powered by project metadata in .rma.
+ROADMAP-AGENT manages product context and roadmap state in plain Markdown under
+\fB.rma/\fR, drives LLM-backed \fBplan\fR and \fBanalyze\fR, optional MemPalace
+retrieval (\fBmempalace wake-up\fR for \fBplan\fR when \fB.rma/mempalace\fR exists),
+and exposes an optional Model Context Protocol server (\fBrma_mcp\fR) for IDE hosts.
 .PP
-It supports:
-.IP \(bu 2
-Dry-run planning and safe task-by-task execution
-.IP \(bu 2
-Local AI Memory Palace helper actions
-.IP \(bu 2
-Cross-platform operation on Windows, Linux, macOS, and Docker
+Default behavior with no command opens the interactive hub (\fBfzf\fR when available).
 .SH COMMANDS
 .TP
 .B init
-Initialize .rma metadata files and roadmap state.
+Create \fB.rma/\fR templates and roadmap paths. Options: \fB\-y\fR, \fB\-\-yes\fR;
+\fB\-\-embed\fR / \fB\-\-no\-embed\fR for toolkit copy into the managed project.
 .TP
 .B status
-Show project/branch/task and execution summary.
+Show project, branch, and roadmap/task summary.
+.TP
+.B doctor
+Diagnostics: PATH, Python venv, LLM providers, MemPalace imports, persistence.
+Use \fB\-\-json\fR for machine-readable output (web UI and scripts).
 .TP
 .B plan
-Generate dry-run roadmap plan.
+Generate \fB.rma/roadmaps/plan.md\fR via configured LLM. Optional interactive
+prompts for open questions (\fB.rma/open\-questions.md\fR, \fBOpen:\fR lines in context
+files). \fB\-\-no\-interactive\fR skips prompts. Optional MemPalace \fBwake\-up\fR text
+when \fB.rma/mempalace\fR exists.
 .TP
-.B execute-one
-Execute exactly one selected task from the plan.
+.B analyze
+Scan the tree and sync \fBtasks.md\fR / \fBrun.md\fR under \fB.rma/roadmaps/\fR.
+.TP
+.B analyze\-init
+LLM/heuristic proposals for the four context files. Flags: \fB\-\-dry\-run\fR,
+\fB\-\-yes\fR, \fB\-\-require\-ollama\fR.
+.TP
+.B execute\-one
+Select one unchecked task from \fBplan.md\fR and run the guarded execution path.
+.TP
+.B agent / run\-agent
+Autonomous agent loop (\fBrma_agent\fR by default; \fBRMA_AGENT_LEGACY=1\fR for bash loop).
+Options: \fB\-\-max\-steps\fR, \fB\-y\fR, \fB\-\-confirm\-execute\-one\fR, \fB\-\-require\-ollama\fR.
+.TP
+.B tools
+Print JSON manifest of CLI tools for external agents.
 .TP
 .B unlock
-Clear stale lock state.
+Clear stale roadmap lock.
 .TP
-.B persistence
-Install global launchers and runtime with elevated privileges.
+.B persistence / persistance
+Install global launchers and runtime (admin/root on Unix; Administrator on Windows).
 .TP
-.B persistance
-Alias of persistence.
+.B persistence\-check
+Report install status and offer upgrade.
 .TP
-.B help, -h, --help
-Show detailed command help.
+.B setup\-venv
+Create or refresh \fB.rma/venv\fR and install MemPalace/ChromaDB (OS setup script).
+.TP
+.B pick\-env
+Choose a project \fB.env*\fR file and copy to \fB.env\fR.
+.TP
+.B web\-api / web\-backend
+Start FastAPI companion UI backend (default port 8765; see \fBRMA_WEB_*\fR).
+.TP
+.B web\-frontend
+Start Vite dev server for the companion SPA (default 5173).
+.TP
+.B mcp\-start
+Start MCP server (\fBrma_mcp\fR): \fBstreamable\-http\fR, \fBsse\fR, or \fBstdio\fR
+(\fBRMA_MCP_*\fR). See \fBdocs/MCP\-SERVER.md\fR.
+.TP
+.B release
+Maintainer: tag, Docker build, GitHub release from \fBVERSION\fR and \fBCHANGELOG\fR
+(\fB\-\-dry\-run\fR, \fB\-\-skip\-*\fR, \fB\-y\fR).
 .TP
 .B man
-Show manual text.
+Show this manual text when \fBnroff\fR is unavailable.
+.TP
+.B help \fR/ \fB\-h \fR/ \fB\-\-help
+Detailed help (same topics as environment variables in \fB.env.example\fR).
 .TP
 .B menu
-Open interactive hub and AI submenu (default).
-.SH PERSISTENCE MODE
-.SS Linux/macOS
-Installs runtime to /usr/local/lib/roadmap-agent and launchers to /usr/local/bin.
-Optionally updates shell rc PATH block without duplication.
-Installs this manpage into /usr/local/share/man/man1.
-Requires root or sudo.
-.SS Windows
-Requires Administrator privileges.
-Installs runtime under C:\\Program Files\\Roadmap-Agent and updates Machine PATH once.
+Interactive hub (Roadmap, MemPalace, Environment, Web/MCP, Maintainer).
+.SH MEMPALACE
+\fBmempalace mine\fR indexes project files into a local palace; menu entries may use
+\fB\-\-dry\-run\fR. \fBplan\fR does not call a MemPalace \fBplan\fR subcommand; it uses
+your LLM plus optional \fBwake\-up\fR retrieval. Environment: \fBRMA_REQUIRE_MEMPALACE\fR,
+\fBRMA_MEMPALACE_BIN\fR, \fBRMA_MEMPALACE_MINE_DIR\fR. Local palace data under
+\fB.rma/mempalace\fR should not be committed to version control.
 .SH FILES
 .TP
 .B .rma/description.md
-Primary product/function context.
+Product/function context.
 .TP
 .B .rma/ui.md
-Expected UI/UX behavior context.
+UI/UX or CLI behavior expectations.
 .TP
 .B .rma/stack.md
-Tech stack and versions.
+Stack and versions.
 .TP
 .B .rma/other.md
-Additional operational or architectural context.
+Operational constraints and decisions.
+.TP
+.B .rma/roadmaps/plan.md
+Generated dry\-run plan.
+.TP
+.B .rma/roadmaps/tasks.md \fR/ \fBrun.md
+Synced task and run state.
+.TP
+.B .rma/mempalace/
+Local MemPalace data (gitignored).
+.TP
+.B .rma/mcp/
+MCP runtime logs and \fBruntime.json\fR when using HTTP transport.
+.SH LICENSE
+Licensed under the Apache License, Version 2.0. See \fBLICENSE\fR and \fBNOTICE\fR in the
+repository root. Redistributions must preserve attribution as described in \fBNOTICE\fR.
 .SH SEE ALSO
-README.md, docs/GETTING-STARTED.md, docs/TROUBLESHOOTING.md
+.BR README.md ", "
+.BR LICENSE ", "
+.BR NOTICE ", "
+.BR docs/MANUAL.md ", "
+.BR docs/MCP\-SERVER.md ", "
+.BR docs/ROADMAP\-WORKFLOW.md ", "
+.BR docs/TROUBLESHOOTING.md

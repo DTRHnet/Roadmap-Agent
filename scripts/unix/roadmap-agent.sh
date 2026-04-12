@@ -1920,9 +1920,11 @@ except Exception:
       nohup "$py" -m rma_mcp >>"$RMA_DIR/mcp/nohup.log" 2>&1 &
     )
     info "MCP detached — log: $RMA_DIR/mcp/nohup.log" >&2
-    local _i
-    for _i in 1 2 3 4 5 6 8 10 12 16 20 24 30 35 40 50; do
-      sleep 0.2
+    # Wait for rma_mcp to write .rma/mcp/runtime.json (done just before mcp.run). WSL / cold venv
+    # imports often exceed a few seconds; a short poll produced false "not created yet" warnings.
+    local _n _max=60
+    for ((_n = 0; _n < _max; _n++)); do
+      sleep 0.5
       [[ -f "$RMA_DIR/mcp/runtime.json" ]] && break
     done
     if [[ -f "$RMA_DIR/mcp/runtime.json" ]]; then
