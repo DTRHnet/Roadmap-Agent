@@ -15,23 +15,70 @@
 
 <br/>
 
-**[Overview](#what-it-does)** · **[MemPalace & loop](#mempalace-mining-and-the-roadmap-loop)** · **[Layout](#repository-layout)** · **[Runtime](#runtime-model)** · **[Contributors](#for-contributors)** · **[Requirements](#requirements)** · **[Quick start](#quick-start)** · **[Setup](#full-setup-workflow)** · **[Commands](#command-reference)** · **[Deploy](#deployment-guide)** · **[Environment](#environment-variables)** · **[`.rma/` best practices](#best-practices-for-the-rma-directory)** · **[Troubleshooting](#troubleshooting)** · **[Security](#security-and-operational-notes)** · **[All docs](#documentation-index)**
+**[Table of contents](#table-of-contents)** · **[Documentation reference](#documentation-reference)** · **[Overview](#what-it-does)** · **[All docs (index)](#documentation-index)**
 
 </div>
 
 ---
 
-### Documentation
+## Table of contents
 
-| Area | Links |
-|------|--------|
-| **Getting started** | **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** · **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)** |
-| **Operator** | **[`docs/MANUAL.md`](docs/MANUAL.md)** · **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** · **[`docs/MENU-REFERENCE.md`](docs/MENU-REFERENCE.md)** |
-| **Agent & automation** | **[`docs/agent/usage.md`](docs/agent/usage.md)** (primary) · **[`docs/agent/architecture.md`](docs/agent/architecture.md)** · **[`docs/agent/development.md`](docs/agent/development.md)** — modular **`rma_agent`** (`roadmap-agent agent`, **`requirements-agent.txt`**, **`RMA_AGENT_*`**, **`rma_cli`** dashboard). |
-| **Integration** | **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** · **[`docs/OPTILLM.md`](docs/OPTILLM.md)** |
-| **Optional web** | **[`web/README.md`](web/README.md)** — FastAPI + React, `.env` editor, **`doctor --json`**, Docker, **`VITE_DOCS_BASE`**. |
-| **Examples** | **[`docs/examples/README.md`](docs/examples/README.md)** — sample **`.rma/`** bundles (**[`rma-context-samples/`](docs/examples/rma-context-samples/)**), walkthroughs, mock session (**[`MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)**). |
-| **Meta** | **[`CHANGELOG.md`](CHANGELOG.md)** · **[`docs/RELEASING.md`](docs/RELEASING.md)** · **[`docs/TESTING.md`](docs/TESTING.md)** · **[`.env.example`](.env.example)** |
+### This README
+
+| Section | What you will find |
+|---------|-------------------|
+| [Documentation reference](#documentation-reference) | Curated links into `docs/`, examples, and tooling |
+| [What it does](#what-it-does) | Product overview, LLMs, interfaces, MCP vs CLI |
+| [Project components](#project-components-subsystems) | CORE, MemPalace, Web UI, MCP, sysinfo, release |
+| [MemPalace mining and the roadmap loop](#mempalace-mining-and-the-roadmap-loop) | Mining args, loop diagram, shipping real software |
+| [Roadmap-Agent Architecture](#roadmap-agent-architecture) | Conceptual pipeline (planner → tools → output) |
+| [Key System Behavior](#key-system-behavior) | Non-linear iteration and refinement |
+| [Repository layout](#repository-layout) | Directory tree of this repo |
+| [Runtime model](#runtime-model) | Launchers, `.rma/`, hub, doctor, web UI |
+| [For contributors](#for-contributors) | Scripts layout, environments, Windows bridge |
+| [Requirements](#requirements) | OS and tool prerequisites |
+| [Quick start](#quick-start) | Fast path to first commands |
+| [Full setup workflow](#full-setup-workflow) | Deeper install and verification |
+| [Command reference](#command-reference) | CLI actions and flags |
+| [Deployment guide](#deployment-guide) | Local, global PATH, Docker |
+| [Environment variables](#environment-variables) | `.env` whitelist and process env |
+| [Best practices for `.rma/`](#best-practices-for-the-rma-directory) | Keeping context files useful |
+| [Troubleshooting](#troubleshooting) | Common failures |
+| [Security and operational notes](#security-and-operational-notes) | Secrets, web token, execution safety |
+| [Versioning](#versioning) | `VERSION`, tags, releases |
+| [Documentation index](#documentation-index) | Extra links not listed above |
+
+---
+
+## Documentation reference
+
+Handbooks and examples live under **[`docs/`](docs/)**. Use this table to jump to the right doc; the **[examples hub](docs/examples/README.md)** explains sample **`.rma/`** trees, walkthroughs, and reference-depth bundles.
+
+| Topic | Documents |
+|-------|-----------|
+| **Getting started** | **[`docs/QUICKSTART.md`](docs/QUICKSTART.md)** (per OS) · **[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md)** |
+| **Operator manual** | **[`docs/MANUAL.md`](docs/MANUAL.md)** — commands, **`.rma/`** authoring, interactive **`plan`**, environment |
+| **Workflow** | **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** — roadmap loop in practice |
+| **Hub menus** | **[`docs/MENU-REFERENCE.md`](docs/MENU-REFERENCE.md)** — TUI categories and actions |
+| **Architecture (repo)** | **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** — subsystems and data flow |
+| **`.rma` Markdown** | Authoring rules in **`docs/MANUAL.md`** (*Writing and maintaining context files*); sample bundles **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)**; **reference-depth** exemplar **[`docs/examples/reference-depth/list-hub/`](docs/examples/reference-depth/list-hub/)**; rubric **[`docs/examples/REFERENCE-DEPTH-AUTHORING.md`](docs/examples/REFERENCE-DEPTH-AUTHORING.md)** |
+| **Agent (`rma_agent`)** | **[`docs/agent/usage.md`](docs/agent/usage.md)** (primary) · **[`docs/agent/architecture.md`](docs/agent/architecture.md)** · **[`docs/agent/development.md`](docs/agent/development.md)** — **`roadmap-agent agent`**, **`requirements-agent.txt`**, **`RMA_AGENT_*`**, **`rma_cli`** dashboard |
+| **MCP & IDE** | **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** — `rma_mcp`, transports, tools, safety |
+| **Optillm** | **[`docs/OPTILLM.md`](docs/OPTILLM.md)** |
+| **Companion web UI** | **[`web/README.md`](web/README.md)** — FastAPI + React, `.env` editor, **`doctor --json`**, Docker, **`VITE_DOCS_BASE`** |
+| **Examples & walkthroughs** | **[`docs/examples/README.md`](docs/examples/README.md)** — hub for **[`rma-context-samples/`](docs/examples/rma-context-samples/)**, **[`END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)**, **[`END-TO-END-AUTOPART-LEADS-APP.md`](docs/examples/END-TO-END-AUTOPART-LEADS-APP.md)**, **[`MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** |
+| **Troubleshooting** | **[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)** |
+| **Meta / releases** | **[`CHANGELOG.md`](CHANGELOG.md)** · **[`docs/RELEASING.md`](docs/RELEASING.md)** · **[`docs/TESTING.md`](docs/TESTING.md)** · **[`.env.example`](.env.example)** · **[`docs/man/roadmap-agent.1`](docs/man/roadmap-agent.1)** (man page source) |
+
+### By role
+
+| You are… | Start here |
+|----------|------------|
+| **New user** | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) → [`docs/MANUAL.md`](docs/MANUAL.md) → run **`doctor`** |
+| **Filling `.rma/` for your app** | [`docs/MANUAL.md`](docs/MANUAL.md) (context files) → [`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/) → optional [`docs/examples/reference-depth/list-hub/`](docs/examples/reference-depth/list-hub/) |
+| **IDE / MCP user** | [`docs/MCP-SERVER.md`](docs/MCP-SERVER.md) + [`rma_mcp/client-config.example.json`](rma_mcp/client-config.example.json) |
+| **Agent developer** | [`docs/agent/usage.md`](docs/agent/usage.md) · [`docs/agent/architecture.md`](docs/agent/architecture.md) |
+| **Maintainer** | [`docs/RELEASING.md`](docs/RELEASING.md) · [`docs/TESTING.md`](docs/TESTING.md) |
 
 Project memory lives in **`.rma/`**; plans and execution run from the **terminal** with **local LLMs** (Ollama by default) when you want repo-aware help — **no** hosted dashboard or vendor lock-in for the core workflow.
                                                                                                                                                                   
@@ -149,6 +196,7 @@ ROADMAP-AGENT is designed for **iterated implementation**: **`.rma/*.md`** is th
 
 ![MemPalace mining and roadmap loop](img/flowchart.png)
 
+<a id="roadmap-agent-architecture"></a>
 
 # 🧠 Roadmap-Agent Architecture — Component Breakdown
 
@@ -250,6 +298,8 @@ The finalized result delivered to the user.
 - Represents the outcome of multiple refinement passes  
 
 ---
+
+<a id="key-system-behavior"></a>
 
 # 🔁 Key System Behavior (Important)
 
@@ -816,7 +866,7 @@ This project is **script-first** (bash + PowerShell). There is no official singl
 
 ## Documentation index
 
-For the **curated link set**, see **[Documentation](#documentation)** above. Below are **extra** references not repeated there.
+For the **curated link set**, see **[Documentation reference](#documentation-reference)** above. Below are **extra** references not repeated there.
 
 - [`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg) — diagram: MemPalace mining vs roadmap loop
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — runtime layout and cross-subsystem behavior
