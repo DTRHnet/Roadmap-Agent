@@ -65,6 +65,8 @@ The repository ships **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
 5. **Frontend** — `npm ci` and `npm run build` under `web/frontend`
 6. **Docker** — build (no push) **`Dockerfile`** and **`docker/Dockerfile.web`** with Buildx cache
 
+**Publish:** **[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml)** (separate workflow) pushes both images to **GHCR** when a **`v*`** git tag is pushed, or when run manually from the Actions tab. See **[`docs/RELEASING.md`](RELEASING.md)** (*Docker image*).
+
 For a one-off local check that mirrors CI (Unix):
 
 ```bash

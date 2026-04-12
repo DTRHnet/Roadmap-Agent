@@ -43,7 +43,32 @@ Users install by **cloning** or **extracting the archive**, then `RUN.sh` / `RUN
 
 ## 4. Docker image
 
-If you publish a container:
+### CI publish (GitHub Container Registry)
+
+The workflow **[`.github/workflows/docker-publish.yml`](../.github/workflows/docker-publish.yml)** pushes to **`ghcr.io`** when you push a **`v*`** tag (e.g. **`v1.1.1-b`**):
+
+- **`ghcr.io/<owner-lowercase>/roadmap-agent`** — root **`Dockerfile`** (CLI / toolkit)
+- **`ghcr.io/<owner-lowercase>/roadmap-agent-web`** — **`docker/Dockerfile.web`** (FastAPI + built SPA; CI runs **`npm ci && npm run build`** in **`web/frontend`** first)
+
+Tags applied on a version tag: **`:v1.1.1-b`**, **`:1.1.1-b`** (without **`v`**), and **`:latest`** for both images.
+
+**Manual publish** (same images, custom tag): **Actions → Docker publish → Run workflow** and set the tag (default **`edge`**).
+
+Requirements:
+
+- Workflow **`permissions.packages: write`** (already set). The default **`GITHUB_TOKEN`** can push packages for this repo.
+- The org or user account may need to allow Actions to create packages. New packages may be **private** until you mark them **public** under **Packages** in GitHub settings.
+
+Pull examples (replace **`owner`** with your GitHub user or org, lowercase):
+
+```bash
+docker pull ghcr.io/owner/roadmap-agent:latest
+docker pull ghcr.io/owner/roadmap-agent-web:latest
+```
+
+### Local build
+
+If you publish a container yourself:
 
 ```bash
 docker build -t roadmap-agent:1.1.1-b -f Dockerfile .

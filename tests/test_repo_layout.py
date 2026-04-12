@@ -93,3 +93,11 @@ def test_github_ci_workflow_exists() -> None:
     raw = wf.read_text(encoding="utf-8", errors="replace")
     assert "pytest" in raw
     assert "docker" in raw.lower() or "Dockerfile" in raw
+
+
+def test_github_docker_publish_workflow_exists() -> None:
+    wf = ROOT / ".github" / "workflows" / "docker-publish.yml"
+    assert wf.is_file()
+    raw = wf.read_text(encoding="utf-8", errors="replace")
+    assert "ghcr.io" in raw
+    assert "Dockerfile.web" in raw or "docker/Dockerfile.web" in raw
