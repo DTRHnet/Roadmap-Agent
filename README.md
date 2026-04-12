@@ -11,7 +11,7 @@
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-495057?style=flat-square&logo=docker&logoColor=white)](README.md#deployment-guide)
 [![Runtime](https://img.shields.io/badge/runtime-Bash%20%2B%20PowerShell-2f9e44?style=flat-square)](README.md#runtime-model)
 [![Quick start](https://img.shields.io/badge/read-quick%20start-228be6?style=flat-square)](docs/QUICKSTART.md)
-[![Env reference](https://img.shields.io/badge/env-vars-reference-5c7cfa?style=flat-square)](docs/ENVIRONMENT-VARIABLES.md)
+[![Env reference](https://img.shields.io/badge/env%20vars-reference-5c7cfa?style=flat-square)](docs/ENVIRONMENT-VARIABLES.md)
 
 <br/>
 
@@ -24,6 +24,10 @@
 ## Notice
 
 This project is in **beta**. The core workflow runs with **plain Markdown** and a **terminal**; everything else is **optional**. Use at your own discretion.
+
+I advise you spend some time reading the docs/* folder and checking out the examples. In time, I plan to have this more user friendly, but at the moment - even with a lot of graceful scripts handling installation, virtual environments, multiple operating systems, etc. It's still far from a tool suitable for novices. 
+
+
 
 ---
 
