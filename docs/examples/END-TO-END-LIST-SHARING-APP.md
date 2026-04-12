@@ -205,6 +205,8 @@ Establish data model and API skeleton for lists, items, categories, and membersh
 - Public list abuse — rate limits later
 ```
 
+A **full** illustrative `plan.md` (same ListHub product, with phased dependencies and traceability to **Open:** items) lives at **[`reference-depth/list-hub/roadmaps/plan.md`](reference-depth/list-hub/roadmaps/plan.md)**.
+
 **Expectation:** Your real output depends on the LLM, MemPalace context, and `.rma` files. Aim for **much more detail** than the snippet when context is mature. If MemPalace is unavailable and you have not set **`RMA_ALLOW_PLAN_FALLBACK=1`**, **`plan`** fails fast — that is by design in v1.1.1+.
 
 **Refinements:** Use your **IDE agent** to expand sections or list unresolved decisions as multiple-choice; capture answers in `.rma/*.md` and re-run **`plan`**.
