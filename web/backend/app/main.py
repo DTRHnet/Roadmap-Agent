@@ -15,13 +15,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .constants import ENV_FILE_KEYS
-from .env_service import apply_masks_for_client, mask_values, merge_env_file, parse_env_file
+from .env_service import apply_masks_for_client, mask_values, merge_env_file, parse_env_blob, parse_env_file
 from .python_envs import discover_python_envs
 from .rma_runner import doctor_json, run_rma, tools_manifest
 from .settings import get_settings, parse_cors_list
 from .web_yaml import read_web_yaml_stack_meta
 
-app = FastAPI(title="ROADMAP-AGENT Web", version="1.0.0")
+app = FastAPI(title="ROADMAP-AGENT Web", version="1.1.0-beta")
 _settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
@@ -53,6 +53,153 @@ class ProjectBody(BaseModel):
 
 class EnvUpdateBody(BaseModel):
     values: dict[str, str | None] = Field(default_factory=dict)
+
+
+class EnvImportBody(BaseModel):
+    text: str = Field(default="", description="Pasted .env or KEY=value lines")
+
+
+@app.get("/api/env/keys")
+def api_env_keys() -> dict:
+    """All variable names whitelisted for project .env (same as CLI load_rma_env_file)."""
+    return {"keys": sorted(ENV_FILE_KEYS)}
+
+
+@app.get("/api/env/service-status")
+def api_env_service_status(project: str) -> dict:
+    """Aggregated connectivity signals for Env Studio (green/red badges)."""
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    raw = parse_env_file(root / ".env")
+    prov = (raw.get("RMA_LLM_PROVIDER") or "ollama").strip().lower()
+
+    def svc(ok: bool, detail: str) -> dict[str, str | bool]:
+        return {"ok": ok, "detail": detail}
+
+    out: dict[str, dict[str, str | bool]] = {}
+
+    # Ollama (live probe only when provider is ollama)
+    host = (raw.get("RMA_OLLAMA_HOST") or "http://127.0.0.1:11434").rstrip("/")
+    model = raw.get("RMA_OLLAMA_MODEL") or "llama3.1:latest"
+    if prov != "ollama":
+        out["ollama"] = svc(True, "skipped live Ollama probe (set RMA_LLM_PROVIDER=ollama to test)")
+    else:
+        try:
+            with httpx.Client(timeout=6.0) as c:
+                r = c.get(f"{host}/api/tags")
+                r.raise_for_status()
+                data = r.json()
+            names = {m.get("name") for m in (data.get("models") or []) if m.get("name")}
+            if model in names:
+                out["ollama"] = svc(True, f"model {model!r} on {host}")
+            else:
+                out["ollama"] = svc(False, f"model {model!r} not in /api/tags")
+        except Exception as e:
+            out["ollama"] = svc(False, str(e))
+
+    # OpenAI-compatible (live GET only when provider is openllama)
+    burl = (raw.get("RMA_OPENAI_BASE_URL") or "").strip().rstrip("/")
+    if not burl:
+        out["openaiCompat"] = svc(False, "RMA_OPENAI_BASE_URL not set")
+    elif prov != "openllama":
+        out["openaiCompat"] = svc(True, "URL set; live /v1/models test when RMA_LLM_PROVIDER=openllama")
+    else:
+        try:
+            if burl.endswith("/v1"):
+                murl = f"{burl}/models"
+            else:
+                murl = f"{burl}/v1/models"
+            headers = {}
+            key = raw.get("RMA_OPENAI_API_KEY") or ""
+            if key and key not in ("local-no-key", "noop"):
+                headers["Authorization"] = f"Bearer {key}"
+            with httpx.Client(timeout=8.0) as c:
+                r = c.get(murl, headers=headers)
+            out["openaiCompat"] = svc(r.status_code < 400, f"GET {murl} → HTTP {r.status_code}")
+        except Exception as e:
+            out["openaiCompat"] = svc(False, str(e))
+
+    # Claude (live ping only when provider is claude to avoid API calls in ollama-only workflows)
+    ak = raw.get("ANTHROPIC_API_KEY") or ""
+    if not ak:
+        out["claude"] = svc(False, "ANTHROPIC_API_KEY empty in .env")
+    elif prov != "claude":
+        out["claude"] = svc(True, "key present; live Anthropic test runs when RMA_LLM_PROVIDER=claude")
+    else:
+        try:
+            with httpx.Client(timeout=12.0) as c:
+                r = c.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": ak,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    },
+                    json={
+                        "model": raw.get("RMA_CLAUDE_MODEL") or "claude-3-5-sonnet-latest",
+                        "max_tokens": 1,
+                        "messages": [{"role": "user", "content": "ping"}],
+                    },
+                )
+            out["claude"] = svc(r.status_code < 400, f"messages API HTTP {r.status_code}")
+        except Exception as e:
+            out["claude"] = svc(False, str(e))
+
+    # Project web API (from .env host/port — may differ from this FastAPI process)
+    wh = raw.get("RMA_WEB_HOST") or "127.0.0.1"
+    if wh in ("0.0.0.0", "::"):
+        wh = "127.0.0.1"
+    try:
+        wp = int(raw.get("RMA_WEB_PORT") or "8765")
+    except ValueError:
+        wp = 8765
+    try:
+        with httpx.Client(timeout=3.0) as c:
+            r = c.get(f"http://{wh}:{wp}/api/health")
+        out["projectWebApi"] = svc(r.status_code < 400, f"http://{wh}:{wp}/api/health → {r.status_code}")
+    except Exception as e:
+        out["projectWebApi"] = svc(False, str(e))
+
+    # MCP (runtime file + optional HTTP ping)
+    rt = root / ".rma" / "mcp" / "runtime.json"
+    if rt.is_file():
+        try:
+            data = json.loads(rt.read_text(encoding="utf-8", errors="replace"))
+            url = data.get("url") or data.get("httpUrl")
+            if isinstance(url, str) and url.startswith("http"):
+                ok_mcp = False
+                detail_m = ""
+                try:
+                    with httpx.Client(timeout=4.0) as c:
+                        r = c.get(url.rstrip("/"), follow_redirects=True)
+                    ok_mcp = r.status_code < 500
+                    detail_m = f"GET {url} → HTTP {r.status_code}"
+                except Exception as e:
+                    ok_mcp = True
+                    detail_m = f"runtime.json; URL set; probe: {e}"
+                out["mcp"] = svc(ok_mcp, detail_m)
+            else:
+                out["mcp"] = svc(True, "runtime.json present (stdio or no HTTP URL)")
+        except Exception as e:
+            out["mcp"] = svc(True, f"runtime.json present (parse note: {e})")
+    else:
+        out["mcp"] = svc(False, "no .rma/mcp/runtime.json")
+
+    # Doctor / rma_agent
+    try:
+        dj = doctor_json(root)
+        ra_ok = bool(dj.get("rma_agent_import_ok"))
+        out["rmaAgent"] = svc(ra_ok, "rma_agent + pydantic import" if ra_ok else "install requirements-agent.txt")
+        out["doctor"] = svc(
+            int(dj.get("exitCode") or 0) == 0,
+            f"doctor exitCode={dj.get('exitCode')}",
+        )
+    except Exception as e:
+        out["rmaAgent"] = svc(False, str(e))
+        out["doctor"] = svc(False, str(e))
+
+    return {"provider": prov, "services": out}
 
 
 @app.get("/api/health")
@@ -94,6 +241,31 @@ def api_env_put(
     to_write = {k: v for k, v in merged.items() if k in ENV_FILE_KEYS}
     merge_env_file(env_path, to_write)
     return {"ok": True, "path": str(env_path), "values": mask_values(parse_env_file(env_path))}
+
+
+@app.post("/api/env/import-text")
+def api_env_import_text(
+    project: str,
+    body: EnvImportBody,
+    _: None = Depends(require_write_token),
+) -> dict:
+    """Merge pasted or external-file content into project .env (whitelisted keys only)."""
+    root = Path(project).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(400, "Not a directory")
+    incoming = parse_env_blob(body.text)
+    if not incoming:
+        raise HTTPException(400, "No whitelisted KEY=value pairs found in text")
+    env_path = root / ".env"
+    stored = parse_env_file(env_path)
+    merged = {**stored, **incoming}
+    merge_env_file(env_path, {k: merged[k] for k in merged if k in ENV_FILE_KEYS})
+    return {
+        "ok": True,
+        "path": str(env_path),
+        "importedKeys": sorted(incoming.keys()),
+        "values": mask_values(parse_env_file(env_path)),
+    }
 
 
 @app.get("/api/project-info")

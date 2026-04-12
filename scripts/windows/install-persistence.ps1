@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Mirrors toolkit into LocalAppData/ProgramFiles, updates PATH, normalizes LF on *.sh for WSL.
 # Notes: Uses robocopy /MIR; calls refresh-rma-path.ps1 in this folder after success. Scope User vs Machine.
-# Last updated: 2026-04-10 | Version: v1.0.0
+# Last updated: 2026-04-10 | Version: v1.1.0-beta
 
 param(
     [switch]$CheckOnly,
@@ -89,7 +89,7 @@ function Sync-UnixShellScriptsToLf([string]$InstallRoot) {
             [IO.File]::WriteAllText($dockerEntry, $fixed, $utf8NoBom)
         }
     }
-    foreach ($name in @("launchers\roadmap-agent", "launchers\rma", "launchers\rma.sh", "RUN.sh")) {
+    foreach ($name in @("launchers\roadmap-agent", "launchers\rma", "launchers\rma.sh", "RUN.sh", "rma_cli.sh", "rma_cli.ps1", "rma_cli.cmd")) {
         $p = Join-Path $InstallRoot $name
         if (Test-Path $p -PathType Leaf) {
             $text = [IO.File]::ReadAllText($p)
@@ -135,6 +135,9 @@ function Test-FilesInSync([string]$SourceRoot, [string]$InstallRoot) {
         "RUN.sh",
         "RUN.ps1",
         "RUN.cmd",
+        "rma_cli.sh",
+        "rma_cli.ps1",
+        "rma_cli.cmd",
         "VERSION"
     )
     foreach ($rel in $files) {

@@ -1,6 +1,6 @@
 # ROADMAP-AGENT web UI (optional)
 
-Local **FastAPI** backend + **Vite/React** SPA to edit a project **`.env`** (keys whitelisted by `load_rma_env_file()` in `scripts/unix/roadmap-agent.sh`), inspect **`rma doctor --json`**, read the **`rma tools --json`** manifest, list models, run connection checks, and stream **`ollama pull`**. It does **not** replace the CLI: the backend shells out to the same Windows or Unix runtime under **`RMA_WEB_APP_ROOT`**.
+Local **FastAPI** backend + **Vite/React** SPA to edit a project **`.env`** (keys whitelisted by `load_rma_env_file()` in `scripts/unix/roadmap-agent.sh`), including **`RMA_AGENT_*`** for the modular terminal agent. The UI also inspects **`rma doctor --json`** (which reports **`rma_agent_import_ok`** when **`rma_agent`** imports with the toolkit on **`PYTHONPATH`**), reads the **`rma tools --json`** manifest, lists models, runs connection checks, and streams **`ollama pull`**. It does **not** replace the CLI: the backend shells out to the same Windows or Unix runtime under **`RMA_WEB_APP_ROOT`**.
 
 **Full index:** [README.md](../README.md) (overview), [docs/MANUAL.md](../docs/MANUAL.md) (*Companion web UI*), [docs/QUICKSTART.md](../docs/QUICKSTART.md), [docs/TROUBLESHOOTING.md](../docs/TROUBLESHOOTING.md).
 
@@ -33,6 +33,10 @@ The UI **Project root** field is the managed repo (where `.rma/` and `.env` live
    Vite listens on **http://127.0.0.1:5173** and proxies **`/api`** to **http://127.0.0.1:8765**.
 
 Open the Vite URL, set **Project root** to your app repository, then use **Doctor**, **Env**, and provider tools as needed.
+
+### Env studio (`#/env-studio`)
+
+A separate page (link in the main console header) that lists **every** whitelisted variable from the API (`GET /api/env/keys`), supports **live debounced saves** to the project `.env` (`PUT /api/env`), shows **masked** secret fields like the guided editor, aggregates **green/red service pills** (`GET /api/env/service-status` — Ollama, OpenAI-compatible, Claude, project web port, MCP, `rma_agent`, doctor), and can **merge** pasted or file-loaded `KEY=value` lines (`POST /api/env/import-text`, requires admin token).
 
 **API (project lifecycle):** `POST /api/project/init` runs `rma init` (JSON body `{ "flags": ["-y", "--no-embed"] }` optional); `POST /api/project/setup-venv` runs `rma setup-venv`; `GET /api/python-envs` lists interpreters / venv roots for **`RMA_PYTHON_VENV_DIR`**. Mutating routes honor **`RMA_WEB_ADMIN_TOKEN`** like **`PUT /api/env`**.
 

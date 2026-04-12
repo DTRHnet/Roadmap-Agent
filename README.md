@@ -6,7 +6,7 @@
 
 **Terminal-first roadmap workflow** — plain Markdown in `.rma/`, local and remote LLMs, optional MemPalace, optional web UI.
 
-[![Version](https://img.shields.io/badge/release-v1.0.1-5b4cdb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/release-v1.1.0--beta-5b4cdb?style=flat-square)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-495057?style=flat-square&logo=docker&logoColor=white)](#deployment-guide)
 [![Runtime](https://img.shields.io/badge/runtime-Bash%20%2B%20PowerShell-2f9e44?style=flat-square)](#runtime-model)
 [![Quick start](https://img.shields.io/badge/read-quick%20start-228be6?style=flat-square)](docs/QUICKSTART.md)
@@ -29,12 +29,15 @@
 | **[`docs/ROADMAP-WORKFLOW.md`](docs/ROADMAP-WORKFLOW.md)** | Process — plan → review → `execute-one`, keeping context current. |
 | **[`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/)** | Sample `.rma` context (`weather-app`, `list-sharing`, `devtools-cli`); MCP notes in folder README. |
 | **[`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md)** | End-to-end walkthrough (mock transcripts): MemPalace + `.rma`, agent prompts, `execute-one`. |
+| **[`docs/examples/END-TO-END-AUTOPART-LEADS-APP.md`](docs/examples/END-TO-END-AUTOPART-LEADS-APP.md)** | End-to-end walkthrough (mock transcripts): inventory-backed lead discovery (Part 1), outreach as a planned phase (Part 2), compliance and integrations framed honestly. |
 | **[`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md)** | Illustrative session — install → `init` → hub → `plan` / `analyze` / `execute-one`. |
-| **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (`v1.0.0`, …). |
+| **[`CHANGELOG.md`](CHANGELOG.md)** | Release history — pair with **`VERSION`** and git tags (e.g. `v1.1.0-beta`, `v1.0.1`). |
 | **[`.env.example`](.env.example)** | Full catalog of **whitelisted** project vars + process-only vars (comments, options, defaults). |
 | **[`docs/RELEASING.md`](docs/RELEASING.md)** | Shipping — tags, GitHub releases, archives, Docker; no required binary artifact. |
 | **[`web/README.md`](web/README.md)** | Optional web UI — FastAPI + React, guided/advanced `.env` editor, `doctor --json`, model probes, Docker, **`VITE_DOCS_BASE`**. |
 | **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)** | **MCP** — default **streamable-http** (background) from the CLI; **stdio** for Cursor/Claude command config. `.rma/` context, `rma plan`/`analyze`, scoped file tools, optional shell. |
+| **[`docs/OPTILLM.md`](docs/OPTILLM.md)** | **OptiLLM** + **Ollama** — `openllama` `.env` pointing at the proxy; OptiLLM **MCP plugin** + **`rma_mcp`** via `~/.optillm/mcp_config.json`. |
+| **[`docs/agent/usage.md`](docs/agent/usage.md)** | **Modular terminal agent** — `roadmap-agent agent`, `python -m rma_agent`, **`requirements-agent.txt`**, **`RMA_AGENT_*`**, **`rma_cli`** status dashboard. |
 
 Project memory lives in **`.rma/`**; plans and execution run from the **terminal** with **local LLMs** (Ollama by default) when you want repo-aware help — **no** hosted dashboard or vendor lock-in for the core workflow.
                                                                                                                                                                   
@@ -68,6 +71,8 @@ ROADMAP-AGENT is a **terminal-first workflow** for turning a codebase—**new or
 
 **`fzf`** menus (text fallback when needed), optional **local web UI** for `.env` + **`doctor`**, optional **MCP server** (**`mcp-start`** / hub **Web & MCP**) for external coding agents, and **persistence** so **`rma`** is on your **PATH** — all **local** and git-friendly except secrets ([Security](#security-and-operational-notes)).
 
+The **`agent`** command runs the modular Python kernel (**`rma_agent`**: planner, typed tools, reflection) by default; install **`pip install -r requirements-agent.txt`** into **`.rma/venv`** (or your environment) so **`import rma_agent`** works. Use **`RMA_AGENT_LEGACY=1`** to force the older bash-only agent loop. See **[`docs/agent/usage.md`](docs/agent/usage.md)**. Root-level **`rma_cli.sh`** / **`rma_cli.ps1`** print a short status dashboard (Ollama, web API, MCP, imports) then delegate to **`RUN.*`**.
+
 ### MCP server, local LLM, and IDE agents (how they fit together)
 
 This stack is **local-first**: a **desktop MCP host** (Claude Desktop, Cursor, Windsurf, …) runs the **orchestration loop** and the **LLM** (often a **local** model via Ollama, LM Studio, or vLLM). The **ROADMAP-AGENT MCP server** does **not** replace the LLM — it exposes **tools** and a **resource** so the host model can read your **`.rma/`** contract, run **`rma`** commands, edit files under the project root, and optionally run shell (if you enable it).
@@ -96,7 +101,7 @@ ROADMAP-AGENT is split into **loosely coupled units** that share the same repo a
 
 | Unit | Responsibility | Primary tech | Location in repo |
 |------|----------------|--------------|------------------|
-| **CORE** | Interactive hub (`fzf` / text fallback), commands (`init`, `plan`, `analyze`, `execute-one`, `agent`, `doctor`, `release`, …), Windows-to-bash bridge, persistence installers, `.rma/` lifecycle | **Bash 4+**, **PowerShell 5.1+**, **Python3** (for LLM/agent HTTP and helpers), **git**, optional **fzf** | **`scripts/unix/roadmap-agent.sh`**, **`scripts/windows/`**, **`launchers/`**, **`docker/entrypoint.sh`** |
+| **CORE** | Interactive hub (`fzf` / text fallback), commands (`init`, `plan`, `analyze`, `execute-one`, `agent`, `doctor`, `release`, …), **`rma_agent`** (optional; **`requirements-agent.txt`**), Windows-to-bash bridge, persistence installers, `.rma/` lifecycle | **Bash 4+**, **PowerShell 5.1+**, **Python3** (for LLM/agent HTTP and helpers), **git**, optional **fzf** | **`scripts/unix/roadmap-agent.sh`**, **`scripts/windows/`**, **`launchers/`**, **`rma_cli.*`**, **`docker/entrypoint.sh`** |
 | **MemPalace stack** | Project venv, **`mempalace`** + **ChromaDB**, safe **mine** previews from the hub, optional **wake-up** text for **`plan`** | **Python**, **mempalace**, **chromadb** | **`scripts/*/setup-local-models-mempalace.*`**, **`.rma/mempalace/`**, **`requirements`** via setup scripts |
 | **WEBUI** | Browser **`.env`** editor (whitelisted keys only), **`doctor --json`**, Ollama/OpenAI-compat probes, **`rma` CLI bridge | **FastAPI**, **Pydantic**, **Uvicorn**; **Vite**, **React**, **TypeScript** | **`web/backend/`**, **`web/frontend/`**, **`requirements-web.txt`** |
 | **MCP** | **Model Context Protocol** server: **`roadmap://context`**, **`rma_*`** tools, scoped file I/O, optional **shell** | **Python**, **`mcp` / FastMCP** | **`rma_mcp/`**, **`requirements-mcp.txt`** |
@@ -159,7 +164,7 @@ ROADMAP-AGENT is designed for **iterated implementation**: **`.rma/*.md`** is th
 ```text
 RoadmapAgent/
   VERSION                     # Semver release (read by CLI banner; keep in sync with CHANGELOG / git tags)
-  RUN.sh / RUN.ps1 / RUN.cmd  # Only files at repo root besides docs/config: bootstrap venv + .env, then CLI
+  RUN.sh / RUN.ps1 / RUN.cmd / rma_cli.sh / rma_cli.ps1 / rma_cli.cmd  # Root runners: RUN.* = bootstrap + CLI; rma_cli.* = status dashboard then RUN.*
 
   img/                        # README / marketing images (banner, ui.png, tui.png, doctor.png, diagram, …)
   launchers/                  # roadmap-agent, rma, *.cmd, setup-rma.*, refresh-rma-path.ps1 (thin wrappers)
@@ -694,9 +699,9 @@ These are still important for operators and CI; set them in the environment or w
 
 ## Versioning
 
-- **Canonical release number** lives in the root **`VERSION`** file (for example `1.0.0`). The Unix runtime prints it in the banner as `v1.0.0` when present.
+- **Canonical release number** lives in the root **`VERSION`** file (for example `1.1.0-beta`). The Unix runtime prints it in the banner as `v1.1.0-beta` when present.
 - **`CHANGELOG.md`** follows [Keep a Changelog](https://keepachangelog.com/) with dated sections per release.
-- **Git tags** use the `v` prefix (for example `v1.0.0`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v1.0.0` checks out that tag.
+- **Git tags** use the `v` prefix (for example `v1.1.0-beta`) so `git describe` and the “last release” line in the CLI stay meaningful. After pulling a release, `git checkout v1.1.0-beta` checks out that tag.
 
 This project is **script-first** (bash + PowerShell). There is no official single-file executable; “shipping” usually means a **tagged source tree**, **zip/tarball** on GitHub Releases, optional **Docker image**, and/or the **Windows persistence** mirror under `%LOCALAPPDATA%\Roadmap-Agent`. Step-by-step: **[`docs/RELEASING.md`](docs/RELEASING.md)**.
 
@@ -713,12 +718,14 @@ This project is **script-first** (bash + PowerShell). There is no official singl
 - [`img/roadmap-mining-and-loop.svg`](img/roadmap-mining-and-loop.svg) — diagram: MemPalace mining (directory, limit, dry-run) vs roadmap loop
 - [`docs/examples/rma-context-samples/`](docs/examples/rma-context-samples/) — example `description.md` / `ui.md` / `stack.md` / `other.md` for three app types; MCP integration notes
 - [`docs/examples/END-TO-END-LIST-SHARING-APP.md`](docs/examples/END-TO-END-LIST-SHARING-APP.md) — end-to-end example (list-sharing app: import tool, commands, mock output, expectations)
+- [`docs/examples/END-TO-END-AUTOPART-LEADS-APP.md`](docs/examples/END-TO-END-AUTOPART-LEADS-APP.md) — end-to-end example (autopart leads: Part 1 discovery vs Part 2 outreach, schedulers, connectors, shipping estimates, disclaimers)
 - [`docs/examples/MOCK-WORKFLOW-SESSION.md`](docs/examples/MOCK-WORKFLOW-SESSION.md) — fictional terminal log from install through hub, roadmap commands, and mock `.rma/logs` lines
 
 **Reference**
 
 - [`web/README.md`](web/README.md) — optional local web UI (FastAPI + React): install, `RMA_WEB_*`, Docker
 - [`docs/MANUAL.md`](docs/MANUAL.md) — full operator manual (commands, `.rma` files, env, persistence, web UI summary)
+- [`docs/OPTILLM.md`](docs/OPTILLM.md) — OptiLLM proxy in front of Ollama; ROADMAP-AGENT `openllama` settings; OptiLLM MCP + `rma_mcp`
 - [`docs/MENU-REFERENCE.md`](docs/MENU-REFERENCE.md) — hub / submenu labels and actions
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the runtime pieces fit together
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — common failures and fixes

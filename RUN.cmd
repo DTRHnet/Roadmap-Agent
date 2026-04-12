@@ -11,7 +11,7 @@ REM A DTRHnet Project                                              2026 <admin[a
 REM -------------------------------------------------------------------------------------------
 REM Summary: CMD stub that runs RUN.ps1 via pwsh or Windows PowerShell.
 REM Notes: Prefer RUN.ps1 directly from PowerShell; this file is for double-click and cmd.exe users.
-REM Last updated: 2026-04-10 | Version: v1.0.0
+REM Last updated: 2026-04-10 | Version: v1.1.0-beta
 
 @echo off
 setlocal

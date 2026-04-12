@@ -8,6 +8,11 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+
+if sys.platform == "win32":
+    _VENV_PY = ("Scripts", "python.exe")
+else:
+    _VENV_PY = ("bin", "python")
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -105,6 +110,25 @@ def main() -> int:
         if not mine_ok:
             ok = 1
 
+    def rma_agent_import_ok() -> bool:
+        pyexe = getenv("RMA_PYTHON_BIN") or shutil.which("python3") or shutil.which("python")
+        vpy = root / ".rma" / "venv" / _VENV_PY[0] / _VENV_PY[1]
+        if vpy.is_file():
+            pyexe = str(vpy)
+        if not pyexe or not Path(pyexe).is_file():
+            return False
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(app) + os.pathsep + env.get("PYTHONPATH", "")
+        r = subprocess.run(
+            [pyexe, "-c", "import pydantic, rma_agent"],
+            capture_output=True,
+            timeout=20,
+            env=env,
+        )
+        return r.returncode == 0
+
+    rma_agent_ok = rma_agent_import_ok()
+
     env_snapshot = {
         "RMA_LLM_PROVIDER": getenv("RMA_LLM_PROVIDER", "ollama"),
         "RMA_OLLAMA_HOST": ollama_host,
@@ -143,6 +167,7 @@ def main() -> int:
             "mineDir": str(md),
             "mineDirOk": mine_ok,
         },
+        "rma_agent_import_ok": rma_agent_ok,
         "persistenceLog": persistence_log,
         "exitCode": ok,
     }

@@ -11,7 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_only_run_wrappers_at_root_for_scripts() -> None:
     """Only RUN.* should be user-facing script-like files at repo root (plus OS metadata)."""
-    allowed_root_scripts = {"RUN.sh", "RUN.ps1", "RUN.cmd"}
+    allowed_root_scripts = {
+        "RUN.sh",
+        "RUN.ps1",
+        "RUN.cmd",
+        "rma_cli.sh",
+        "rma_cli.ps1",
+        "rma_cli.cmd",
+    }
     root_scripts = {
         p.name
         for p in ROOT.iterdir()
@@ -65,6 +72,7 @@ def test_persistence_sync_lists_launchers() -> None:
     assert '"launchers/roadmap-agent"' in block
     assert '"launchers/rma.ps1"' in block
     assert '"RUN.sh"' in block
+    assert '"rma_cli.sh"' in block
 
 
 def test_img_has_diagram() -> None:

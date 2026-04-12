@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Unix core ROADMAP-AGENT runtime (menu, roadmap, persistence, help).
 # Notes: ROOT_DIR follows ROADMAP_AGENT_PROJECT_ROOT when set; APP_DIR follows ROADMAP_AGENT_APP_ROOT (toolkit checkout). Loads only whitelisted keys from project .env.
-# Last updated: 2026-04-10 | Version: v1.0.0
+# Last updated: 2026-04-10 | Version: v1.1.0-beta
 
 set -u
 
@@ -90,7 +90,7 @@ load_rma_env_file() {
   while IFS= read -r line || [[ -n "$line" ]]; do
     [[ -z "${line// }" ]] && continue
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
-    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|RMA_WEB_HOST|RMA_WEB_PORT|RMA_WEB_VITE_PORT|RMA_WEB_FREE_PORT_ASK|RMA_WEB_VITE_PROXY_TARGET|RMA_MCP_TRANSPORT|RMA_MCP_HOST|RMA_MCP_PORT|RMA_MCP_NAME|RMA_MCP_MAX_STEPS|RMA_MCP_ALLOW_SHELL|RMA_MCP_PROJECT_ROOT|RMA_MCP_LOG|RMA_MCP_DETACH|RMA_MCP_FORCE|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
+    if [[ "$line" =~ ^[[:space:]]*(RMA_LLM_PROVIDER|RMA_OLLAMA_MODEL|RMA_OLLAMA_HOST|RMA_OPENAI_BASE_URL|RMA_OPENAI_API_KEY|RMA_OPENAI_MODEL|RMA_CLAUDE_MODEL|RMA_REQUIRE_OLLAMA|RMA_DISABLE_FZF|RMA_PYTHON_VENV_DIR|RMA_REQUIRE_MEMPALACE|RMA_MEMPALACE_BIN|RMA_ALLOW_PLAN_FALLBACK|RMA_MEMPALACE_MINE_DIR|RMA_PLAN_INTERACTIVE|RMA_PLAN_INTERACTIVE_MAX|RMA_WEB_HOST|RMA_WEB_PORT|RMA_WEB_VITE_PORT|RMA_WEB_FREE_PORT_ASK|RMA_WEB_VITE_PROXY_TARGET|RMA_MCP_TRANSPORT|RMA_MCP_HOST|RMA_MCP_PORT|RMA_MCP_NAME|RMA_MCP_MAX_STEPS|RMA_MCP_ALLOW_SHELL|RMA_MCP_PROJECT_ROOT|RMA_MCP_LOG|RMA_MCP_DETACH|RMA_MCP_FORCE|RMA_AGENT_LEGACY|RMA_AGENT_SKIP_REFLECT|RMA_AGENT_REFLECT_RETRIES|ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN)[[:space:]]*=(.*)$ ]]; then
       local key="${BASH_REMATCH[1]}"
       local val="${BASH_REMATCH[2]}"
       val="${val%\"}"
@@ -127,6 +127,9 @@ load_rma_env_file() {
   RMA_MCP_LOG="${RMA_MCP_LOG:-1}"
   RMA_MCP_DETACH="${RMA_MCP_DETACH:-1}"
   RMA_MCP_FORCE="${RMA_MCP_FORCE:-0}"
+  RMA_AGENT_LEGACY="${RMA_AGENT_LEGACY:-0}"
+  RMA_AGENT_SKIP_REFLECT="${RMA_AGENT_SKIP_REFLECT:-0}"
+  RMA_AGENT_REFLECT_RETRIES="${RMA_AGENT_REFLECT_RETRIES:-1}"
 }
 
 configure_python_runtime() {
@@ -545,6 +548,9 @@ persistence_scripts_in_sync() {
     "RUN.sh"
     "RUN.ps1"
     "RUN.cmd"
+    "rma_cli.sh"
+    "rma_cli.ps1"
+    "rma_cli.cmd"
   )
   for rel in "${files[@]}"; do
     local src="$APP_DIR/$rel"
@@ -3789,106 +3795,126 @@ EOF
     return 1
   fi
 
-  agent_append_log "=== agent session start: $goal ==="
-  step=0
-  while [[ "$step" -lt "$max_steps" ]]; do
-    step=$((step + 1))
-    prior="$(agent_tail_log_excerpt 35)"
-    raw="$(call_agent_llm_json "$goal" "$prior")"
-    if [[ -z "${raw// }" ]]; then
-      warn "Empty LLM response (step $step). Check RMA_LLM_PROVIDER and provider settings (see .env.example)."
-      agent_append_log "step $step ERROR empty LLM response"
-      return 1
-    fi
-
-    if ! agent_parse_response "$raw" "$py"; then
-      warn "Could not parse JSON from model (step $step)."
-      agent_append_log "step $step RAW (truncated): ${raw:0:800}"
-      return 1
-    fi
-    thought="$RMA_PARSE_THOUGHT"
-    action="$RMA_PARSE_ACTION"
-    args="$RMA_PARSE_ARGS"
-
-    if [[ -z "$action" ]]; then
-      warn "Could not parse JSON from model (step $step)."
-      agent_append_log "step $step RAW: ${raw:0:500}"
-      return 1
-    fi
-
-    info "Step $step | thought: $thought"
-    info "Action: $action ${args:+($args)}"
-    agent_append_log "step $step thought: $thought"
-    agent_append_log "step $step action: $action args: $args"
-
-    out=""
-    case "$action" in
-      plan)
-        ensure_rma_required_files
-        roadmap_plan_dry_run
-        out="plan refreshed at $PLAN_FILE"
-        ;;
-      analyze)
-        ensure_rma_required_files
-        sync_tasks_and_run_files
-        out="analyze complete; tasks and run synced"
-        ;;
-      execute-one)
-        if [[ "$allow_execute_one" != "1" ]]; then
-          out="execute-one skipped (agent mode requires --confirm-execute-one)"
-        else
-          ensure_rma_required_files
-          roadmap_execute_one_task
-          out="execute-one finished (interactive)"
-        fi
-        ;;
-      status)
-        out="$(roadmap_status)"
-        ;;
-      unlock)
-        roadmap_unlock
-        out="unlock done"
-        ;;
-      shell)
-        out="$(agent_run_shell_safe "$args")" || true
-        ;;
-      reflect)
-        agent_reflect_append "${args:-$thought}"
-        out="reflection recorded in $AGENT_HISTORY_FILE"
-        ;;
-      stop|done|exit|quit)
-        agent_append_log "stop requested by model"
-        info "Agent loop completed (stop)."
-        return 0
-        ;;
-      *)
-        warn "Unknown action from model: $action"
-        out="unknown action"
-        ;;
-    esac
-
-    agent_append_log "observation: ${out:0:2000}"
-    {
-      echo
-      echo "### Step $step observation"
-      printf "%s\n" "$out" | head -c 4000
-    } >> "$AGENT_HISTORY_FILE" 2>/dev/null || true
-
-    if [[ "$pause_each" -eq 1 ]]; then
-      local cfm="n"
-      printf "Continue agent loop? (Y/n): "
-      read -r cfm
-      if [[ "$cfm" =~ ^[Nn] ]]; then
-        info "Agent loop stopped by user."
-        break
+  if [[ "${RMA_AGENT_LEGACY:-}" == "1" ]]; then
+    agent_append_log "=== agent session start: $goal ==="
+    step=0
+    while [[ "$step" -lt "$max_steps" ]]; do
+      step=$((step + 1))
+      prior="$(agent_tail_log_excerpt 35)"
+      raw="$(call_agent_llm_json "$goal" "$prior")"
+      if [[ -z "${raw// }" ]]; then
+        warn "Empty LLM response (step $step). Check RMA_LLM_PROVIDER and provider settings (see .env.example)."
+        agent_append_log "step $step ERROR empty LLM response"
+        return 1
       fi
-    fi
-  done
 
-  if [[ "$step" -ge "$max_steps" ]]; then
-    warn "Reached max steps ($max_steps)."
+      if ! agent_parse_response "$raw" "$py"; then
+        warn "Could not parse JSON from model (step $step)."
+        agent_append_log "step $step RAW (truncated): ${raw:0:800}"
+        return 1
+      fi
+      thought="$RMA_PARSE_THOUGHT"
+      action="$RMA_PARSE_ACTION"
+      args="$RMA_PARSE_ARGS"
+
+      if [[ -z "$action" ]]; then
+        warn "Could not parse JSON from model (step $step)."
+        agent_append_log "step $step RAW: ${raw:0:500}"
+        return 1
+      fi
+
+      info "Step $step | thought: $thought"
+      info "Action: $action ${args:+($args)}"
+      agent_append_log "step $step thought: $thought"
+      agent_append_log "step $step action: $action args: $args"
+
+      out=""
+      case "$action" in
+        plan)
+          ensure_rma_required_files
+          roadmap_plan_dry_run
+          out="plan refreshed at $PLAN_FILE"
+          ;;
+        analyze)
+          ensure_rma_required_files
+          sync_tasks_and_run_files
+          out="analyze complete; tasks and run synced"
+          ;;
+        execute-one)
+          if [[ "$allow_execute_one" != "1" ]]; then
+            out="execute-one skipped (agent mode requires --confirm-execute-one)"
+          else
+            ensure_rma_required_files
+            roadmap_execute_one_task
+            out="execute-one finished (interactive)"
+          fi
+          ;;
+        status)
+          out="$(roadmap_status)"
+          ;;
+        unlock)
+          roadmap_unlock
+          out="unlock done"
+          ;;
+        shell)
+          out="$(agent_run_shell_safe "$args")" || true
+          ;;
+        reflect)
+          agent_reflect_append "${args:-$thought}"
+          out="reflection recorded in $AGENT_HISTORY_FILE"
+          ;;
+        stop|done|exit|quit)
+          agent_append_log "stop requested by model"
+          info "Agent loop completed (stop)."
+          return 0
+          ;;
+        *)
+          warn "Unknown action from model: $action"
+          out="unknown action"
+          ;;
+      esac
+
+      agent_append_log "observation: ${out:0:2000}"
+      {
+        echo
+        echo "### Step $step observation"
+        printf "%s\n" "$out" | head -c 4000
+      } >> "$AGENT_HISTORY_FILE" 2>/dev/null || true
+
+      if [[ "$pause_each" -eq 1 ]]; then
+        local cfm="n"
+        printf "Continue agent loop? (Y/n): "
+        read -r cfm
+        if [[ "$cfm" =~ ^[Nn] ]]; then
+          info "Agent loop stopped by user."
+          break
+        fi
+      fi
+    done
+
+    if [[ "$step" -ge "$max_steps" ]]; then
+      warn "Reached max steps ($max_steps)."
+    fi
+    agent_append_log "=== agent session end ==="
+    return 0
   fi
-  agent_append_log "=== agent session end ==="
+
+  export ROADMAP_AGENT_PROJECT_ROOT="${ROADMAP_AGENT_PROJECT_ROOT:-$ROOT_DIR}"
+  export ROADMAP_AGENT_APP_ROOT="${ROADMAP_AGENT_APP_ROOT:-$APP_DIR}"
+  export PYTHONPATH="${APP_DIR}${PYTHONPATH:+:$PYTHONPATH}"
+  local ra=(run --max-steps "$max_steps")
+  if [[ "$pause_each" -eq 0 ]]; then
+    ra+=(-y)
+  fi
+  if [[ "$allow_execute_one" -eq 1 ]]; then
+    ra+=(--confirm-execute-one)
+  fi
+  if [[ "$require_ollama" -eq 1 ]]; then
+    ra+=(--require-ollama)
+  fi
+  if ! "$py" -m rma_agent "${ra[@]}" -- "$goal"; then
+    return 1
+  fi
   return 0
 }
 

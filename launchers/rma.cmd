@@ -11,7 +11,7 @@ REM A DTRHnet Project                                              2026 <admin[a
 REM -------------------------------------------------------------------------------------------
 REM Summary: Windows CMD alias — delegates to roadmap-agent.cmd with the same arguments.
 REM Notes: Keeps one implementation path for the PowerShell bridge.
-REM Last updated: 2026-04-10 | Version: v1.0.0
+REM Last updated: 2026-04-10 | Version: v1.1.0-beta
 
 @echo off
 setlocal

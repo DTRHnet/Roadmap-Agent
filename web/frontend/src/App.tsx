@@ -463,7 +463,7 @@ export default function App() {
     }
 
     if (NUMBER_KEYS.has(key)) {
-      return (
+  return (
         <div className="field" key={key}>
           <label htmlFor={key}>{key}</label>
           <input
@@ -532,7 +532,7 @@ export default function App() {
             {ENV_HINTS.RMA_LLM_PROVIDER && (
               <p className="field-hint">{ENV_HINTS.RMA_LLM_PROVIDER}</p>
             )}
-          </div>
+        </div>
         )}
         {keys
           .filter(
@@ -568,7 +568,7 @@ export default function App() {
           <div className="row row-tight">
             <button type="button" className="btn ghost" onClick={() => void fetchOpenAIModels()}>
               List models (if /v1/models exists)
-            </button>
+        </button>
             {openaiModels.length > 0 && (
               <select
                 className="select-inline"
@@ -619,7 +619,12 @@ export default function App() {
             <h1>ROADMAP-AGENT</h1>
             <span className="sub">Local web console</span>
           </div>
-          <span className="pill">127.0.0.1 · set RMA_WEB_ADMIN_TOKEN for writes</span>
+          <div className="top-actions">
+            <a className="pill pill-link" href="#/env-studio">
+              Env studio
+            </a>
+            <span className="pill">127.0.0.1 · set RMA_WEB_ADMIN_TOKEN for writes</span>
+          </div>
         </header>
 
         <nav className="section-jump" aria-label="Jump to section">
@@ -792,9 +797,9 @@ export default function App() {
                     {Object.entries(webStack.fromProjectDotEnv).map(([k, v]) => (
                       <li key={k}>
                         <code className="inline-code">{k}</code> = <code className="inline-code">{v}</code>
-                      </li>
+            </li>
                     ))}
-                  </ul>
+          </ul>
                 ) : (
                   <p className="field-hint" style={{ marginTop: '0.25rem' }}>
                     No <code className="inline-code">RMA_WEB_*</code> keys in this project&apos;s .env yet — defaults from
