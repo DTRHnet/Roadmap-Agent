@@ -6,8 +6,20 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 
 ## [Unreleased]
 
+### Planned
+
+- (none)
+
+## [1.1.0-beta] - 2026-04-11
+
 ### Added
 
+- **`rma_cli.sh`**, **`rma_cli.ps1`**, **`rma_cli.cmd`**: status dashboard (Ollama, web API port, MCP **`runtime.json`**, **`rma_agent`** import) then hand off to **`RUN.*`**; **`--status-only`**, **`--quiet`**. Documented in README / QUICKSTART / MANUAL. Persistence sync lists and **`test_repo_layout`** updated.
+- **`.env` / Web UI**: **`RMA_AGENT_LEGACY`**, **`RMA_AGENT_SKIP_REFLECT`**, **`RMA_AGENT_REFLECT_RETRIES`** whitelisted in **`load_rma_env_file()`**, **`web/backend/app/constants.py`**, guided **Env** groups in **`web/frontend/src/envConfig.ts`**; **`.env.example`** section **C2**.
+- **`doctor --json`**: field **`rma_agent_import_ok`** when **`pydantic`** + **`rma_agent`** import succeeds with toolkit on **`PYTHONPATH`**.
+- **`rma_agent/`**: modular terminal agent (**`python -m rma_agent run`**) — planner, executor, reflector, **`ToolRegistry`**, memory JSONL under **`.rma/agent_memory/`**, logging compatible with **`.rma/logs/agent.log`**. **`roadmap-agent agent`** invokes it by default; **`RMA_AGENT_LEGACY=1`** restores the bash-only loop. Docs: **`docs/agent/{architecture,usage,development}.md`**. Deps: **`requirements-agent.txt`**; tests: **`tests/test_rma_agent_*.py`**, **`tests/conftest.py`** (repo root on **`sys.path`**).
+- **`tests/test_mcp_log_tool.py`**: unit tests for **`rma_mcp.logging_util.log_tool`** (JSONL append; **`RMA_MCP_LOG`** off). **`docs/TESTING.md`**: **Agent / MCP verification** — where execution and MCP tool calls are logged, and a convention for IDE “why” notes under **`.rma/logs/`**.
+- **`docs/OPTILLM.md`**: run **OptiLLM** with **`--base_url`** to Ollama, configure **`RMA_LLM_PROVIDER=openllama`** toward the proxy, and register **`rma_mcp`** in **`~/.optillm/mcp_config.json`** for OptiLLM’s MCP plugin. **`.env.example`** and **`MANUAL.md`** (LLM providers) cross-link.
 - **MCP server** (**`rma_mcp`**, **`roadmap-agent mcp-start`**, hub **Web & MCP**): FastMCP stdio (optional **`streamable-http`** / **`sse`**) with **`roadmap://context`**, **`rma_*`** CLI wrappers, scoped file tools, gated **`run_shell`**, and **`rma_sysinfo`** (runs **`sysinfo/sysinfo.py`**, returns **`.sysinfo/full-report.md`**). Docs: **[`docs/MCP-SERVER.md`](docs/MCP-SERVER.md)**; deps: **`requirements-mcp.txt`**.
 - **README**: section **MCP server, local LLM, and IDE agents** — accurate architecture (host runs the LLM loop; MCP exposes tools), tool/resource names, and explicit notes on MemPalace vs **`roadmap://context`**, **`mcp-start`** flags, and absence of **`RMA_MCP_APPROVAL_MODE`**.
 
@@ -17,6 +29,7 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 - **`docs/MANUAL.md`**, **`docs/ARCHITECTURE.md`**: MCP sections mention **`rma_sysinfo`** and clarify **`roadmap://context`** vs MemPalace.
 - **MCP CLI defaults**: **`RMA_MCP_TRANSPORT`** defaults to **`streamable-http`** and **`RMA_MCP_DETACH`** to **`1`** (hub releases the terminal; logs under **`.rma/mcp/nohup.log`**). **`mcp-start --foreground`** / **`--no-detach`** blocks on HTTP. **`load_rma_env_file()`** applies all **`RMA_*`** defaults even when **`.env`** is missing. **`stdio`** remains available via **`.env`** or client env; all **`mcp-start`** messages before **`exec`** go to **stderr** so JSON-RPC on stdout is not corrupted.
 - **README**: **Project components (subsystems)** table (CORE, MemPalace, WEBUI, MCP, SYSINFO, release) with tech stacks; **Environment variables** section lists every **whitelisted** **`.env`** key plus process-only and inherited vars. **`.env.example`** rewritten as the full operator catalog with sectioned comments.
+- **Repository**: Git-tracked documentation paths normalized to lowercase **`docs/`** (Linux-friendly); **`VERSION`** and package versions aligned with this beta.
 
 ## [1.0.1] - 2026-04-11
 

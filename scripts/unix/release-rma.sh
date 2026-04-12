@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Maintainer release pipeline — VERSION + CHANGELOG section → notes file, git tag, docker build, git push, gh release.
 # Notes: Run from toolkit repo root (or via `roadmap-agent release`). Requires clean tag for first push; optional docker and GitHub CLI. See `release --help` and docs/RELEASING.md. Set RMA_RELEASE_REPO_ROOT to the toolkit root when running from a temp LF-normalized copy (CRLF-safe).
-# Last updated: 2026-04-10 | Version: v1.0.0
+# Last updated: 2026-04-10 | Version: v1.1.0-beta
 
 set -euo pipefail
 

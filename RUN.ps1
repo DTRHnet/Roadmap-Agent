@@ -12,7 +12,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Windows bootstrap — .env seed, setup-local-models-mempalace.ps1, optional persistence prompt, then roadmap-agent.ps1.
 # Notes: TOOLKIT_ROOT beside RUN.ps1; PROJECT_ROOT = Get-Location. #Requires must stay first line.
-# Last updated: 2026-04-10 | Version: v1.0.0
+# Last updated: 2026-04-10 | Version: v1.1.0-beta
 
 $ErrorActionPreference = "Stop"
 

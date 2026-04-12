@@ -11,6 +11,8 @@ export const TOGGLE_KEYS = new Set([
   'RMA_MCP_LOG',
   'RMA_MCP_DETACH',
   'RMA_MCP_FORCE',
+  'RMA_AGENT_LEGACY',
+  'RMA_AGENT_SKIP_REFLECT',
 ])
 
 export const NUMBER_KEYS = new Set([
@@ -19,6 +21,7 @@ export const NUMBER_KEYS = new Set([
   'RMA_WEB_VITE_PORT',
   'RMA_MCP_PORT',
   'RMA_MCP_MAX_STEPS',
+  'RMA_AGENT_REFLECT_RETRIES',
 ])
 
 export type EnvGroup = { id: string; title: string; blurb: string; keys: string[] }
@@ -70,6 +73,13 @@ export const ENV_GROUPS: EnvGroup[] = [
       'RMA_MEMPALACE_BIN',
       'RMA_MEMPALACE_MINE_DIR',
     ],
+  },
+  {
+    id: 'rma-agent',
+    title: 'Terminal agent (rma_agent)',
+    blurb:
+      'roadmap-agent agent / python -m rma_agent — planner, tools, reflection. Install: pip install -r requirements-agent.txt. See docs/agent/usage.md.',
+    keys: ['RMA_AGENT_LEGACY', 'RMA_AGENT_SKIP_REFLECT', 'RMA_AGENT_REFLECT_RETRIES'],
   },
   {
     id: 'integrations',
@@ -150,6 +160,12 @@ export const ENV_HINTS: Record<string, string> = {
     'CLI default when unset: 1 (HTTP MCP via nohup; .rma/mcp/nohup.log). 0 or mcp-start --foreground keeps the shell. Ignored for stdio.',
   RMA_MCP_FORCE:
     '1 = before starting, stop the MCP PID from .rma/mcp/runtime.json (best-effort). Use when replacing a stuck server.',
+  RMA_AGENT_LEGACY:
+    '1 = roadmap-agent agent uses the legacy bash-only loop instead of python -m rma_agent.',
+  RMA_AGENT_SKIP_REFLECT:
+    '1 = agent uses exit-code heuristic only for reflection (no second LLM call).',
+  RMA_AGENT_REFLECT_RETRIES:
+    '0–3: replan attempts after a failed reflection within one outer step (default 1).',
 }
 
 export function parseBulkEnv(text: string, allowedKeys: Set<string>): Record<string, string> {

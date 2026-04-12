@@ -18,6 +18,23 @@ def _strip_val(raw: str) -> str:
     return s
 
 
+def parse_env_blob(text: str) -> dict[str, str]:
+    """Parse KEY=value lines from pasted text or an external file; only whitelisted keys kept."""
+    out: dict[str, str] = {}
+    for line in text.splitlines():
+        ls = line.lstrip()
+        if not ls or ls.startswith("#"):
+            continue
+        m = _KEY_LINE.match(line)
+        if not m:
+            continue
+        key, rest = m.group(1), m.group(2)
+        if key not in ENV_FILE_KEYS:
+            continue
+        out[key] = _strip_val(rest)
+    return out
+
+
 def parse_env_file(path: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     if not path.is_file():

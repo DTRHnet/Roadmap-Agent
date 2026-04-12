@@ -1,2 +1,4 @@
 # Developer / CI tests (repository layout, future shell/API checks)
 pytest>=7.4.0
+# rma_agent tests and package (see also requirements-agent.txt)
+pydantic>=2.0.0,<3.0.0

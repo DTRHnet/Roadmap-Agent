@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Start FastAPI dev server (reload); resolves toolkit + project roots.
 # Notes: Prefers .rma\venv\Scripts\python.exe; errors if only Linux/WSL venv (bin\python) in PowerShell.
-# Last updated: 2026-04-11 | Version: v1.0.0
+# Last updated: 2026-04-11 | Version: v1.1.0-beta
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 $ErrorActionPreference = "Stop"

@@ -35,6 +35,9 @@ ENV_FILE_KEYS: frozenset[str] = frozenset(
         "RMA_MCP_LOG",
         "RMA_MCP_DETACH",
         "RMA_MCP_FORCE",
+        "RMA_AGENT_LEGACY",
+        "RMA_AGENT_SKIP_REFLECT",
+        "RMA_AGENT_REFLECT_RETRIES",
     }
 )
 

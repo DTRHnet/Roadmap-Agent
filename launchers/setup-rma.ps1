@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Launcher — forwards to scripts/windows/setup-rma.ps1 (Windows persistence wrapper).
 # Notes: launchers/ only; clone root keeps RUN.* for bootstrap.
-# Last updated: 2026-04-11 | Version: v1.0.0
+# Last updated: 2026-04-11 | Version: v1.1.0-beta
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 $ErrorActionPreference = "Stop"

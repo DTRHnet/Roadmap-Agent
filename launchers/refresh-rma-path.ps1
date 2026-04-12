@@ -11,7 +11,7 @@
 # -------------------------------------------------------------------------------------------
 # Summary: Launcher — forwards to scripts/windows/refresh-rma-path.ps1 (PATH refresh helper).
 # Notes: Called after persistence install so the current PowerShell session sees updated PATH.
-# Last updated: 2026-04-11 | Version: v1.0.0
+# Last updated: 2026-04-11 | Version: v1.1.0-beta
 # '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 $LaunchersDir = Split-Path -Parent $MyInvocation.MyCommand.Path
