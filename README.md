@@ -9,6 +9,7 @@
 **How the pieces fit:** **CORE** (`roadmap-agent`, hub, `.rma/` Markdown) orchestrates **`plan`**, **`analyze`**, **`execute-one`**, and the modular terminal **`agent`** (**`rma_agent`**). **LLMs** are selected with **`RMA_*`** (Ollama by default). **MemPalace** optionally indexes your tree for retrieval-aware **`plan`**. **MCP** (**`rma_mcp`**) exposes tools and context to IDE hosts without replacing the CLI loop. **Web UI** (optional) edits whitelisted **`.env`** and runs **`doctor --json`**. Subsystems share the same project **`.env`** keys loaded by **`load_rma_env_file()`** — see **[Project components (subsystems)](#project-components-subsystems)** for the full map.
 
 [![Version](https://img.shields.io/badge/release-v1.1.1--b-5b4cdb?style=flat-square)](CHANGELOG.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/DTRHnet/Roadmap-Agent/ci.yml?style=flat-square&label=CI)](https://github.com/DTRHnet/Roadmap-Agent/actions/workflows/ci.yml)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Docker-495057?style=flat-square&logo=docker&logoColor=white)](#deployment-guide)
 [![Runtime](https://img.shields.io/badge/runtime-Bash%20%2B%20PowerShell-2f9e44?style=flat-square)](#runtime-model)
 [![Quick start](https://img.shields.io/badge/read-quick%20start-228be6?style=flat-square)](docs/QUICKSTART.md)
