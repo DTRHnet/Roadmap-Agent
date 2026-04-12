@@ -104,6 +104,47 @@ def test_github_docker_publish_workflow_exists() -> None:
     assert "Dockerfile.web" in raw or "docker/Dockerfile.web" in raw
 
 
+def test_product_roadmap_framework_prompt_exists() -> None:
+    p = ROOT / "docs" / "prompts" / "PRODUCT_ROADMAP_FRAMEWORK.md"
+    assert p.is_file()
+    text = p.read_text(encoding="utf-8", errors="replace")
+    assert "roadmap" in text.lower()
+    assert "anti-pattern" in text.lower() or "Anti-pattern" in text
+
+
+def test_readme2_and_env_reference_exist() -> None:
+    assert (ROOT / "README2.md").is_file()
+    assert (ROOT / "docs" / "ENVIRONMENT-VARIABLES.md").is_file()
+    r2 = (ROOT / "README2.md").read_text(encoding="utf-8", errors="replace")
+    assert "docs/ENVIRONMENT-VARIABLES.md" in r2
+    assert "img/rma.png" in r2
+
+
+def test_readme_documents_persistence_by_os_section() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="replace")
+    assert "persistence-on-path-by-operating-system" in readme
+    assert "#### Windows" in readme
+    assert "#### Linux" in readme
+    assert "#### macOS" in readme
+
+
+def test_windows_bridge_documents_native_persistence() -> None:
+    ps1 = (ROOT / "scripts" / "windows" / "roadmap-agent.ps1").read_text(encoding="utf-8", errors="replace")
+    assert "Convert-PersistenceArgsToInstaller" in ps1
+    assert '--help' in ps1 and "persistence" in ps1
+    assert "LOCALAPPDATA" in ps1 and "Persistence install is PowerShell-only" in ps1
+
+
+def test_runtime_has_project_root_discovery() -> None:
+    sh = (ROOT / "scripts" / "unix" / "roadmap-agent.sh").read_text(encoding="utf-8", errors="replace")
+    assert "discover_default_project_root()" in sh
+    assert "rebind_rma_paths()" in sh
+    assert "init-toolkit-version.txt" in sh
+    assert ("persistence --user" in sh) or (
+        "--user" in sh and "_persistence_install_unix" in sh
+    )
+
+
 def test_sysinfo_audit_output_not_tracked() -> None:
     """`.sysinfo/` is machine-local; must never be committed (paths, host, user)."""
     if not (ROOT / ".git").is_dir():

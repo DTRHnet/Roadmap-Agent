@@ -143,7 +143,7 @@ def rma_plan() -> str:
 
 @mcp.tool()
 def rma_analyze() -> str:
-    """Run `rma analyze` — sync tasks.md / run.md from the repo."""
+    """Run `rma analyze` — sync tasks.md / run.md; set RMA_ANALYZE_USE_LLM=1 for LLM roadmap synthesis."""
     return _run_roadmap_agent("analyze")
 
 

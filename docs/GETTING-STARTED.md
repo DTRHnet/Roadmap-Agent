@@ -76,12 +76,17 @@ docker run --rm -it -v "$PWD:/workspace" roadmap-agent
 
 Inside container, entrypoint routes into the same menu flow.
 
-## 9) Optional global command persistence
+## 9) Optional command persistence (PATH)
 
-If you want global command access:
+To run **`roadmap-agent`** / **`rma`** from **any directory** (your app repo, not the Roadmap-Agent clone):
 
-- **Linux/macOS:** `roadmap-agent persistence` or `roadmap-agent persistence-check` (follow prompts; may use `sudo`).
-- **Windows:** from the cloned repo run `.\launchers\setup-rma.ps1 -Scope User` (no Administrator) or `-Scope Machine` from an elevated shell. See **QUICKSTART.md** for PATH refresh (`refresh-rma-path.ps1`) if `rma` is not found in the current window.
+- **Windows (PowerShell — install does not use WSL):** from the clone run **`.\launchers\setup-rma.ps1 -Scope User`**, or **`rma persistence --user`**, or **`rma persistence -Scope User`**. That mirrors the toolkit to **`%LOCALAPPDATA%\Roadmap-Agent`** and puts **`…\Roadmap-Agent\bin`** on your **PATH**. Then **`cd`** to your project and **`rma init`**. If **`rma`** is missing in the current window, run **`refresh-rma-path.ps1`** or open a new terminal. (After install, **`rma`** may still call **Git Bash** or **WSL**’s **`bash`** to run the Unix runtime — that is separate from the installer.)
+- **Linux/macOS (no sudo):** `roadmap-agent persistence --user` installs under **`~/.local/lib/roadmap-agent`** and **`~/.local/bin`**. Then open a new shell (or `source` your rc) and run **`cd /path/to/your-app && roadmap-agent init`**.
+- **Linux/macOS (system-wide):** `roadmap-agent persistence` (uses **`sudo`**, **`/usr/local/...`**).
+
+**Linux/macOS:** **`roadmap-agent persistence-check`**. **Windows:** **`rma persistence-check`** (or **`setup-rma.ps1 -CheckOnly`**).
+
+**Full command matrix (all operating systems):** **[README.md — Persistence on PATH (by operating system)](../README.md#persistence-on-path-by-operating-system)** · **[MANUAL.md — Persistence](MANUAL.md#persistence-global-commands)**.
 
 Installers mirror the full app tree and deduplicate PATH entries where applicable.
 

@@ -19,7 +19,7 @@ ROADMAP-AGENT uses a **two-level** fzf flow: pick a **category**, then pick an *
 - `2` Plan — dry-run roadmap (LLM)  
 - `3` Execute one task  
 - `4` Unlock  
-- `5` Analyze — sync `tasks.md` & `run.md`  
+- `5` Analyze — sync `tasks.md` & `run.md` (LLM synthesis if `RMA_ANALYZE_USE_LLM=1`)  
 - `6` Analyze-init — propose `.rma/*.md`  
 - `7` Doctor  
 - `0` Back to categories  
