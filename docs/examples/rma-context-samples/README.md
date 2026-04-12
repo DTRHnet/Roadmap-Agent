@@ -68,3 +68,9 @@ These samples are intentionally **long**. Use them to see how depth improves **`
 **`Open:`** lines are deliberate: ROADMAP-AGENT and [`MANUAL.md`](../../MANUAL.md) treat unresolved decisions as **signals**—either you decide and edit the file, or **`plan`** should surface tasks to **resolve** them. Remove **`Open:`** once closed so the next cycle does not re-litigate.
 
 **Trimming:** For a weekend prototype, keep **Summary**, **Goals**, **Non-goals**, and one **`stack.md`** command block; add personas and **`Open:`** when you invite collaborators or run `plan` regularly.
+
+---
+
+## See also: reference depth
+
+For a **single-product** bundle that shows how far you can push detail (including a full **`roadmaps/plan.md`** and optional **`mcp-server.md`** for IDE workflow notes), see **[`../reference-depth/list-hub/`](../reference-depth/list-hub/README.md)**. The **[`REFERENCE-DEPTH-AUTHORING.md`](../REFERENCE-DEPTH-AUTHORING.md)** doc explains how these samples relate to that ceiling and how to maintain both tiers.

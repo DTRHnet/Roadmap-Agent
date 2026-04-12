@@ -7,6 +7,8 @@ This folder holds **reference material** for learning ROADMAP-AGENT: sample **`.
 | Area | Path | Purpose |
 |------|------|---------|
 | **Sample context files** | [`rma-context-samples/`](rma-context-samples/README.md) | Template **`description.md`**, **`ui.md`**, **`stack.md`**, **`other.md`** for three product shapes (weather app, list sharing, devtools CLI), plus per-sample **`README.md`** bootstrap notes. |
+| **Reference depth (ListHub)** | [`reference-depth/list-hub/`](reference-depth/list-hub/README.md) | **Maximum-detail** exemplar: aligned **`description.md`**, **`ui.md`**, **`stack.md`**, **`other.md`**, optional **`mcp-server.md`**, and **`roadmaps/plan.md`**—use as a ceiling when authoring your own `.rma/` files. |
+| **Authoring rubric** | [`REFERENCE-DEPTH-AUTHORING.md`](REFERENCE-DEPTH-AUTHORING.md) | How the tiers relate, per-file checklist, maintenance rules. |
 | **Walkthroughs** | This directory (root of `examples/`) | Narrative docs with mock transcripts—read when you want an end-to-end story, not a file-by-file template. |
 | **Mock session** | [`MOCK-WORKFLOW-SESSION.md`](MOCK-WORKFLOW-SESSION.md) | Illustrative install → **`init`** → hub → **`plan`** / **`analyze`** / **`execute-one`** log; sample lines for **`.rma/logs/`**. |
 
