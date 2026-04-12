@@ -147,7 +147,7 @@ ROADMAP-AGENT is designed for **iterated implementation**: **`.rma/*.md`** is th
 
 ### Visual overview
 
-![MemPalace mining and roadmap loop](img/roadmap-mining-and-loop.svg)
+![MemPalace mining and roadmap loop](img/flowchart.png)
 
 
 # 🧠 Roadmap-Agent Architecture — Component Breakdown
