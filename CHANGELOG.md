@@ -20,6 +20,9 @@ The format is inspired by [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 ### Changed
 
 - **`docs/TESTING.md`**: Documents the CI workflow and current commands.
+- **`scripts/windows/roadmap-agent.ps1`**: exports **`ROADMAP_AGENT_APP_ROOT`** (toolkit root, same WSL-style path as the script) whenever bash runs **`roadmap-agent.sh`**. Without it, a **CRLF-normalized temp copy** under **`Local/Temp`** made bash infer **`APP_DIR`** as **`.../AppData`**, so **Web & MCP → Start API** warned about missing **`requirements-web.txt`** and dropped back to **fzf** instead of starting the stack.
+- **`mcp-start` (detached)**: wait up to ~30s (was ~3s) for **`.rma/mcp/runtime.json`** after **`nohup`**, so slow Python/MCP startup on WSL does not trigger a spurious **runtime.json not created yet** warning while the server is still importing.
+- **Web UI (Windows host)**: API responses from **`/api/run/rma`**, **`/api/project/init`**, **`/api/project/setup-venv`**, **`doctor`**, and **`tools --json`** rewrite bash/WSL **`/mnt/`** drive paths in text/JSON to native Windows paths so console output matches paths users enter in the UI.
 - **`RUN.sh` / `RUN.ps1`**: After bootstrap, an interactive **handoff menu** appears when no roadmap-agent arguments are passed: option **[1]** (green) opens **Web API**, **Web UI (Vite)**, and **Core hub** each in a **separate terminal window**; **[2]** runs the hub in the current window; **[3]** exits. **`-y`** / non-interactive / non-TTY skips the menu and keeps the previous default (Core hub in the current session).
 
 ## [1.1.1-b] - 2026-04-11

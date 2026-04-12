@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .path_display import normalize_json_for_windows_display
 from .settings import get_settings
 
 
@@ -90,9 +91,9 @@ def tools_manifest(project_root: Path) -> dict[str, Any]:
     if not text:
         raise RuntimeError("empty tools --json")
     try:
-        return json.loads(text)
+        return normalize_json_for_windows_display(json.loads(text))
     except json.JSONDecodeError:
-        return json.loads(text.splitlines()[-1])
+        return normalize_json_for_windows_display(json.loads(text.splitlines()[-1]))
 
 
 def doctor_json(project_root: Path) -> dict[str, Any]:
@@ -101,7 +102,7 @@ def doctor_json(project_root: Path) -> dict[str, Any]:
     if not text:
         raise RuntimeError(proc.stderr or "empty doctor output")
     try:
-        return json.loads(text)
+        return normalize_json_for_windows_display(json.loads(text))
     except json.JSONDecodeError:
         last = text.splitlines()[-1]
-        return json.loads(last)
+        return normalize_json_for_windows_display(json.loads(last))

@@ -82,12 +82,15 @@ if ($bashCmd -and (Test-Path $unixRuntime)) {
     $exitCode = 1
     try {
         $runtimeBash = ConvertTo-WslBashPath $runtimePath
+        $rootBash = ConvertTo-WslBashPath $rootDir
         $cwdBash = ConvertTo-WslBashPath (Get-Location).Path
         $argText = ""
         if ($args.Count -gt 0) {
             $argText = ($args | ForEach-Object { '"' + ($_ -replace '"', '\"') + '"' }) -join " "
         }
-        $scriptBlock = "export RMA_WINDOWS_BRIDGE=1; export ROADMAP_AGENT_PROJECT_ROOT=""$cwdBash""; bash ""$runtimeBash"" $argText"
+        # Always set toolkit root: CRLF normalization uses a temp copy under Local/Temp; inferring APP_DIR
+        # from BASH_SOURCE would wrongly resolve to .../AppData. RUN.ps1 / rma_cli.ps1 already export this.
+        $scriptBlock = "export RMA_WINDOWS_BRIDGE=1; export ROADMAP_AGENT_APP_ROOT=""$rootBash""; export ROADMAP_AGENT_PROJECT_ROOT=""$cwdBash""; bash ""$runtimeBash"" $argText"
         & $bashCmd.Source -lc $scriptBlock
         $exitCode = $LASTEXITCODE
     } finally {

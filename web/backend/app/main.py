@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from .constants import ENV_FILE_KEYS
 from .env_service import apply_masks_for_client, mask_values, merge_env_file, parse_env_blob, parse_env_file
 from .python_envs import discover_python_envs
+from .path_display import clip_rma_streams
 from .rma_runner import doctor_json, run_rma, tools_manifest
 from .settings import get_settings, parse_cors_list
 from .web_yaml import read_web_yaml_stack_meta
@@ -520,10 +521,11 @@ def api_project_init(
         raise HTTPException(400, "Not a directory")
     flags = list(body.flags) if body else ["-y"]
     proc = run_rma(root, ["init", *flags], timeout=600.0)
+    out, err = clip_rma_streams(proc.stdout, proc.stderr)
     return {
         "returncode": proc.returncode,
-        "stdout": proc.stdout[-24000:] if proc.stdout else "",
-        "stderr": proc.stderr[-24000:] if proc.stderr else "",
+        "stdout": out,
+        "stderr": err,
     }
 
 
@@ -537,10 +539,11 @@ def api_project_setup_venv(
     if not root.is_dir():
         raise HTTPException(400, "Not a directory")
     proc = run_rma(root, ["setup-venv"], timeout=900.0)
+    out, err = clip_rma_streams(proc.stdout, proc.stderr)
     return {
         "returncode": proc.returncode,
-        "stdout": proc.stdout[-24000:] if proc.stdout else "",
-        "stderr": proc.stderr[-24000:] if proc.stderr else "",
+        "stdout": out,
+        "stderr": err,
     }
 
 
@@ -634,10 +637,11 @@ def api_run_rma(
         raise HTTPException(400, "Not a directory")
     timeout = _default_rma_timeout(body.args, body.timeout_sec)
     proc = run_rma(root, body.args, timeout=timeout)
+    out, err = clip_rma_streams(proc.stdout, proc.stderr)
     return {
         "returncode": proc.returncode,
-        "stdout": proc.stdout[-24000:] if proc.stdout else "",
-        "stderr": proc.stderr[-24000:] if proc.stderr else "",
+        "stdout": out,
+        "stderr": err,
         "timeout_sec": timeout,
     }
 
