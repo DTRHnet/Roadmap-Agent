@@ -22,12 +22,19 @@
 
 ---
 
+## Notice
+
+**NOTICE:** This project is becoming considerably larger than a set of scripts to help automate vibe/workflows. This is going to be in beta for a while. Use at your own discretion. This is a learning experience for me. A stable build will likely take some time to confidently release.
+
+---
+
 ## Table of contents
 
 ### This README
 
 | Section | What you will find |
 |---------|-------------------|
+| [Notice](#notice) | Beta expectations, scope, and stability |
 | [Documentation reference](#documentation-reference) | Curated links into `docs/`, examples, and tooling |
 | [What it does](#what-it-does) | Product overview, LLMs, interfaces, MCP vs CLI |
 | [Project components](#project-components-subsystems) | CORE, MemPalace, Web UI, MCP, sysinfo, release |
@@ -724,6 +731,8 @@ Notes:
 
 - Mount your project into `/workspace`.
 - Container entrypoint routes into the Unix runtime.
+
+**Prebuilt images (CI):** Pushing a git tag **`v*`** runs **[`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml)** and publishes **`ghcr.io/<github-owner-lowercase>/roadmap-agent`** and **`.../roadmap-agent-web`** (with **`:latest`** and version tags). Details: **[`docs/RELEASING.md`](docs/RELEASING.md)** (*Docker image → CI publish*).
 
 ---
 
